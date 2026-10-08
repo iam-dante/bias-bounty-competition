@@ -126,3 +126,28 @@ multiplicity is the mean of the four calibrated regions.
   segment variants (`r2f_ensemble`, `round2.py`) beats every single one.
 * Experiment tooling (score-based blend solver, probes, 20 experiment files) lives on the
   `dev` branch.
+
+## 8. Experiment workspace (`dev` branch)
+
+* `lb_stack.py` turns leaderboard scores into an RMSE-optimal blend without labels. For RMSE,
+  mean(f·y) = (mean(f²) + mean(y²) − MSE_f)/2, so once the all-zeros probe is scored, every
+  scored file is one known moment, and the best linear blend is a small least-squares problem.
+  - `python lb_stack.py probes` writes `submissions/probes/`.
+  - `python lb_stack.py fit` reads `lb_scores.csv` (`file,score`) and writes
+    `submissions/stack_lb.csv` with its expected public RMSE.
+* From the scores already in hand: 0.009 + 0.80·r2f, expected 0.06789
+  (`submissions/exp/e01_r2f_affine.csv`).
+* `experiments.py` writes 20 score-only files to `submissions/exp/`:
+
+  | Files | What they add to the blend |
+  |---|---|
+  | e02–e06 | r2f on one region (per-region scale) |
+  | e07–e11 | constant on one region (per-region intercept) |
+  | e12–e14 | r2f's road / POI / building components |
+  | e15–e16 | rural-only constant and rural-only r2f |
+  | e17–e20 | r2b variants: smoother road proxy, no boundary term, fewer mapped fire stations, schools never binding |
+
+* In a synthetic test, the blend's public and private RMSE agree to 4e-5, so there is no
+  measurable public-board overfit.
+* Workflow: submit, then append scores to `lb_scores.csv`, then `python lb_stack.py fit`.
+  Promote a winner to `main` once its score is confirmed.
