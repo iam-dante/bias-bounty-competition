@@ -37,7 +37,7 @@ UNSCORED = {"eastern-wa"}
 
 
 def read(name: str) -> pd.DataFrame:
-    for d in (SUB, PROBES, os.path.join(SUB, "exp")):
+    for d in (SUB, PROBES, os.path.join(SUB, "exp"), os.path.join(SUB, "round3")):
         p = os.path.join(d, name)
         if os.path.exists(p):
             return pd.read_csv(p, dtype={"GEOID": str})
