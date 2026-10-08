@@ -118,6 +118,45 @@ class Params:
     eps_cbp: float = 0.025
     sigma_c: float = 0.35
     use_cbp: bool = True
+    # neighbour-aware facilities: each Overture facility point's HIFLD copy lands in a candidate
+    # tract with probability Phi(d / sigma_loc) (d = signed distance to that tract, metres)
+    use_points: bool = False
+    sigma_loc: float = 60.0
+
+
+def attach_points(df: pd.DataFrame) -> pd.DataFrame:
+    """Load the facility point-tract tables (features.facility_points) into df.attrs."""
+    from scipy import sparse
+    idx = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())
+    pts = pd.concat([pd.read_parquet(f"{DATA}/features/{r}-facpts.parquet") for r in REGIONS])
+    pts = pts[pts["GEOID"].isin(idx.index)]
+    out = {}
+    for k in ["fire", "ems", "sch"]:
+        q = pts[pts["typ"] == k].sort_values(["id", "d"], ascending=[True, False]).reset_index(drop=True)
+        pid, j = np.unique(q["id"].to_numpy(), return_inverse=True)
+        strong = q["strong"].fillna(False).astype(bool).groupby(j).first().to_numpy()
+        A = sparse.csr_matrix((np.ones(len(q)), (idx[q["GEOID"]].to_numpy(), np.arange(len(q)))),
+                              shape=(len(df), len(q)))
+        out[k] = {"j": j, "d": q["d"].to_numpy(), "strong": strong, "A": A, "n_pts": len(pid)}
+    df.attrs["pts"] = out
+    return df
+
+
+def _point_counts(rng, P: dict, alpha: float, alpha_x: float, sigma: float, S: int) -> np.ndarray:
+    """(S, n_tracts) draws of reference facility counts implied by the Overture points."""
+    from scipy.stats import norm
+    j, d = P["j"], P["d"]
+    w = norm.cdf(d / max(sigma, 1e-3))
+    tot = np.bincount(j, weights=w, minlength=P["n_pts"])
+    w = w / np.maximum(tot[j], 1.0)                       # corners: never more than one copy
+    c = np.cumsum(w)
+    start = np.r_[0, np.cumsum(np.bincount(j, minlength=P["n_pts"]))[:-1]]
+    base = np.r_[0.0, c][start][j]                        # cumulative weight before this point
+    hi, lo = c - base, c - base - w
+    real = rng.random((S, P["n_pts"])) < np.where(P["strong"], alpha, alpha_x)
+    u = rng.random((S, P["n_pts"]))
+    sel = real[:, j] & (u[:, j] >= lo) & (u[:, j] < hi)
+    return np.asarray((P["A"] @ sel.T.astype(np.float32)).T)
 
 
 def _lognoise(rng, sigma, shape):
@@ -158,9 +197,13 @@ def simulate(df: pd.DataFrame, mu: pd.DataFrame, p: Params, n_sims: int = 256, s
         O = df[O_col].to_numpy()
         X = df[f"X_{k}"].to_numpy().astype(int)
         lam_unseen = mu[f"mu_{k}"].to_numpy() * (1 - r) / r
-        H = (rng.binomial(np.broadcast_to(O.astype(int), (S, n)), alpha)
-             + rng.binomial(np.broadcast_to(X, (S, n)), alpha_x)
-             + rng.poisson(np.broadcast_to(lam_unseen, (S, n))))
+        if p.use_points and "pts" in df.attrs:
+            H = (_point_counts(rng, df.attrs["pts"][k], alpha, alpha_x, p.sigma_loc, S)
+                 + rng.poisson(np.broadcast_to(lam_unseen, (S, n))))
+        else:
+            H = (rng.binomial(np.broadcast_to(O.astype(int), (S, n)), alpha)
+                 + rng.binomial(np.broadcast_to(X, (S, n)), alpha_x)
+                 + rng.poisson(np.broadcast_to(lam_unseen, (S, n))))
         O = O[None, :]
         d = H >= 1
         gs.append(np.where(d, 1.0 - np.minimum(1.0, O / np.maximum(H, 1)), 0.0))

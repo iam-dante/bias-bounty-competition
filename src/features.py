@@ -269,6 +269,47 @@ def poi_features(con, region) -> pd.DataFrame:
     return df
 
 
+def facility_points(region: str, radius: float = 500.0, force: bool = False) -> pd.DataFrame:
+    """Neighbour-aware facility evidence. One row per (Overture facility point, candidate tract)
+    for every tract within `radius` m: d > 0 is the distance to the boundary of the tract that
+    contains the point, d < 0 is minus the distance to a neighbouring tract. The model spreads
+    each facility's reference (HIFLD) copy over its candidate tracts with Phi(d / sigma_loc):
+    the two maps place the same station a few tens of metres apart, so stations near a tract
+    boundary leak into the neighbour."""
+    out = os.path.join(FEAT, f"{region}-facpts.parquet")
+    if os.path.exists(out) and not force:
+        return pd.read_parquet(out)
+    con = _con()
+    tract_table(con, region)
+    sc = "(" + ",".join(f"'{c}'" for c in SCHOOL_CATS) + ")"
+    con.sql(f"""
+        CREATE OR REPLACE TABLE pts AS
+        WITH p AS (
+          SELECT id, categories.primary cat, coalesce(categories.alternate, []) alts,
+                 coalesce(names.primary, '') nm, {_t('geometry')} g
+          FROM '{DATA}/reference/{region}/{region}-overture-pois.parquet')
+        SELECT id, g, 'fire' typ, cat = 'fire_department' AS strong FROM p
+          WHERE cat = 'fire_department' OR list_contains(alts, 'fire_department')
+             OR regexp_matches(nm, '{FIRE_NAME_RE}')
+        UNION ALL
+        SELECT id, g, 'ems', cat = 'ambulance_and_ems_services' FROM p
+          WHERE cat = 'ambulance_and_ems_services' OR list_contains(alts, 'ambulance_and_ems_services')
+             OR regexp_matches(nm, '{EMS_NAME_RE}')
+        UNION ALL
+        SELECT id, g, 'sch', coalesce(cat IN {sc}, false) FROM p
+          WHERE coalesce(cat IN {sc}, false) OR list_has_any(alts, {_sql_list(SCHOOL_CATS)})
+             OR (regexp_matches(nm, '{SCHOOL_NAME_RE}')
+                 AND NOT regexp_matches(coalesce(cat, ''), '(driving|dance|music|art|martial|cosmetology|swim|beauty|flight)'))""")
+    df = con.sql(f"""
+        SELECT pts.id, pts.typ, pts.strong, tr.GEOID,
+               CASE WHEN ST_Contains(tr.g, pts.g) THEN ST_Distance(pts.g, trb.bd)
+                    ELSE -ST_Distance(pts.g, tr.g) END AS d
+        FROM pts JOIN tr ON ST_DWithin(tr.g, pts.g, {radius}) JOIN trb USING (GEOID)""").df()
+    df.to_parquet(out, index=False)
+    print(f"  [{region}] facility points: {df.id.nunique()} points, {len(df)} point-tract pairs")
+    return df
+
+
 def neighbor_table(con) -> pd.DataFrame:
     """Queen-adjacency with shared-boundary length (metres)."""
     return con.sql("""

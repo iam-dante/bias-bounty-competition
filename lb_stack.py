@@ -31,6 +31,9 @@ PROBES = os.path.join(SUB, "probes")
 REGION_BY_STATE = {"40": "eastern-ok", "04": "maricopa-az", "35": "maricopa-az", "06": "northern-ca",
                    "48": "south-central-tx", "53": "eastern-wa"}
 BASE_FOR_REGION_PROBES = "r2f_ensemble.csv"
+# e06 (r2f on eastern-wa only) scored exactly the all-zeros score: eastern-wa rows are required
+# in the file but NOT graded, so the public subset P is drawn from the other four regions only.
+UNSCORED = {"eastern-wa"}
 
 
 def read(name: str) -> pd.DataFrame:
@@ -86,21 +89,26 @@ def fit():
               " (equal values => metric behaves as RMSE)")
         print(f"public mean(y^2)={Z:.5f}  best-constant RMSE ~ {np.sqrt(Z - np.mean(list(ybar.values())) ** 2):.5f}")
 
+    scored = ~reg.isin(UNSCORED).to_numpy()   # mean_P(.) is approximated over graded rows only
     cols, c = {}, {}
     for f, sc in s.items():
         if f == "probe_zeros.csv" or f.startswith("probe_const_"):
             continue
         v = read(f)
         v = t.merge(v[["GEOID", "coverage_gap_score"]], on="GEOID", how="left")["coverage_gap_score"].to_numpy()
+        if not np.any(v[scored]):
+            print(f"  skipping {f}: zero on every graded row")
+            continue
         cols[f] = v
-        c[f] = (np.mean(v ** 2) + Z - sc ** 2) / 2
+        c[f] = (np.mean(v[scored] ** 2) + Z - sc ** 2) / 2
     if ybar:  # constant column -> intercept
         cols["__const__"] = np.ones(len(t))
         c["__const__"] = float(np.mean(list(ybar.values())))
     names = list(cols)
     X = np.column_stack([cols[n] for n in names])
     cv = np.array([c[n] for n in names])
-    G = X.T @ X / len(X)
+    Xs = X[scored]
+    G = Xs.T @ Xs / len(Xs)
 
     def solve(ridge):  # ridge relative to the mean column energy, so it is scale-free
         w = np.linalg.solve(G + ridge * np.trace(G) / len(names) * np.eye(len(names)), cv)
