@@ -1,0 +1,9 @@
+# challenge data (~3 GB, re-download with the aws commands in README)
+data/
+SampleSubmission.csv
+# run logs / caches
+*.log
+__pycache__/
+.DS_Store
+# duplicates of submissions/*.csv kept only locally
+submissions/score_only/
