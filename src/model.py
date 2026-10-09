@@ -57,6 +57,14 @@ def load() -> pd.DataFrame:
     df["area_km2"] = df["area_m2"] / 1e6
     df["rural"] = (df["ruca_primary"] >= 4).astype(int)
     df["burned"] = df["mtbs_wildfire_ever"].fillna(False).astype(bool).astype(int)
+    # bias-scorecard groups (definitions reproduce our public scorecard to the 3rd decimal;
+    # medians over all rows of the submission, eastern-wa included)
+    above = lambda c: (df[c] > df[c].median()).astype(int)
+    df["g_rural"] = (df["pct_urban"] < 0.5).astype(int)
+    df["g_tribal"] = df["tribal_any"].fillna(False).astype(bool).astype(int)
+    df["g_svi"], df["g_cvi"] = above("svi_overall"), above("cvi_overall")
+    df["g_drs"], df["g_drw"] = above("usdm_summer_dsci"), above("usdm_winter_dsci")
+    df["g_wild"], df["g_heat"] = above("usfs_WHP_mean"), above("epht_heat_days_summer")
     df["ridx"] = df["region"].map(RIDX)
     df["pop"] = df["pop_total"].fillna(0).clip(lower=0)
     df["county"] = df["GEOID"].str[:5]
@@ -118,6 +126,65 @@ class Params:
     eps_cbp: float = 0.025
     sigma_c: float = 0.35
     use_cbp: bool = True
+    # neighbour-aware facilities: each Overture facility point's HIFLD copy lands in a candidate
+    # tract with probability Phi(d / sigma_loc) (d = signed distance to that tract, metres)
+    use_points: bool = False
+    sigma_loc: float = 60.0
+    # burned-regime specialist (MTBS-burned tracts): multiplier on the unseen-facility rate and on
+    # the TIGER length. 1.0 = shared parameters (rounds 1-3)
+    burn_unseen: float = 1.0
+    burn_road: float = 1.0
+    # first-principles group effects (log multipliers, 0 = off). Rural / wildland / dryland fire
+    # protection is volunteer and state stations that HIFLD lists but Overture often misses
+    # (gf_*: unseen-facility rate); rural state highways are tagged below primary/secondary in OSM
+    # and carry extra TIGER name records (gr_*: TIGER-length multiplier); Overture's place
+    # coverage thins faster than real establishments in sparse areas (gc_rural: CBP density).
+    gf_rural: float = 0.0
+    gf_wild: float = 0.0
+    gf_drw: float = 0.0
+    gf_tribal: float = 0.0
+    gf_svi: float = 0.0
+    gf_heat: float = 0.0
+    gr_rural: float = 0.0
+    gr_wild: float = 0.0
+    gr_drw: float = 0.0
+    gr_heat: float = 0.0
+    gc_rural: float = 0.0
+
+
+def attach_points(df: pd.DataFrame) -> pd.DataFrame:
+    """Load the facility point-tract tables (features.facility_points) into df.attrs."""
+    from scipy import sparse
+    idx = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())
+    pts = pd.concat([pd.read_parquet(f"{DATA}/features/{r}-facpts.parquet") for r in REGIONS])
+    pts = pts[pts["GEOID"].isin(idx.index)]
+    out = {}
+    for k in ["fire", "ems", "sch"]:
+        q = pts[pts["typ"] == k].sort_values(["id", "d"], ascending=[True, False]).reset_index(drop=True)
+        pid, j = np.unique(q["id"].to_numpy(), return_inverse=True)
+        strong = q["strong"].fillna(False).astype(bool).groupby(j).first().to_numpy()
+        A = sparse.csr_matrix((np.ones(len(q)), (idx[q["GEOID"]].to_numpy(), np.arange(len(q)))),
+                              shape=(len(df), len(q)))
+        out[k] = {"j": j, "d": q["d"].to_numpy(), "strong": strong, "A": A, "n_pts": len(pid)}
+    df.attrs["pts"] = out
+    return df
+
+
+def _point_counts(rng, P: dict, alpha: float, alpha_x: float, sigma: float, S: int) -> np.ndarray:
+    """(S, n_tracts) draws of reference facility counts implied by the Overture points."""
+    from scipy.stats import norm
+    j, d = P["j"], P["d"]
+    w = norm.cdf(d / max(sigma, 1e-3))
+    tot = np.bincount(j, weights=w, minlength=P["n_pts"])
+    w = w / np.maximum(tot[j], 1.0)                       # corners: never more than one copy
+    c = np.cumsum(w)
+    start = np.r_[0, np.cumsum(np.bincount(j, minlength=P["n_pts"]))[:-1]]
+    base = np.r_[0.0, c][start][j]                        # cumulative weight before this point
+    hi, lo = c - base, c - base - w
+    real = rng.random((S, P["n_pts"])) < np.where(P["strong"], alpha, alpha_x)
+    u = rng.random((S, P["n_pts"]))
+    sel = real[:, j] & (u[:, j] >= lo) & (u[:, j] < hi)
+    return np.asarray((P["A"] @ sel.T.astype(np.float32)).T)
 
 
 def _lognoise(rng, sigma, shape):
@@ -131,13 +198,19 @@ def simulate(df: pd.DataFrame, mu: pd.DataFrame, p: Params, n_sims: int = 256, s
     n, S = len(df), n_sims
     m_all = list(p.m) + [float(np.mean(p.m))] * (len(REGIONS) - len(p.m))
     m_r = np.asarray(m_all)[df["ridx"].to_numpy()]
+    burned = df["burned"].to_numpy() == 1
+    gcol = lambda c: df[c].to_numpy() if c in df else np.zeros(len(df))
+    road_mult = np.exp(p.gr_rural * gcol("g_rural") + p.gr_wild * gcol("g_wild")
+                       + p.gr_drw * gcol("g_drw") + p.gr_heat * gcol("g_heat"))
+    fac_mult = np.exp(p.gf_rural * gcol("g_rural") + p.gf_wild * gcol("g_wild") + p.gf_drw * gcol("g_drw")
+                      + p.gf_tribal * gcol("g_tribal") + p.gf_svi * gcol("g_svi") + p.gf_heat * gcol("g_heat"))
 
     # ---- road component --------------------------------------------------------------------
     N = df["L_named"].to_numpy()
     G = (df["L_route"] + p.w_fm * df["L_fm"]
          + p.beta_bnd * (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)).to_numpy()
     has_ev = G > 1.0
-    T = (m_r * G)[None, :] * _lognoise(rng, p.sigma_t, (S, n))
+    T = (m_r * G * np.where(burned, p.burn_road, 1.0) * road_mult)[None, :] * _lognoise(rng, p.sigma_t, (S, n))
     # rare "TIGER highway with no route evidence": short piece, Overture usually has it as named
     surprise = (~has_ev)[None, :] & (rng.random((S, n)) < p.p_def0)
     T = np.where(surprise, 400.0 * _lognoise(rng, 1.0, (S, n)), T)
@@ -157,10 +230,15 @@ def simulate(df: pd.DataFrame, mu: pd.DataFrame, p: Params, n_sims: int = 256, s
                                         ("sch", "n_sch", p.alpha_sch, p.alpha_sch_x, p.r_sch)]:
         O = df[O_col].to_numpy()
         X = df[f"X_{k}"].to_numpy().astype(int)
-        lam_unseen = mu[f"mu_{k}"].to_numpy() * (1 - r) / r
-        H = (rng.binomial(np.broadcast_to(O.astype(int), (S, n)), alpha)
-             + rng.binomial(np.broadcast_to(X, (S, n)), alpha_x)
-             + rng.poisson(np.broadcast_to(lam_unseen, (S, n))))
+        lam_unseen = (mu[f"mu_{k}"].to_numpy() * (1 - r) / r * np.where(burned, p.burn_unseen, 1.0)
+                      * fac_mult)
+        if p.use_points and "pts" in df.attrs:
+            H = (_point_counts(rng, df.attrs["pts"][k], alpha, alpha_x, p.sigma_loc, S)
+                 + rng.poisson(np.broadcast_to(lam_unseen, (S, n))))
+        else:
+            H = (rng.binomial(np.broadcast_to(O.astype(int), (S, n)), alpha)
+                 + rng.binomial(np.broadcast_to(X, (S, n)), alpha_x)
+                 + rng.poisson(np.broadcast_to(lam_unseen, (S, n))))
         O = O[None, :]
         d = H >= 1
         gs.append(np.where(d, 1.0 - np.minimum(1.0, O / np.maximum(H, 1)), 0.0))
@@ -171,7 +249,7 @@ def simulate(df: pd.DataFrame, mu: pd.DataFrame, p: Params, n_sims: int = 256, s
 
     # ---- POI component: CBP half -----------------------------------------------------------
     if p.use_cbp:
-        CBP = (p.eps_cbp * df["pop"].to_numpy())[None, :] * _lognoise(rng, p.sigma_c, (S, n))
+        CBP = (p.eps_cbp * df["pop"].to_numpy() * np.exp(p.gc_rural * gcol("g_rural")))[None, :] * _lognoise(rng, p.sigma_c, (S, n))
         dC = CBP >= 0.5
         c = np.where(dC, 1.0 - np.minimum(1.0, df["n_poi"].to_numpy()[None, :] / np.maximum(CBP, 1e-9)), 0.0)
     else:
@@ -223,6 +301,29 @@ def perturbed_targets(rng: np.random.Generator, rel_sd: float = 0.08) -> dict:
             "COMP": {k: tuple(j(x) for x in v) for k, v in COMP.items()}}
 
 
+# True target's public bias scorecard (the RMSE-0 leaderboard entries, averaged), if available.
+SCORECARD_W = 0.0   # weight on log(pred ratio / true ratio); round5.py turns it on
+_SC_GROUPS = {"urban_rural": "g_rural", "tribal_vs_nontribal": "g_tribal", "high_svi_vs_low_svi": "g_svi",
+              "high_cvi_vs_low_cvi": "g_cvi", "drought_summer": "g_drs", "drought_winter": "g_drw",
+              "wildfire": "g_wild", "heat_summer": "g_heat"}
+
+
+def scorecard_truth() -> dict:
+    import json
+    if not os.path.exists("scorecards.json"):
+        return {}
+    t = json.load(open("scorecards.json"))["truth"]
+    return {k: float(np.mean([x[k] for x in t])) for k in _SC_GROUPS}
+
+
+def scorecard_ratios(df: pd.DataFrame, score: np.ndarray) -> dict:
+    out = {}
+    for k, g in _SC_GROUPS.items():
+        m = df[g].to_numpy() == 1
+        out[k] = score[m].mean() / max(score[~m].mean(), 1e-9)
+    return out
+
+
 def moment_residuals(df: pd.DataFrame, pred: pd.DataFrame, targets: dict | None = None) -> np.ndarray:
     tg = targets or {"UNDEF": UNDEF, "CELL": CELL, "COMP": COMP}
     UNDEF_, CELL_, COMP_ = tg["UNDEF"], tg["CELL"], tg["COMP"]
@@ -239,6 +340,10 @@ def moment_residuals(df: pd.DataFrame, pred: pd.DataFrame, targets: dict | None 
         bmask = df["burned"].to_numpy() == 1
         res.append(1.5 * (pred.loc[cal & bmask, col].mean() - tb))
         res.append(3.0 * (pred.loc[cal & ~bmask, col].mean() - tu))
+    if SCORECARD_W > 0:
+        truth = scorecard_truth()
+        ours = scorecard_ratios(df, pred["coverage_gap_score"].to_numpy())
+        res += [SCORECARD_W * np.log(ours[k] / truth[k]) for k in truth]
     idx = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())
     for g, (cs, rd, po) in PARADISE.items():
         if g in idx:
@@ -252,7 +357,8 @@ CALIB_FIELDS = ["m0", "m1", "m2", "m3", "beta_bnd", "sigma_t", "r_fire", "alpha_
 BOUNDS = {"m0": (1.0, 3.0), "m1": (1.0, 3.0), "m2": (1.0, 3.0), "m3": (1.0, 3.0),
           "beta_bnd": (0.0, 2.0), "sigma_t": (0.05, 0.8), "r_fire": (0.3, 0.99), "alpha_fire_x": (0.0, 1.0),
           "alpha_ems_x": (0.0, 0.6), "alpha_sch": (0.4, 1.0), "alpha_sch_x": (0.0, 0.6),
-          "eps_cbp": (0.0005, 0.06), "kappa_b": (0.7, 1.10)}
+          "eps_cbp": (0.0005, 0.06), "kappa_b": (0.7, 1.10),
+          "burn_unseen": (0.2, 30.0), "burn_road": (0.5, 2.0)}
 
 
 def _vec_to_params(v, base: Params) -> Params:

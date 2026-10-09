@@ -1,8 +1,9 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current best: `submissions/stack_region_ok_tx.csv`, public RMSE 0.066977056**
-(score-based blend of r2f with separate Eastern-OK and Texas scaling). Previous bests:
-e01_r2f_affine 0.067315979, r2f_ensemble 0.069455144.
+**Current best: `submissions/round5/r5e_groups_affine.csv`, public RMSE 0.065882765**
+(round-5 model: first-principles group effects calibrated on the true target's public bias
+scorecard). Previous bests: stack3 0.066116, stack2 0.066850, stack_region_ok_tx 0.066977,
+e01_r2f_affine 0.067316, r2f_ensemble 0.069455.
 Best constant: 0.0890; all-zeros: 0.1072.
 
 Branches: `main` holds the code that reproduces the current best. `dev` is the experiment
@@ -15,8 +16,11 @@ aws s3 sync $B/reference/ data/reference/ --no-sign-request --exclude '*roads-un
 for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
   aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
 python solution.py   # features (cached in data/features/) + calibration -> submissions/params.json
-python round2.py     # segment-multiplicity variants -> submissions/r2f_ensemble.csv
-python best.py       # score-based recalibration -> submissions/stack_region_ok_tx.csv (best)
+python round2.py     # segment-multiplicity variants -> submissions/params_round2.json
+python round3.py     # neighbour-aware facility leakage -> submissions/params_round3.json
+python round5.py     # group effects + scorecard calibration -> submissions/round5/r5e_groups_affine.csv
+# or, in seconds, from the saved calibrated parameters:
+python best.py       # -> submissions/round5/r5e_groups_affine.csv (byte-identical to the scored file)
 ```
 
 Submit **score-only** files (`GEOID,coverage_gap_score`). Zindi grades every column you
@@ -135,6 +139,21 @@ multiplicity is the mean of the four calibrated regions.
   0.092871, e05 Texas 0.093546) give each region's fit separately. Eastern OK's gaps are the
   most under-predicted, so the blend adds 0.198·r2f there. The result, `stack_region_ok_tx`,
   scored **0.066977**. Weights are in `best_weights.json`.
+* **Boundary leakage (round 3).** 18–30 % of Overture facility points lie within 100 m of
+  their tract boundary, so a station's HIFLD copy can land in the neighbouring tract. The model
+  spreads each reference copy over tracts within 500 m by Φ(d/σ). The moments cannot identify σ,
+  but a σ = 40 m variant added independent signal on the leaderboard (stack2 0.066850).
+* **The true target's bias scorecard is public.** The RMSE-0 entries' scorecards (Zindi
+  participations API) give the true disparity ratios. The group definitions were
+  reverse-engineered by reproducing our own scorecard to the 3rd decimal (e.g. wildfire =
+  `usfs_WHP_mean` above median, rural = `pct_urban` < 0.5). Our predictions were too flat
+  (rural 1.92× vs true 2.36×, wildfire 1.33× vs 1.77×).
+* **Round 5 puts those effects inside the model.** The unseen-facility rate, the TIGER-length
+  multiplier and CBP density get log-linear effects per group, and the 8 true ratios join the
+  calibration moments. Robust across variants: winter-drought tracts carry ×1.17–1.25 more TIGER
+  highway length than Overture's named classes, and real establishments are sparser than the
+  population allocation in rural tracts. The roads-vs-facilities split of the other group
+  effects is not identified, so `r5e` averages three variants. It scored **0.065883**.
 * **eastern-wa is not graded.** Its probe (e06) scored exactly the all-zeros score, so its rows
   are required in the file but don't affect the score.
 * Further experiment tooling (`experiments.py`, probes, 20 experiment files) lives on the

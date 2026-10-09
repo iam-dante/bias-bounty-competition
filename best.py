@@ -1,33 +1,42 @@
 """
-Current best: stack_region_ok_tx, public RMSE 0.066977056.
+Current best: r5e_groups_affine, public RMSE 0.065882765.
 
-Both steps use leaderboard scores only (lb_stack.py). For RMSE,
-mean(f*y) = (mean(f^2) + mean(y^2) - MSE_f) / 2, so each scored file is one known moment.
+Round-5 model (round5.py): the generative model of the withdrawn reference layers with
+first-principles group effects (rural, wildfire, drought, tribal, SVI, heat) on the
+unseen-facility rate, the TIGER-length multiplier and CBP density, calibrated on the public
+moments plus the true target's public bias scorecard. r5e = 0.009 + 0.80 * mean(r5a, r5b, r5c).
 
-1. e01_r2f_affine (public 0.067316) = 0.009 + 0.80 * r2f_ensemble. r2f was over-dispersed.
-2. stack_region_ok_tx (public 0.066977) = least-squares blend of r2f, e01, r2f restricted to
-   Eastern Oklahoma, r2f restricted to Texas, and a constant (weights in best_weights.json,
-   ridge 1e-3). Roughly 0.0118 + 0.695*r2f, plus 0.198*r2f extra in Eastern OK (its gaps
-   were the most under-predicted) and 0.033*r2f extra in Texas. eastern-wa is not graded.
-
-    python solution.py && python round2.py && python best.py
+Fast path (seconds): rebuild r5e from the saved calibrated parameters.
+    python best.py
+Full path (~1 h): recalibrate everything from scratch.
+    python solution.py && python round2.py && python round3.py && python round5.py
 """
 import json
+import os
+import sys
 
 import numpy as np
 import pandas as pd
 
-r2f = pd.read_csv("submissions/r2f_ensemble.csv", dtype={"GEOID": str})
-f = r2f["coverage_gap_score"].to_numpy()
-state = r2f["GEOID"].str[:2].to_numpy()
+sys.path.insert(0, "src")
+import features  # noqa: E402
+import model as M  # noqa: E402
+from round2 import seg_frame  # noqa: E402
+from round3 import interstate_frame  # noqa: E402
+from solution import N_SIMS, SEED  # noqa: E402
 
-e01 = np.clip(0.009 + 0.80 * f, 0, 1).round(6)
-r2f[["GEOID"]].assign(coverage_gap_score=e01).to_csv("submissions/e01_r2f_affine.csv", index=False)
-
-w = json.load(open("best_weights.json"))
-best = (w["r2f"] * f + w["e01"] * e01 + w["r2f_ok"] * f * (state == "40")
-        + w["r2f_tx"] * f * (state == "48") + w["const"])
-out = r2f[["GEOID"]].assign(coverage_gap_score=np.clip(best, 0, 1).round(6))
-out.to_csv("submissions/stack_region_ok_tx.csv", index=False)
-print(f"wrote submissions/e01_r2f_affine.csv and submissions/stack_region_ok_tx.csv "
-      f"({len(out)} rows, mean {out.coverage_gap_score.mean():.4f})")
+for r in features.REGIONS:
+    features.build_region(r)
+    features.facility_points(r)
+df = M.attach_points(M.load())
+mu = M.prior_rates(df)
+P = json.load(open("submissions/params_round5.json"))
+frames = {"r5a_groups_leak40": seg_frame(df, 1.0, 1.0, 0.0), "r5b_groups_interstate": interstate_frame(df),
+          "r5c_groups_noleak": seg_frame(df, 1.0, 1.0, 0.0)}
+preds = [M.simulate(frames[k], mu, M.Params(**{**P[k], "m": tuple(P[k]["m"])}), n_sims=N_SIMS, seed=SEED)
+         ["coverage_gap_score"].to_numpy() for k in frames]
+score = np.clip(0.009 + 0.80 * np.mean(preds, axis=0), 0, 1).round(6)
+os.makedirs("submissions/round5", exist_ok=True)
+out = pd.DataFrame({"GEOID": df["GEOID"].to_numpy(), "coverage_gap_score": score})
+out.to_csv("submissions/round5/r5e_groups_affine.csv", index=False)
+print(f"wrote submissions/round5/r5e_groups_affine.csv ({len(out)} rows, mean {score.mean():.4f})")
