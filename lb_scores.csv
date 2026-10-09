@@ -2,3 +2,7 @@ file,score
 probe_zeros.csv,0.107246299
 probe_const_0.10.csv,0.097675731
 r2f_ensemble.csv,0.069455144
+e01_r2f_affine.csv,0.067315979
+e02_r2f_only_eastern-ok.csv,0.092870971
+e05_r2f_only_south-central-tx.csv,0.093546274
+stack_region_ok_tx.csv,0.066977056

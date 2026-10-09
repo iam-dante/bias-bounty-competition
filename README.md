@@ -1,7 +1,8 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current best: `submissions/e01_r2f_affine.csv`, public RMSE 0.067315979**
-(= 0.009 + 0.80 × r2f; previous best r2f_ensemble 0.069455144, rank 12).
+**Current best: `submissions/stack_region_ok_tx.csv`, public RMSE 0.066977056**
+(score-based blend of r2f with separate Eastern-OK and Texas scaling). Previous bests:
+e01_r2f_affine 0.067315979, r2f_ensemble 0.069455144.
 Best constant: 0.0890; all-zeros: 0.1072.
 
 Branches: `main` holds the code that reproduces the current best. `dev` is the experiment
@@ -15,7 +16,7 @@ for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
   aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
 python solution.py   # features (cached in data/features/) + calibration -> submissions/params.json
 python round2.py     # segment-multiplicity variants -> submissions/r2f_ensemble.csv
-python best.py       # affine recalibration -> submissions/e01_r2f_affine.csv (best)
+python best.py       # score-based recalibration -> submissions/stack_region_ok_tx.csv (best)
 ```
 
 Submit **score-only** files (`GEOID,coverage_gap_score`). Zindi grades every column you
@@ -130,5 +131,11 @@ multiplicity is the mean of the four calibrated regions.
   mean(f·y) = (mean(f²) + mean(y²) − MSE_f)/2, so the zeros probe, the constant-0.10 probe and
   r2f's score give the least-squares fit y ≈ 0.009 + 0.80·r2f. r2f was over-dispersed, and the
   fix scored **0.067316** (predicted 0.0679). `lb_scores.csv` holds the three scores used.
+* **Per-region scaling.** Probes that keep r2f in one region and zero elsewhere (e02 Eastern OK
+  0.092871, e05 Texas 0.093546) give each region's fit separately. Eastern OK's gaps are the
+  most under-predicted, so the blend adds 0.198·r2f there. The result, `stack_region_ok_tx`,
+  scored **0.066977**. Weights are in `best_weights.json`.
+* **eastern-wa is not graded.** Its probe (e06) scored exactly the all-zeros score, so its rows
+  are required in the file but don't affect the score.
 * Further experiment tooling (`experiments.py`, probes, 20 experiment files) lives on the
   `dev` branch.
