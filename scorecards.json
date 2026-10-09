@@ -1,0 +1,37 @@
+{
+ "ours": {
+  "wildfire": 1.333,
+  "heat_summer": 0.644,
+  "urban_rural": 1.921,
+  "drought_summer": 0.875,
+  "drought_winter": 1.103,
+  "intersectional": 1.051,
+  "high_cvi_vs_low_cvi": 1.299,
+  "high_svi_vs_low_svi": 1.114,
+  "tribal_vs_nontribal": 2.6
+ },
+ "truth": [
+  {
+   "wildfire": 1.767,
+   "heat_summer": 0.618,
+   "urban_rural": 2.336,
+   "drought_summer": 0.999,
+   "drought_winter": 1.36,
+   "intersectional": 1.219,
+   "high_cvi_vs_low_cvi": 1.554,
+   "high_svi_vs_low_svi": 1.231,
+   "tribal_vs_nontribal": 2.884
+  },
+  {
+   "wildfire": 1.768,
+   "heat_summer": 0.59,
+   "urban_rural": 2.378,
+   "drought_summer": 1.006,
+   "drought_winter": 1.425,
+   "intersectional": 1.197,
+   "high_cvi_vs_low_cvi": 1.462,
+   "high_svi_vs_low_svi": 1.213,
+   "tribal_vs_nontribal": 2.785
+  }
+ ]
+}
