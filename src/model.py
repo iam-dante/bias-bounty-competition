@@ -65,6 +65,8 @@ def load() -> pd.DataFrame:
     df["g_svi"], df["g_cvi"] = above("svi_overall"), above("cvi_overall")
     df["g_drs"], df["g_drw"] = above("usdm_summer_dsci"), above("usdm_winter_dsci")
     df["g_wild"], df["g_heat"] = above("usfs_WHP_mean"), above("epht_heat_days_summer")
+    # scorecard "High Hazard + High Vulnerability": any hazard high AND social vulnerability high
+    df["g_inter"] = (((df["g_wild"] + df["g_heat"] + df["g_drs"]) > 0) & (df["g_svi"] == 1)).astype(int)
     df["ridx"] = df["region"].map(RIDX)
     df["pop"] = df["pop_total"].fillna(0).clip(lower=0)
     df["county"] = df["GEOID"].str[:5]
@@ -150,6 +152,9 @@ class Params:
     gr_drw: float = 0.0
     gr_heat: float = 0.0
     gc_rural: float = 0.0
+    gf_cvi: float = 0.0
+    gr_svi: float = 0.0
+    gr_cvi: float = 0.0
 
 
 def attach_points(df: pd.DataFrame) -> pd.DataFrame:
@@ -201,9 +206,11 @@ def simulate(df: pd.DataFrame, mu: pd.DataFrame, p: Params, n_sims: int = 256, s
     burned = df["burned"].to_numpy() == 1
     gcol = lambda c: df[c].to_numpy() if c in df else np.zeros(len(df))
     road_mult = np.exp(p.gr_rural * gcol("g_rural") + p.gr_wild * gcol("g_wild")
-                       + p.gr_drw * gcol("g_drw") + p.gr_heat * gcol("g_heat"))
+                       + p.gr_drw * gcol("g_drw") + p.gr_heat * gcol("g_heat")
+                       + p.gr_svi * gcol("g_svi") + p.gr_cvi * gcol("g_cvi"))
     fac_mult = np.exp(p.gf_rural * gcol("g_rural") + p.gf_wild * gcol("g_wild") + p.gf_drw * gcol("g_drw")
-                      + p.gf_tribal * gcol("g_tribal") + p.gf_svi * gcol("g_svi") + p.gf_heat * gcol("g_heat"))
+                      + p.gf_tribal * gcol("g_tribal") + p.gf_svi * gcol("g_svi") + p.gf_heat * gcol("g_heat")
+                      + p.gf_cvi * gcol("g_cvi"))
 
     # ---- road component --------------------------------------------------------------------
     N = df["L_named"].to_numpy()
@@ -305,7 +312,7 @@ def perturbed_targets(rng: np.random.Generator, rel_sd: float = 0.08) -> dict:
 SCORECARD_W = 0.0   # weight on log(pred ratio / true ratio); round5.py turns it on
 _SC_GROUPS = {"urban_rural": "g_rural", "tribal_vs_nontribal": "g_tribal", "high_svi_vs_low_svi": "g_svi",
               "high_cvi_vs_low_cvi": "g_cvi", "drought_summer": "g_drs", "drought_winter": "g_drw",
-              "wildfire": "g_wild", "heat_summer": "g_heat"}
+              "wildfire": "g_wild", "heat_summer": "g_heat", "intersectional": "g_inter"}
 
 
 def scorecard_truth() -> dict:
