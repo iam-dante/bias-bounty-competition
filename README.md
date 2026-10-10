@@ -1,9 +1,9 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current best: `submissions/round5/r5e_groups_affine.csv`, public RMSE 0.065882765**
-(round-5 model: first-principles group effects calibrated on the true target's public bias
-scorecard). Previous bests: stack3 0.066116, stack2 0.066850, stack_region_ok_tx 0.066977,
-e01_r2f_affine 0.067316, r2f_ensemble 0.069455.
+**Current best: `submissions/round5/stack4_no_scorecard.csv`, public RMSE 0.065108469**
+(score-based blend led by the round-5 group-effect model). Previous bests: r6e 0.065531,
+r5e 0.065883, stack3 0.066116, stack2 0.066850, stack_region_ok_tx 0.066977, e01 0.067316,
+r2f_ensemble 0.069455.
 Best constant: 0.0890; all-zeros: 0.1072.
 
 Branches: `main` holds the code that reproduces the current best. `dev` is the experiment
@@ -19,8 +19,9 @@ python solution.py   # features (cached in data/features/) + calibration -> subm
 python round2.py     # segment-multiplicity variants -> submissions/params_round2.json
 python round3.py     # neighbour-aware facility leakage -> submissions/params_round3.json
 python round5.py     # group effects + scorecard calibration -> submissions/round5/r5e_groups_affine.csv
-# or, in seconds, from the saved calibrated parameters:
-python best.py       # -> submissions/round5/r5e_groups_affine.csv (byte-identical to the scored file)
+python round6.py     # + social/climate-vulnerability effects -> submissions/round6/r6e_vuln_affine.csv
+python best.py       # score-based blend -> submissions/round5/stack4_no_scorecard.csv (best,
+                     # byte-identical to the scored file; weights in stack4_no_scorecard_weights.json)
 ```
 
 Submit **score-only** files (`GEOID,coverage_gap_score`). Zindi grades every column you
@@ -154,6 +155,12 @@ multiplicity is the mean of the four calibrated regions.
   highway length than Overture's named classes, and real establishments are sparser than the
   population allocation in rural tracts. The roads-vs-facilities split of the other group
   effects is not identified, so `r5e` averages three variants. It scored **0.065883**.
+* **Matching the scorecard does not win RMSE.** Rank 10 (0.0660) matches the true scorecard
+  almost exactly; rank 6 (0.0621) is much flatter. Our flatter r5e (rural 2.10) beat the
+  truth-like r5d (rural 2.36). With noisy tract-level signal the RMSE-optimal prediction is
+  flatter than the truth. Group offsets taken from the scorecard also hurt in the blend
+  (stack4 with them 0.065307, without 0.065108), so the gains now come from tract-level signal.
+* **Round 6** adds social- and climate-vulnerability effects (r6e 0.065531, better than r5e).
 * **eastern-wa is not graded.** Its probe (e06) scored exactly the all-zeros score, so its rows
   are required in the file but don't affect the score.
 * Further experiment tooling (`experiments.py`, probes, 20 experiment files) lives on the

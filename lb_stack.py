@@ -40,7 +40,7 @@ PUBLISHED = {"06007002300": 0.252, "06007001602": 0.254, "06007001703": 0.191, "
 
 
 def read(name: str) -> pd.DataFrame:
-    for d in (SUB, PROBES, os.path.join(SUB, "exp"), os.path.join(SUB, "round3"), os.path.join(SUB, "round4"), os.path.join(SUB, "round5")):
+    for d in (SUB, PROBES, os.path.join(SUB, "exp"), os.path.join(SUB, "round3"), os.path.join(SUB, "round4"), os.path.join(SUB, "round5"), os.path.join(SUB, "round6"), os.path.join(SUB, "round7")):
         p = os.path.join(d, name)
         if os.path.exists(p):
             return pd.read_csv(p, dtype={"GEOID": str})
@@ -170,6 +170,10 @@ def fit():
     out["coverage_gap_score"] = known.fillna(out["coverage_gap_score"])
     os.makedirs(SUB, exist_ok=True)
     out.round(6).to_csv(os.path.join(SUB, "stack_lb.csv"), index=False)
+    import json  # exact recipe, so a winning blend can be rebuilt without refitting
+    json.dump({"weights": dict(zip(names, map(float, w))), "published": PUBLISHED,
+               "expected_rmse": float(np.sqrt(max(mse, 0)))},
+              open(os.path.join(SUB, "stack_lb_weights.json"), "w"), indent=1)
     print(f"wrote {SUB}/stack_lb.csv  (expected public RMSE {np.sqrt(max(mse, 0)):.6f}; "
           "clipping to [0,1] can only lower it)")
 
