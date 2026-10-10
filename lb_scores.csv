@@ -12,3 +12,6 @@ stack2_e01_r3j_region.csv,0.066850291
 stack3_scorecard_groups.csv,0.066116371
 r5e_groups_affine.csv,0.065882765
 r5d_groups_ensemble.csv,0.068177906
+r6e_vuln_affine.csv,0.065531406
+stack4_with_scorecard.csv,0.065307242
+stack4_no_scorecard.csv,0.065108469

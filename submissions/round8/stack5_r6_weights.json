@@ -1,0 +1,26 @@
+{
+ "weights": {
+  "r2f_ensemble.csv": -0.28321682552915883,
+  "e01_r2f_affine.csv": 0.25242965850643806,
+  "e02_r2f_only_eastern-ok.csv": 0.03637349284771056,
+  "e05_r2f_only_south-central-tx.csv": 0.014260682329426351,
+  "r3j_sigma40_affine.csv": -0.12797637748473115,
+  "stack_region_ok_tx.csv": 0.15890048584723407,
+  "stack2_e01_r3j_region.csv": 0.02995022978851126,
+  "stack3_scorecard_groups.csv": 0.14202165226359612,
+  "r5e_groups_affine.csv": 0.2928741862199662,
+  "r5d_groups_ensemble.csv": -0.24663941657453606,
+  "r6e_vuln_affine.csv": 0.5009369704409892,
+  "stack4_with_scorecard.csv": 0.21052544049442298,
+  "stack4_no_scorecard.csv": 0.2129086940087653,
+  "__const__": -0.006088245687201986
+ },
+ "published": {
+  "06007002300": 0.252,
+  "06007001602": 0.254,
+  "06007001703": 0.191,
+  "06007002200": 0.249,
+  "06007001601": 0.323
+ },
+ "expected_rmse": 0.06438949618152219
+}

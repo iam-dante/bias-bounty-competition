@@ -170,6 +170,10 @@ def fit():
     out["coverage_gap_score"] = known.fillna(out["coverage_gap_score"])
     os.makedirs(SUB, exist_ok=True)
     out.round(6).to_csv(os.path.join(SUB, "stack_lb.csv"), index=False)
+    import json  # exact recipe, so a winning blend can be rebuilt without refitting
+    json.dump({"weights": dict(zip(names, map(float, w))), "published": PUBLISHED,
+               "expected_rmse": float(np.sqrt(max(mse, 0)))},
+              open(os.path.join(SUB, "stack_lb_weights.json"), "w"), indent=1)
     print(f"wrote {SUB}/stack_lb.csv  (expected public RMSE {np.sqrt(max(mse, 0)):.6f}; "
           "clipping to [0,1] can only lower it)")
 
