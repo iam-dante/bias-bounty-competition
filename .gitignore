@@ -7,3 +7,11 @@ __pycache__/
 .DS_Store
 # duplicates of submissions/*.csv kept only locally
 submissions/score_only/
+# regenerated outputs (pipeline scripts and lb_stack.py write these); only scored files are kept,
+# in submissions/blend_inputs/, plus the current best in submissions/best/
+submissions/round*/
+submissions/probes/
+submissions/exp/
+submissions/sub*_*.csv
+submissions/r2*_*.csv
+submissions/stack_lb*

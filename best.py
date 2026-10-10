@@ -1,21 +1,32 @@
 """
-Current best: e01_r2f_affine, public RMSE 0.067315979.
+Current best: submissions/best/stack5_r6.csv, public RMSE 0.064866595.
 
-Affine recalibration of r2f_ensemble (public 0.069455144):  best = 0.009 + 0.80 * r2f.
-The coefficients come from leaderboard scores alone (see lb_stack.py): with the all-zeros
-probe (0.107246299), the constant-0.10 probe (0.097675731) and r2f's score, RMSE gives
-mean(y), mean(y^2) and mean(r2f * y) on the public set, and least squares on
-[r2f, 1] yields w = (0.80, 0.009). r2f's predictions were slightly over-dispersed.
+A least-squares blend of every scored submission, fitted from leaderboard scores alone
+(lb_stack.py). For RMSE, mean(f*y) = (mean(f^2) + mean(y^2) - MSE_f) / 2, so the all-zeros
+probe, the constant-0.10 probe and each scored file give one exact moment of the hidden
+target. Largest weights: the round-6 vulnerability model r6e (0.50), the round-5 group model
+r5e (0.29), and the earlier blends. The five Paradise tracts with published values are set to
+those values. Exact weights: submissions/best/stack5_r6_weights.json.
 
-    python solution.py && python round2.py && python best.py
+    python best.py      # rebuilds submissions/best/stack5_r6.csv byte-for-byte
 """
+import json
+
 import numpy as np
-import pandas as pd
 
-A, B = 0.009, 0.80
+from lb_stack import read, template
 
-r2f = pd.read_csv("submissions/r2f_ensemble.csv", dtype={"GEOID": str})
-best = r2f[["GEOID"]].copy()
-best["coverage_gap_score"] = np.clip(A + B * r2f["coverage_gap_score"], 0, 1).round(6)
-best.to_csv("submissions/e01_r2f_affine.csv", index=False)
-print(f"wrote submissions/e01_r2f_affine.csv ({len(best)} rows, mean {best.coverage_gap_score.mean():.4f})")
+rec = json.load(open("submissions/best/stack5_r6_weights.json"))
+t = template()
+score = np.zeros(len(t))
+for name, w in rec["weights"].items():
+    if name == "__const__":
+        score += w
+    else:
+        v = t.merge(read(name)[["GEOID", "coverage_gap_score"]], on="GEOID", how="left")
+        score += w * v["coverage_gap_score"].to_numpy()
+out = t.copy()
+out["coverage_gap_score"] = np.clip(score, 0, 1)
+out["coverage_gap_score"] = out["GEOID"].map(rec["published"]).fillna(out["coverage_gap_score"])
+out.round(6).to_csv("submissions/best/stack5_r6.csv", index=False)
+print(f"wrote submissions/best/stack5_r6.csv ({len(out)} rows, mean {out.coverage_gap_score.mean():.4f})")

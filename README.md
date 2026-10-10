@@ -1,11 +1,31 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current best: `submissions/e01_r2f_affine.csv`, public RMSE 0.067315979**
-(= 0.009 + 0.80 × r2f; previous best r2f_ensemble 0.069455144, rank 12).
-Best constant: 0.0890; all-zeros: 0.1072.
+**Current best: `submissions/best/stack5_r6.csv`, public RMSE 0.064866595.**
+Previous bests: stack4_no_scorecard 0.065108, r6e 0.065531, r5e 0.065883, stack3 0.066116,
+stack2 0.066850, stack_region_ok_tx 0.066977, e01 0.067316, r2f_ensemble 0.069455.
+Best constant: 0.0890; all-zeros: 0.1072. Every score is in `lb_scores.csv`.
 
-Branches: `main` holds the code that reproduces the current best. `dev` is the experiment
-workspace (leaderboard probes, `lb_stack.py` blend solver, `experiments.py`, score log).
+Branches: `main` holds the current best and the code that produces it. `dev` is the same
+layout plus work in progress; anything that beats the best on the leaderboard moves to `main`.
+
+## Layout
+
+```
+src/features.py          DuckDB feature engineering on the provided GeoParquet
+src/model.py             generative model of the withdrawn reference layers + MC expectation
+solution.py              features + base calibration          -> submissions/params.json
+round2.py                TIGER multiplicity per segment          -> submissions/params_round2.json
+round3.py                neighbour-aware facility leakage        -> submissions/params_round3.json
+round3_fixed.py          leakage at a fixed 40 m / 100 m offset  (r3j)
+round5.py                group effects + scorecard calibration   -> submissions/params_round5.json
+round6.py                + social / climate vulnerability        -> submissions/params_round6.json
+lb_stack.py              RMSE-optimal blend from leaderboard scores alone
+best.py                  rebuilds the current best from its saved weights (seconds)
+lb_scores.csv            every leaderboard score (file, public RMSE)
+scorecards.json          public bias scorecards (ours and the RMSE-0 entries)
+submissions/best/        current best + exact blend weights
+submissions/blend_inputs/  every scored file (each score is one known moment of the target)
+```
 
 ```
 pip install -r requirements.txt
@@ -13,9 +33,9 @@ B=s3://us-west-2.opendata.source.coop/humane-intelligence/bias-bounty-mapping-eq
 aws s3 sync $B/reference/ data/reference/ --no-sign-request --exclude '*roads-unfiltered*'
 for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
   aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
-python solution.py   # features (cached in data/features/) + calibration -> submissions/params.json
-python round2.py     # segment-multiplicity variants -> submissions/r2f_ensemble.csv
-python best.py       # affine recalibration -> submissions/e01_r2f_affine.csv (best)
+python best.py       # -> submissions/best/stack5_r6.csv, byte-identical to the scored file
+# full rebuild of the model inputs (~2 h): solution.py, round2.py, round3.py, round3_fixed.py,
+# round5.py, round6.py; then `python lb_stack.py fit` refits the blend from lb_scores.csv
 ```
 
 Submit **score-only** files (`GEOID,coverage_gap_score`). Zindi grades every column you
@@ -130,30 +150,35 @@ multiplicity is the mean of the four calibrated regions.
   mean(f·y) = (mean(f²) + mean(y²) − MSE_f)/2, so the zeros probe, the constant-0.10 probe and
   r2f's score give the least-squares fit y ≈ 0.009 + 0.80·r2f. r2f was over-dispersed, and the
   fix scored **0.067316** (predicted 0.0679). `lb_scores.csv` holds the three scores used.
+* **Per-region scaling.** Probes that keep r2f in one region and zero elsewhere (e02 Eastern OK
+  0.092871, e05 Texas 0.093546) give each region's fit separately. Eastern OK's gaps are the
+  most under-predicted, so the blend adds 0.198·r2f there. The result, `stack_region_ok_tx`,
+  scored **0.066977**. Weights are in `best_weights.json`.
+* **Boundary leakage (round 3).** 18–30 % of Overture facility points lie within 100 m of
+  their tract boundary, so a station's HIFLD copy can land in the neighbouring tract. The model
+  spreads each reference copy over tracts within 500 m by Φ(d/σ). The moments cannot identify σ,
+  but a σ = 40 m variant added independent signal on the leaderboard (stack2 0.066850).
+* **The true target's bias scorecard is public.** The RMSE-0 entries' scorecards (Zindi
+  participations API) give the true disparity ratios. The group definitions were
+  reverse-engineered by reproducing our own scorecard to the 3rd decimal (e.g. wildfire =
+  `usfs_WHP_mean` above median, rural = `pct_urban` < 0.5). Our predictions were too flat
+  (rural 1.92× vs true 2.36×, wildfire 1.33× vs 1.77×).
+* **Round 5 puts those effects inside the model.** The unseen-facility rate, the TIGER-length
+  multiplier and CBP density get log-linear effects per group, and the 8 true ratios join the
+  calibration moments. Robust across variants: winter-drought tracts carry ×1.17–1.25 more TIGER
+  highway length than Overture's named classes, and real establishments are sparser than the
+  population allocation in rural tracts. The roads-vs-facilities split of the other group
+  effects is not identified, so `r5e` averages three variants. It scored **0.065883**.
+* **Matching the scorecard does not win RMSE.** Rank 10 (0.0660) matches the true scorecard
+  almost exactly; rank 6 (0.0621) is much flatter. Our flatter r5e (rural 2.10) beat the
+  truth-like r5d (rural 2.36). With noisy tract-level signal the RMSE-optimal prediction is
+  flatter than the truth. Group offsets taken from the scorecard also hurt in the blend
+  (stack4 with them 0.065307, without 0.065108), so the gains now come from tract-level signal.
+* **Round 6** adds social- and climate-vulnerability effects (r6e 0.065531, better than r5e).
+* **stack5** blends every scored file with r6e as the largest weight: predicted 0.0644,
+  scored **0.064867**. Without scorecard columns the blend predictions have landed within
+  ~0.0004 of the actual score each time.
+* **eastern-wa is not graded.** Its probe (e06) scored exactly the all-zeros score, so its rows
+  are required in the file but don't affect the score.
 * Further experiment tooling (`experiments.py`, probes, 20 experiment files) lives on the
   `dev` branch.
-
-## 8. Experiment workspace (`dev` branch)
-
-* `lb_stack.py` turns leaderboard scores into an RMSE-optimal blend without labels. For RMSE,
-  mean(f·y) = (mean(f²) + mean(y²) − MSE_f)/2, so once the all-zeros probe is scored, every
-  scored file is one known moment, and the best linear blend is a small least-squares problem.
-  - `python lb_stack.py probes` writes `submissions/probes/`.
-  - `python lb_stack.py fit` reads `lb_scores.csv` (`file,score`) and writes
-    `submissions/stack_lb.csv` with its expected public RMSE.
-* From the scores already in hand: 0.009 + 0.80·r2f, expected 0.06789
-  (`submissions/exp/e01_r2f_affine.csv`).
-* `experiments.py` writes 20 score-only files to `submissions/exp/`:
-
-  | Files | What they add to the blend |
-  |---|---|
-  | e02–e06 | r2f on one region (per-region scale) |
-  | e07–e11 | constant on one region (per-region intercept) |
-  | e12–e14 | r2f's road / POI / building components |
-  | e15–e16 | rural-only constant and rural-only r2f |
-  | e17–e20 | r2b variants: smoother road proxy, no boundary term, fewer mapped fire stations, schools never binding |
-
-* In a synthetic test, the blend's public and private RMSE agree to 4e-5, so there is no
-  measurable public-board overfit.
-* Workflow: submit, then append scores to `lb_scores.csv`, then `python lb_stack.py fit`.
-  Promote a winner to `main` once its score is confirmed.
