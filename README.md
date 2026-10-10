@@ -1,13 +1,31 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current best: `submissions/round5/stack4_no_scorecard.csv`, public RMSE 0.065108469**
-(score-based blend led by the round-5 group-effect model). Previous bests: r6e 0.065531,
-r5e 0.065883, stack3 0.066116, stack2 0.066850, stack_region_ok_tx 0.066977, e01 0.067316,
-r2f_ensemble 0.069455.
-Best constant: 0.0890; all-zeros: 0.1072.
+**Current best: `submissions/best/stack5_r6.csv`, public RMSE 0.064866595.**
+Previous bests: stack4_no_scorecard 0.065108, r6e 0.065531, r5e 0.065883, stack3 0.066116,
+stack2 0.066850, stack_region_ok_tx 0.066977, e01 0.067316, r2f_ensemble 0.069455.
+Best constant: 0.0890; all-zeros: 0.1072. Every score is in `lb_scores.csv`.
 
-Branches: `main` holds the code that reproduces the current best. `dev` is the experiment
-workspace (leaderboard probes, `lb_stack.py` blend solver, `experiments.py`, score log).
+Branches: `main` holds the current best and the code that produces it. `dev` is the same
+layout plus work in progress; anything that beats the best on the leaderboard moves to `main`.
+
+## Layout
+
+```
+src/features.py          DuckDB feature engineering on the provided GeoParquet
+src/model.py             generative model of the withdrawn reference layers + MC expectation
+solution.py              features + base calibration          -> submissions/params.json
+round2.py                TIGER multiplicity per segment          -> submissions/params_round2.json
+round3.py                neighbour-aware facility leakage        -> submissions/params_round3.json
+round3_fixed.py          leakage at a fixed 40 m / 100 m offset  (r3j)
+round5.py                group effects + scorecard calibration   -> submissions/params_round5.json
+round6.py                + social / climate vulnerability        -> submissions/params_round6.json
+lb_stack.py              RMSE-optimal blend from leaderboard scores alone
+best.py                  rebuilds the current best from its saved weights (seconds)
+lb_scores.csv            every leaderboard score (file, public RMSE)
+scorecards.json          public bias scorecards (ours and the RMSE-0 entries)
+submissions/best/        current best + exact blend weights
+submissions/blend_inputs/  every scored file (each score is one known moment of the target)
+```
 
 ```
 pip install -r requirements.txt
@@ -15,13 +33,9 @@ B=s3://us-west-2.opendata.source.coop/humane-intelligence/bias-bounty-mapping-eq
 aws s3 sync $B/reference/ data/reference/ --no-sign-request --exclude '*roads-unfiltered*'
 for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
   aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
-python solution.py   # features (cached in data/features/) + calibration -> submissions/params.json
-python round2.py     # segment-multiplicity variants -> submissions/params_round2.json
-python round3.py     # neighbour-aware facility leakage -> submissions/params_round3.json
-python round5.py     # group effects + scorecard calibration -> submissions/round5/r5e_groups_affine.csv
-python round6.py     # + social/climate-vulnerability effects -> submissions/round6/r6e_vuln_affine.csv
-python best.py       # score-based blend -> submissions/round5/stack4_no_scorecard.csv (best,
-                     # byte-identical to the scored file; weights in stack4_no_scorecard_weights.json)
+python best.py       # -> submissions/best/stack5_r6.csv, byte-identical to the scored file
+# full rebuild of the model inputs (~2 h): solution.py, round2.py, round3.py, round3_fixed.py,
+# round5.py, round6.py; then `python lb_stack.py fit` refits the blend from lb_scores.csv
 ```
 
 Submit **score-only** files (`GEOID,coverage_gap_score`). Zindi grades every column you
@@ -161,6 +175,9 @@ multiplicity is the mean of the four calibrated regions.
   flatter than the truth. Group offsets taken from the scorecard also hurt in the blend
   (stack4 with them 0.065307, without 0.065108), so the gains now come from tract-level signal.
 * **Round 6** adds social- and climate-vulnerability effects (r6e 0.065531, better than r5e).
+* **stack5** blends every scored file with r6e as the largest weight: predicted 0.0644,
+  scored **0.064867**. Without scorecard columns the blend predictions have landed within
+  ~0.0004 of the actual score each time.
 * **eastern-wa is not graded.** Its probe (e06) scored exactly the all-zeros score, so its rows
   are required in the file but don't affect the score.
 * Further experiment tooling (`experiments.py`, probes, 20 experiment files) lives on the

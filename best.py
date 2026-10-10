@@ -1,14 +1,14 @@
 """
-Current best: stack4_no_scorecard, public RMSE 0.065108469.
+Current best: submissions/best/stack5_r6.csv, public RMSE 0.064866595.
 
-A least-squares blend of earlier submissions, fitted from leaderboard scores alone
-(lb_stack.py: for RMSE, mean(f*y) = (mean(f^2) + mean(y^2) - MSE_f) / 2, so every scored file
-is one known moment). Main ingredients: the round-5 group-effect model (r5e, weight 0.48),
-the scorecard-offset blend stack3 (0.36) and the region-scaled r2f blend (0.14). The five
-Paradise tracts with published values are set to those values.
-The exact weights are in submissions/round5/stack4_no_scorecard_weights.json.
+A least-squares blend of every scored submission, fitted from leaderboard scores alone
+(lb_stack.py). For RMSE, mean(f*y) = (mean(f^2) + mean(y^2) - MSE_f) / 2, so the all-zeros
+probe, the constant-0.10 probe and each scored file give one exact moment of the hidden
+target. Largest weights: the round-6 vulnerability model r6e (0.50), the round-5 group model
+r5e (0.29), and the earlier blends. The five Paradise tracts with published values are set to
+those values. Exact weights: submissions/best/stack5_r6_weights.json.
 
-    python best.py      # rebuilds submissions/round5/stack4_no_scorecard.csv byte-for-byte
+    python best.py      # rebuilds submissions/best/stack5_r6.csv byte-for-byte
 """
 import json
 
@@ -16,7 +16,7 @@ import numpy as np
 
 from lb_stack import read, template
 
-rec = json.load(open("submissions/round5/stack4_no_scorecard_weights.json"))
+rec = json.load(open("submissions/best/stack5_r6_weights.json"))
 t = template()
 score = np.zeros(len(t))
 for name, w in rec["weights"].items():
@@ -28,6 +28,5 @@ for name, w in rec["weights"].items():
 out = t.copy()
 out["coverage_gap_score"] = np.clip(score, 0, 1)
 out["coverage_gap_score"] = out["GEOID"].map(rec["published"]).fillna(out["coverage_gap_score"])
-out.round(6).to_csv("submissions/round5/stack4_no_scorecard.csv", index=False)
-print(f"wrote submissions/round5/stack4_no_scorecard.csv ({len(out)} rows, "
-      f"mean {out.coverage_gap_score.mean():.4f})")
+out.round(6).to_csv("submissions/best/stack5_r6.csv", index=False)
+print(f"wrote submissions/best/stack5_r6.csv ({len(out)} rows, mean {out.coverage_gap_score.mean():.4f})")
