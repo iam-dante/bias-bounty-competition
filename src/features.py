@@ -79,6 +79,13 @@ def tract_table(con, region):
 ROUTE_NAME_RE = r"(?i)^((us|u\.s\.|state|sh|hwy|highway|interstate|i|ok|az|ca|tx|fm|rm|sr|loop|spur)[ -]*(hwy|highway|route|rte)?[ -]*\d+[a-z]?)$"
 
 
+# States where Overture's historic / future route designations are NOT TIGER highways. Dropping
+# them moves Maricopa's road-undefined share from 0.506 to 0.542 (official any-undefined 0.55).
+# Elsewhere it would break the official bound (road-undefined <= any-undefined): Northern CA
+# would go to 0.386 > 0.37 and Eastern OK above 0.21, so CA, OK and TX keep them.
+HISTORIC_NOT_TIGER = {"AZ"}
+
+
 def _route_sql(st: str) -> str:
     """Overture route networks that correspond to TIGER S1100/S1200 (Interstate, US and State
     highway systems, incl. their loops/spurs/business routes and state toll roads). County roads
@@ -86,6 +93,9 @@ def _route_sql(st: str) -> str:
     core = (f"^US:(I|US)(:.*)?$|^US:{st}(:(Loop|Spur|Business|Toll|Beltway|Alternate|Truck|Bypass|NTTA|Express|Scenic))?$"
             f"|^US:{st}:(NTTA|Harris:HCTRA|Toll)")
     nets = "list_transform(coalesce(routes, []), x -> coalesce(x.network, ''))"
+    if st in HISTORIC_NOT_TIGER:
+        # historic / proposed designations ride on ordinary streets, not S1100/S1200 highways
+        nets = f"list_filter({nets}, n -> NOT regexp_matches(n, ':(Historic|Future)'))"
     return f"""
       len(list_filter({nets}, n -> regexp_matches(n, '{core}'))) > 0
         OR (class IN ('motorway','trunk') AND len(list_filter({nets}, n -> n = '')) > 0) AS is_route,
