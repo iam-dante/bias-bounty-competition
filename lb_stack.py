@@ -40,7 +40,8 @@ PUBLISHED = {"06007002300": 0.252, "06007001602": 0.254, "06007001703": 0.191, "
 
 
 def read(name: str) -> pd.DataFrame:
-    for d in (SUB, os.path.join(SUB, "blend_inputs"), os.path.join(SUB, "best"), PROBES):
+    for d in (SUB, os.path.join(SUB, "blend_inputs"), os.path.join(SUB, "best"), PROBES,
+              *sorted(glob.glob(os.path.join(SUB, "round*")))):
         p = os.path.join(d, name)
         if os.path.exists(p):
             return pd.read_csv(p, dtype={"GEOID": str})

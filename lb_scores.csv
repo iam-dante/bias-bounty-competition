@@ -17,3 +17,5 @@ stack4_with_scorecard.csv,0.065307242
 stack4_no_scorecard.csv,0.065108469
 stack5_r6.csv,0.064866595
 r6d_vuln_ensemble.csv,0.066862916
+r9d_routefix_affine.csv,0.065222251
+r9c_routefix_ensemble.csv,0.066216026
