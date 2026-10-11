@@ -1,0 +1,30 @@
+{
+ "weights": {
+  "r2f_ensemble.csv": -0.330860896857736,
+  "e01_r2f_affine.csv": 0.3341362699367421,
+  "e02_r2f_only_eastern-ok.csv": -0.005247071840082744,
+  "e05_r2f_only_south-central-tx.csv": 0.0025337428713866337,
+  "r3j_sigma40_affine.csv": -0.1176549120859768,
+  "stack_region_ok_tx.csv": 0.20421280274461642,
+  "stack2_e01_r3j_region.csv": 0.05256056156454472,
+  "stack3_scorecard_groups.csv": 0.1187174501405938,
+  "r5e_groups_affine.csv": 0.25812987537294513,
+  "r5d_groups_ensemble.csv": -0.44334487856837856,
+  "r6e_vuln_affine.csv": 0.299324983794023,
+  "stack4_with_scorecard.csv": 0.1520826995769818,
+  "stack4_no_scorecard.csv": 0.16467226089759213,
+  "stack5_r6.csv": 0.16262614738677794,
+  "r6d_vuln_ensemble.csv": -0.2410330496788698,
+  "r9d_routefix_affine.csv": 0.5248280461907648,
+  "r9c_routefix_ensemble.csv": 0.1486065363824856,
+  "__const__": -0.01279884872156171
+ },
+ "published": {
+  "06007002300": 0.252,
+  "06007001602": 0.254,
+  "06007001703": 0.191,
+  "06007002200": 0.249,
+  "06007001601": 0.323
+ },
+ "expected_rmse": 0.06369115231005779
+}
