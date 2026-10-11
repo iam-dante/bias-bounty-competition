@@ -1,11 +1,11 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current best: `submissions/best/stack6_r9.csv`, public RMSE 0.064388606.**
-Rebuild it in seconds with `python best.py`. Previous bests: stack5 0.064867, stack4 0.065108,
+**Current best: `submissions/best/stack7_r10.csv`, public RMSE 0.064214041.**
+Rebuild it in seconds with `python best.py`. Previous bests: stack6 0.064389, stack5 0.064867, stack4 0.065108,
 r6e 0.065531, r5e 0.065883, stack3 0.066116, stack2 0.066850, e01 0.067316, r2f 0.069455.
 Best constant: 0.0890; all-zeros: 0.1072. Every score is in `lb_scores.csv`.
 
-## Why stack6 is the best, in five steps
+## Why stack7 is the best, in five steps
 
 1. **Exact Overture side, inferred reference side** (`src/features.py`). For every tract we
    compute exactly what the organisers computed from Overture: named-highway length, building
@@ -32,7 +32,10 @@ Best constant: 0.0890; all-zeros: 0.1072. Every score is in `lb_scores.csv`.
    mean(f·y) = (mean(f²) + mean(y²) − MSE_f) / 2. So the all-zeros probe, a constant probe and
    each scored file give exact moments of the hidden target. The RMSE-optimal blend of all
    scored files is then a small least-squares problem. Its predictions land within ~0.0005 of
-   the actual score: stack6 was predicted 0.0640–0.0643 and scored 0.064389.
+   the actual score: stack6 was predicted 0.0640–0.0643 and scored 0.064389. stack7 adds the
+   round-10 regional specialists (r10d 0.064997, the largest blend weight): predicted 0.0633,
+   scored 0.064214. The gap is growing as more overlapping files enter the blend, a sign of
+   fitting the public 30 %, so final picks should pair the best blend with a single model.
 
 ## Where to improve
 
@@ -68,11 +71,12 @@ round5.py                group effects + scorecard calibration   -> submissions/
 round6.py                + social / climate vulnerability        -> submissions/params_round6.json
 round8.py                regional specialists (one parameter set per region)
 round9.py                Arizona route fix + refit              -> submissions/params_round9.json
+round10.py               regional specialists on fixed features -> submissions/params_round10.json
 lb_stack.py              RMSE-optimal blend from leaderboard scores alone
 best.py                  rebuilds the current best from its saved weights (seconds)
 lb_scores.csv            every leaderboard score (file, public RMSE)
 scorecards.json          public bias scorecards (ours and the RMSE-0 entries)
-submissions/best/        current best (stack6_r9) + exact blend weights
+submissions/best/        current best (stack7_r10) + exact blend weights
 submissions/blend_inputs/  every scored file (each score is one known moment of the target)
 ```
 
@@ -82,7 +86,7 @@ B=s3://us-west-2.opendata.source.coop/humane-intelligence/bias-bounty-mapping-eq
 aws s3 sync $B/reference/ data/reference/ --no-sign-request --exclude '*roads-unfiltered*'
 for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
   aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
-python best.py       # -> submissions/best/stack6_r9.csv, byte-identical to the scored file
+python best.py       # -> submissions/best/stack7_r10.csv, byte-identical to the scored file
 # full rebuild of the model inputs (~2 h): solution.py, round2.py, round3.py, round3_fixed.py,
 # round5.py, round6.py; then `python lb_stack.py fit` refits the blend from lb_scores.csv
 ```
