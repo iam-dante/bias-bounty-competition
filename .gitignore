@@ -15,3 +15,6 @@ submissions/exp/
 submissions/sub*_*.csv
 submissions/r2*_*.csv
 submissions/stack_lb*
+# round-11 run logs and regenerable Monte-Carlo noise cache
+exp11/log_*.txt
+exp11/cache_eps.npy
