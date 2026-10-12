@@ -1,11 +1,29 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current best: `submissions/best/stack7_r10.csv`, public RMSE 0.064214041.**
-Rebuild it in seconds with `python best.py`. Previous bests: stack6 0.064389, stack5 0.064867, stack4 0.065108,
+**Current best: `submissions/best/r12_blend_with_AB.csv`, public RMSE 0.064008915.**
+Rebuild it in seconds with `python best.py`. Previous bests: stack7 0.064214, stack6 0.064389, stack5 0.064867, stack4 0.065108,
 r6e 0.065531, r5e 0.065883, stack3 0.066116, stack2 0.066850, e01 0.067316, r2f 0.069455.
 Best constant: 0.0890; all-zeros: 0.1072. Every score is in `lb_scores.csv`.
 
-## Why stack7 is the best, in five steps
+## Round 11 (`exp11/`): what moved r12 past stack7
+
+* **Public-subset correction** (`exp11/e14_public_subset.py`). Exact leaderboard identities (affine
+  pairs such as e01 = 0.009 + 0.8 r2f, and every exact stack) are linear equations on which rows are
+  public. Conditioning on them predicts held-out public scores to 0.000057 (was 0.00038), and
+  predicted r12 at 0.064012 (scored 0.064009).
+* **Single-model basis, no stack-of-stacks.** Semi-synthetic public/private splits (`exp11/synth.py`)
+  show re-blending earlier stacks costs private RMSE. The basis is the 8 single models, stack3,
+  both stack4 files and the scored round-11 files.
+* **Monte-Carlo denoising** of the r10d / r9d inputs (4096 draws, same parameters).
+* **Partial cell anchoring.** Shifting predictions to the 16 published region x rural x burned
+  means wins every synthetic private split, but scored worse on the public 30 % (r11_B 0.064221);
+  the leaderboard keeps about a third of it.
+* **Did not help:** GMM physics calibrated on leaderboard moments (its new direction had rho ~ 0;
+  r11_A 0.064317), the published TIGER/Overture ratio range, ridge, cell-indicator columns.
+
+Every experiment is in `exp11/log.csv`; the plot is `exp11/round11_progress.png`.
+
+## Why stack7 was the best, in five steps
 
 1. **Exact Overture side, inferred reference side** (`src/features.py`). For every tract we
    compute exactly what the organisers computed from Overture: named-highway length, building
@@ -73,10 +91,11 @@ round8.py                regional specialists (one parameter set per region)
 round9.py                Arizona route fix + refit              -> submissions/params_round9.json
 round10.py               regional specialists on fixed features -> submissions/params_round10.json
 lb_stack.py              RMSE-optimal blend from leaderboard scores alone
+exp11/                   round 11: validators (harness.py, synth.py), GMM physics, experiment log
 best.py                  rebuilds the current best from its saved weights (seconds)
 lb_scores.csv            every leaderboard score (file, public RMSE)
 scorecards.json          public bias scorecards (ours and the RMSE-0 entries)
-submissions/best/        current best (stack7_r10) + exact blend weights
+submissions/best/        current best (r12_blend_with_AB) + exact recipe + its 4096-draw inputs
 submissions/blend_inputs/  every scored file (each score is one known moment of the target)
 ```
 
