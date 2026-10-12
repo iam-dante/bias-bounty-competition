@@ -15,7 +15,10 @@ python solution.py --probes   # also writes the next 4 probe files to next/
 
 **Daily cycle (5 submissions a day):** submit `submission.csv` plus the 4 files in `next/`. Copy each
 scored file into `scored/` and append `file,score` to `lb_scores.csv`. Then rerun
-`python solution.py --probes`: it fits every scored probe jointly and writes the next batch. The
+`python solution.py --probes`: it fits every scored probe jointly and writes the next batch.
+Probes are built on the current corrected prediction, so each one is itself a near-best submission.
+Each probe's moment comes from its own score, so batches can be uploaded in any order. Clipped rows
+are handled exactly. The
 queue (`PROBE_QUEUE`) is ordered by how much the physics models disagree along each direction,
 after removing what the leaderboard has already measured.
 
@@ -26,6 +29,7 @@ solution.py      the whole pipeline: features -> physics -> leaderboard blend ->
 lb_scores.csv    public RMSE of every scored file and probe
 scored/          the scored files themselves (inputs of the blend; each score is an exact fact about the target)
 submission.csv   the file to submit (GEOID, coverage_gap_score)
+batches/         daily upload batches (5 files each) with NOTES.md on the technique behind every file
 data/            challenge data, not in git (download above)
 ```
 
