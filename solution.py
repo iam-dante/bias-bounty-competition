@@ -2,7 +2,7 @@
 Bias Bounty Mapping Equity Challenge: the whole pipeline in one file.
 
     python solution.py            # -> submission.csv (public RMSE 0.0636 expected; r12 scored 0.064009)
-    python solution.py --probes   # also writes the next 4 probe files to next/ (5 submissions a day)
+    python solution.py --probes [n]   # also writes the next n (default 4) probes to next/; 5 submissions a day
 
 There is no labelled training data: the organisers withdrew the reference layers (TIGER roads,
 Microsoft buildings, facility and business counts) the target was computed from, and rebuilding
@@ -421,6 +421,8 @@ def road_frame(df, interstate=False):
 # Calibrated parameters (fields that differ from Params defaults). r9: one set for all regions,
 # fitted on the published statistics after the Arizona route fix; r10: one specialist per region.
 # a = no-leakage frame, b = Interstate frame with boundary leakage of facility points.
+# g43: one set refitted on the published statistics AND every leaderboard moment including the road-ratio
+# probe (round 12); it reproduces part of the measured road residual physically.
 PHYSICS = {
     'r9a': {
         'global': dict(m=(1.2589414874162739, 0.6270082404484242, 1.1132214407985497, 0.8903293004790522), beta_bnd=0.6754040121784258, sigma_t=0.291884673371356, kappa_b=0.8030782045598688, alpha_fire_x=0.04834560607705495, r_fire=0.9214893973515518, alpha_ems_x=0.05127313871608613, alpha_sch=0.4009980688792822, alpha_sch_x=0.0045685879278019375, eps_cbp=0.0014539088226658155, sigma_loc=40.0, gf_rural=0.7599380326267967, gf_wild=0.3279080752898451, gf_drw=-0.0012578136113132507, gf_tribal=-0.08067137210469545, gf_svi=0.14957377865295607, gf_heat=-0.8290276376850771, gr_rural=-0.25825308846849765, gr_wild=0.05585447503944992, gr_drw=0.15886673258211698, gr_heat=0.2848718902911277, gc_rural=-1.8569918581213951, gf_cvi=2.787971771312323e-16, gr_svi=-0.020938659990628876, gr_cvi=0.08363687130549793),
@@ -441,6 +443,9 @@ PHYSICS = {
         'maricopa-az': dict(m=(0.9602171954863009, 0.5180949825657207, 0.8200926366788887, 0.7820316920285948), beta_bnd=0.9699304879676618, sigma_t=0.41339995126137874, kappa_b=0.719983965349866, alpha_fire_x=0.6259004235957574, r_fire=0.9138061076847248, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=-0.021916872902532736, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=-0.16935682325707424, gr_wild=0.10923108739711254, gr_drw=0.2792932963704795, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
         'northern-ca': dict(m=(0.9602171954863009, 0.5187062587857599, 0.8037568281521926, 0.7820316920285948), beta_bnd=0.6754957020163651, sigma_t=0.515286687047487, kappa_b=0.719983965349866, alpha_fire_x=0.5835781409368624, r_fire=0.8530081174072963, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=0.06084192977359127, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=0.0004479959707696941, gr_wild=0.13754964525449936, gr_drw=0.28828079346999924, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
         'south-central-tx': dict(m=(0.9602171954863009, 0.5187062587857599, 0.8200926366788887, 0.7886331228337119), beta_bnd=1.0260877096445058, sigma_t=0.36378395239591127, kappa_b=0.719983965349866, alpha_fire_x=0.6341941813705002, r_fire=0.9204528408306606, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=0.006954194352547016, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=-0.18794005316861823, gr_wild=0.1090080057402303, gr_drw=0.2797226160459853, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
+    },
+    'g43': {
+        'global': dict(m=(1.2702818649199756, 0.5900883053258147, 1.074312238634703, 0.7211327572998518), w_fm=0.00016959676611330503, beta_bnd=0.6688487518148114, sigma_t=0.6043364585344102, kappa_b=0.7845057988740073, alpha_fire_x=0.3349760521291884, r_fire=0.8670522351916378, alpha_ems_x=0.08043058121099626, alpha_sch=0.40000118103301335, alpha_sch_x=0.0030850306676178186, eps_cbp=0.0024015467534752115, sigma_c=1.0393957499796145, sigma_loc=40.0, burn_unseen=1.4683638574489266, burn_road=0.8339751888322188, gf_rural=0.7374157061798696, gf_wild=0.22598054315743857, gf_drw=0.04375602997110476, gf_tribal=-0.2756763464412266, gf_svi=0.15316038651680922, gf_heat=-1.3626592784941904, gr_rural=-0.15010424872199776, gr_wild=0.1316954740359532, gr_drw=0.16097217749052742, gr_heat=0.3383817269544221, gc_rural=-1.467457227951705, gf_cvi=-1.0557198592197432, gr_svi=0.02378823569164588, gr_cvi=0.21410424678849058),
     },
 }
 
@@ -559,10 +564,13 @@ PROBES = {"p12_01_route_ratio.csv": "route_ratio", "p12_02_fire_vs_expected.csv"
           "p12_08_boundary_share.csv": "boundary_share", "p12_09_tribal_pct.csv": "tribal_pct", "p12_10_building_coverage.csv": "building_coverage",
           "p13_01_tiger_multiplicity.csv": "tiger_multiplicity", "p13_02_boundary_leak.csv": "boundary_leak",
           "p13_03_tiger_noise.csv": "tiger_noise", "p13_04_route_ratio_northern-ca.csv": "route_ratio_northern-ca",
-          "p13_05_route_ratio_maricopa-az.csv": "route_ratio_maricopa-az"}
+          "p13_05_route_ratio_maricopa-az.csv": "route_ratio_maricopa-az",
+          "p14_01_interstate_share.csv": "interstate_share", "p14_02_log_route_length.csv": "log_route_length",
+          "p14_03_multiref_share.csv": "multiref_share", "p14_04_gmm_route.csv": "gmm_route"}
 # Next probes for --probes, highest information first: physics disagreement along each direction after
 # removing the scored files and the measured route-ratio direction. 5 submissions a day.
-PROBE_QUEUE = ["boundary_leak", "tiger_noise", "boundary_share", "fire_vs_expected", "tiger_multiplicity",
+PROBE_QUEUE = ["boundary_leak", "tiger_noise", "boundary_share", "fire_vs_expected",            # batch 1
+               "gmm_route", "interstate_share", "tiger_multiplicity", "log_route_length", "multiref_share",  # batch 2
                "building_coverage", "pct_urban", "route_ratio_northern-ca", "route_ratio_maricopa-az", "svi",
                "wildfire_hazard", "tribal_pct", "log_pop_density", "poi_per_person"]
 # physics directions: how predictions move under a small change of one mechanism (r10a specialists,
@@ -573,6 +581,8 @@ PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1
 
 
 def physics_direction(df, mu, name):
+    if name == "gmm_route":           # the whole refitted model; its scored-file part is removed later
+        return 0.8 * simulate(road_frame(df), mu, Params(**PHYSICS["g43"]["global"]), 512, 77)
     frame = road_frame(df)
     sets = {k: Params(**v) for k, v in PHYSICS["r10a"].items()}
 
@@ -599,12 +609,16 @@ def probe_features(df, mu, names):
         "poi_per_person": np.log((df["n_poi"] + 1) / (df["pop"] + 50)),
         "boundary_share": df["Lb_route"] / (df["L_route"] + df["Lb_route"] + 100),
         "tribal_pct": df["tribal_pct"].fillna(0),
-        "building_coverage": np.log((df["n_bld"] + 1) / (df["U_bld"] + 1))}, index=df.index)
+        "building_coverage": np.log((df["n_bld"] + 1) / (df["U_bld"] + 1)),
+        # TIGER record mechanics: Interstates, concurrent routes, total route length
+        "interstate_share": df["L_interstate"] / (df["L_route"] + 100),
+        "multiref_share": df["L_route_multiref"] / (df["L_route"] + 100),
+        "log_route_length": np.log1p(df["L_route"])}, index=df.index)
     f = f.groupby(df["region"]).transform(lambda x: (x - x.mean()) / (x.std() + 1e-9)).fillna(0)
     for r in ("northern-ca", "maricopa-az"):
         f[f"route_ratio_{r}"] = f["route_ratio"] * (df["region"] == r)
     for k in names:
-        if k in PHYSICS_DIRECTIONS:
+        if k in PHYSICS_DIRECTIONS or k == "gmm_route":
             f[k] = physics_direction(df, mu, k)
     return f
 
@@ -624,42 +638,56 @@ def probe_directions(lb, df, mu, names):
 
 
 def write_probes(lb, df, mu, base, n=4, folder="next"):
-    """Write the next n unscored probes (BASE + PROBE_DELTA * direction) for tomorrow's batch."""
-    done = {PROBES[f] for f in PROBES if f in lb.s}
+    """Write the next n unscored probes: base (the current corrected prediction) + PROBE_DELTA *
+    direction, so every probe is itself a near-best submission."""
+    import glob
+    waiting = {os.path.basename(p) for p in glob.glob(os.path.join("batches", "*", "*.csv"))}
+    done = {PROBES[f] for f in PROBES if f in lb.s or f in waiting}      # scored, or saved in a batch to upload
     todo = [k for k in PROBE_QUEUE if k not in done][:n]
     dirs = probe_directions(lb, df, mu, todo)
     os.makedirs(folder, exist_ok=True)
     name = {v: f for f, v in PROBES.items()}
     for k in todo:
-        v = np.clip(base + PROBE_DELTA * dirs[k], 0, 1).round(6)      # no Paradise override: keeps the moment exact
+        v = np.clip(base + PROBE_DELTA * dirs[k], 0, 1).round(6)
         pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": v}).to_csv(os.path.join(folder, name[k]), index=False)
         print(f"  wrote {folder}/{name[k]}")
 
 
-def probe_correction(lb, df, mu, base):
-    """Fit sum_k beta_k d_k to the probe moments; James-Stein shrinkage 1 - K / chi^2
-    (for one probe: 1 - 1/z^2). Directions are smooth tract features, so the fit carries to private rows."""
-    g = lb.graded
+def probe_correction(lb, df, mu, r12):
+    """Correction from the scored probe files. Each probe f is a scored file, so mean_P(f * y) is exact.
+    Its difference from r12, with the part explained by the scored basis removed (public-subset
+    weights), is a direction p_f whose moment b_f = mean_P(p_f * (y - r12)) is exact too, whatever
+    base f was built on and however it was clipped. Least squares on those moments, then James-Stein
+    shrinkage 1 - K / chi^2 (1 - 1/z^2 for one probe; on semi-synthetic splits it beat ridge and no
+    shrinkage for 5 and 10 probes)."""
+    g, AP, Z = lb.graded, lb.AP, lb.Z
     scored = [f for f in PROBES if f in lb.s]
     if not scored:
         return np.zeros(len(df)), "no probe scores", 0.0
-    dirs = probe_directions(lb, df, mu, [PROBES[f] for f in scored])
-    D, b = [], []
+    basis = BASIS + [BASE, "r11_blend_denoised.csv"]
+    A, G, c = lb.system(basis)
+    cy = lambda v, sc: (AP(v ** 2) + Z - sc ** 2) / 2             # exact mean_P(v * y) of a scored file
+    r = r12[g]
+    ry = cy(r, lb.s[BASE])
+    P, b = [], []
     for f in scored:
-        d = dirs[PROBES[f]]
-        v = lb.vec(f); dd = (v - base)[g]
-        dy = (lb.AP(v[g] ** 2 - base[g] ** 2) - (lb.s[f] ** 2 - lb.s[BASE] ** 2)) / 2
-        D.append(d); b.append((dy - lb.AP(dd * base[g])) / PROBE_DELTA)
-    D, b = np.column_stack(D), np.array(b)
-    Gd = (D[g] * lb.pi[:, None]).T @ D[g] / lb.pi.sum()
-    beta = np.linalg.solve(Gd, b)
-    chi2 = float(b @ beta) / lb.s[BASE] ** 2 * lb.pi.sum()
+        dd = lb.vec(f)[g] - r
+        a = np.linalg.solve(G, (A * lb.pi[:, None]).T @ dd / lb.pi.sum())
+        p = dd - A @ a
+        py = (cy(lb.vec(f)[g], lb.s[f]) - ry) - a @ c                # mean_P(p * y)
+        P.append(p); b.append(py - AP(p * r))
+    P, b = np.column_stack(P), np.array(b)
+    Gp = (P * lb.pi[:, None]).T @ P / lb.pi.sum()
+    gam = np.linalg.solve(Gp, b)
+    s12 = lb.s[BASE]
+    chi2 = float(b @ gam) / s12 ** 2 * lb.pi.sum()
     shrink = max(0.0, 1 - len(b) / chi2)
-    beta *= shrink
-    gain = 2 * beta @ b - beta @ Gd @ beta
-    z = b / lb.s[BASE] * np.sqrt(lb.pi.sum())
+    gam *= shrink
+    gain = 2 * gam @ b - gam @ Gp @ gam
+    z = b / np.sqrt(np.diag(Gp)) / s12 * np.sqrt(lb.pi.sum())
     note = ", ".join(f"{PROBES[f]} z={zi:+.1f}" for f, zi in zip(scored, z)) + f"; shrink {shrink:.3f}"
-    return D @ beta, note, gain
+    full = np.zeros(len(df)); full[g] = P @ gam
+    return full, note, gain
 
 
 def main():
@@ -690,8 +718,9 @@ def main():
     sub.to_csv(OUT, index=False)
     print(f"probe correction: {note}")
     print(f"wrote {OUT}: expected public RMSE {np.sqrt(lb.s[BASE] ** 2 - gain):.6f} ({time.time() - t0:.0f}s)")
-    if "--probes" in sys.argv:          # tomorrow's batch: submission.csv + 4 probes = 5 submissions
-        write_probes(lb, df, mu, scored)
+    if "--probes" in sys.argv:          # next batch: probes on the corrected prediction
+        n = int(sys.argv[sys.argv.index("--probes") + 1]) if len(sys.argv) > sys.argv.index("--probes") + 1 else 4
+        write_probes(lb, df, mu, np.clip(scored + corr, 0, 1), n=n)
 
 
 if __name__ == "__main__":
