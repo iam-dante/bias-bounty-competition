@@ -1,20 +1,4 @@
-# challenge data (~3 GB, re-download with the aws commands in README)
+# challenge data (~3 GB; download with the commands in README.md) and the feature cache
 data/
-SampleSubmission.csv
-# run logs / caches
-*.log
 __pycache__/
 .DS_Store
-# duplicates of submissions/*.csv kept only locally
-submissions/score_only/
-# regenerated outputs (pipeline scripts and lb_stack.py write these); only scored files are kept,
-# in submissions/blend_inputs/, plus the current best in submissions/best/
-submissions/round*/
-submissions/probes/
-submissions/exp/
-submissions/sub*_*.csv
-submissions/r2*_*.csv
-submissions/stack_lb*
-# round-11 run logs and regenerable Monte-Carlo noise cache
-exp11/log_*.txt
-exp11/cache_eps.npy
