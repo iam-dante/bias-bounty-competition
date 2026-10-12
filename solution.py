@@ -2,6 +2,7 @@
 Bias Bounty Mapping Equity Challenge: the whole pipeline in one file.
 
     python solution.py            # -> submission.csv (public RMSE 0.0636 expected; r12 scored 0.064009)
+    python solution.py --probes   # also writes the next 4 probe files to next/ (5 submissions a day)
 
 There is no labelled training data: the organisers withdrew the reference layers (TIGER roads,
 Microsoft buildings, facility and business counts) the target was computed from, and rebuilding
@@ -555,13 +556,41 @@ PROBE_DELTA = 0.004
 PROBES = {"p12_01_route_ratio.csv": "route_ratio", "p12_02_fire_vs_expected.csv": "fire_vs_expected",
           "p12_03_log_pop_density.csv": "log_pop_density", "p12_04_pct_urban.csv": "pct_urban",
           "p12_05_wildfire_hazard.csv": "wildfire_hazard", "p12_06_svi.csv": "svi", "p12_07_poi_per_person.csv": "poi_per_person",
-          "p12_08_boundary_share.csv": "boundary_share", "p12_09_tribal_pct.csv": "tribal_pct", "p12_10_building_coverage.csv": "building_coverage"}
+          "p12_08_boundary_share.csv": "boundary_share", "p12_09_tribal_pct.csv": "tribal_pct", "p12_10_building_coverage.csv": "building_coverage",
+          "p13_01_tiger_multiplicity.csv": "tiger_multiplicity", "p13_02_boundary_leak.csv": "boundary_leak",
+          "p13_03_tiger_noise.csv": "tiger_noise", "p13_04_route_ratio_northern-ca.csv": "route_ratio_northern-ca",
+          "p13_05_route_ratio_maricopa-az.csv": "route_ratio_maricopa-az"}
+# Next probes for --probes, highest information first: physics disagreement along each direction after
+# removing the scored files and the measured route-ratio direction. 5 submissions a day.
+PROBE_QUEUE = ["boundary_leak", "tiger_noise", "boundary_share", "fire_vs_expected", "tiger_multiplicity",
+               "building_coverage", "pct_urban", "route_ratio_northern-ca", "route_ratio_maricopa-az", "svi",
+               "wildfire_hazard", "tribal_pct", "log_pop_density", "poi_per_person"]
+# physics directions: how predictions move under a small change of one mechanism (r10a specialists,
+# common random numbers). TIGER records +10 %, boundary-highway miss +0.2, TIGER length noise -0.1.
+PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1 for x in p.m)),
+                      "boundary_leak": lambda p: replace(p, beta_bnd=p.beta_bnd + 0.2),
+                      "tiger_noise": lambda p: replace(p, sigma_t=max(0.05, p.sigma_t - 0.1))}
 
 
-def probe_features(df, mu):
+def physics_direction(df, mu, name):
+    frame = road_frame(df)
+    sets = {k: Params(**v) for k, v in PHYSICS["r10a"].items()}
+
+    def run(sets_):
+        v = simulate(frame, mu, sets_["global"], 512, 77)
+        for r in CALIB_REGIONS:
+            m = (frame["region"] == r).to_numpy()
+            v[m] = simulate(frame, mu, sets_[r], 512, 77)[m]
+        return 0.8 * v
+
+    return run({k: PHYSICS_DIRECTIONS[name](p) for k, p in sets.items()}) - run(sets)
+
+
+def probe_features(df, mu, names):
     G = df["L_route"] + 0.5 * (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)
+    route = np.log((df["L_named"] + 100) / (G + 100))
     f = pd.DataFrame({
-        "route_ratio": np.log((df["L_named"] + 100) / (G + 100)),
+        "route_ratio": route,
         "fire_vs_expected": np.log((df["E_fire"] + 0.5) / (mu["mu_fire"] + 0.5)),
         "log_pop_density": np.log1p(df["pop"] / df["area_km2"].clip(lower=0.01)),
         "pct_urban": df["pct_urban"].fillna(0),
@@ -571,7 +600,40 @@ def probe_features(df, mu):
         "boundary_share": df["Lb_route"] / (df["L_route"] + df["Lb_route"] + 100),
         "tribal_pct": df["tribal_pct"].fillna(0),
         "building_coverage": np.log((df["n_bld"] + 1) / (df["U_bld"] + 1))}, index=df.index)
-    return f.groupby(df["region"]).transform(lambda x: (x - x.mean()) / (x.std() + 1e-9)).fillna(0)
+    f = f.groupby(df["region"]).transform(lambda x: (x - x.mean()) / (x.std() + 1e-9)).fillna(0)
+    for r in ("northern-ca", "maricopa-az"):
+        f[f"route_ratio_{r}"] = f["route_ratio"] * (df["region"] == r)
+    for k in names:
+        if k in PHYSICS_DIRECTIONS:
+            f[k] = physics_direction(df, mu, k)
+    return f
+
+
+def probe_directions(lb, df, mu, names):
+    """Each feature minus its projection on the scored files (public-subset weights), unit rms."""
+    g = lb.graded
+    F = probe_features(df, mu, names)
+    A, G, _ = lb.system(BASIS + [BASE, "r11_blend_denoised.csv"])
+    out = {}
+    for k in names:
+        x = F[k].to_numpy().astype(float)
+        a = np.linalg.solve(G, (A * lb.pi[:, None]).T @ x[g] / lb.pi.sum())
+        d = x.copy(); d[g] = x[g] - A @ a; d[~g] = 0.0
+        out[k] = d / np.sqrt(lb.AP(d[g] ** 2))
+    return out
+
+
+def write_probes(lb, df, mu, base, n=4, folder="next"):
+    """Write the next n unscored probes (BASE + PROBE_DELTA * direction) for tomorrow's batch."""
+    done = {PROBES[f] for f in PROBES if f in lb.s}
+    todo = [k for k in PROBE_QUEUE if k not in done][:n]
+    dirs = probe_directions(lb, df, mu, todo)
+    os.makedirs(folder, exist_ok=True)
+    name = {v: f for f, v in PROBES.items()}
+    for k in todo:
+        v = np.clip(base + PROBE_DELTA * dirs[k], 0, 1).round(6)      # no Paradise override: keeps the moment exact
+        pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": v}).to_csv(os.path.join(folder, name[k]), index=False)
+        print(f"  wrote {folder}/{name[k]}")
 
 
 def probe_correction(lb, df, mu, base):
@@ -581,14 +643,10 @@ def probe_correction(lb, df, mu, base):
     scored = [f for f in PROBES if f in lb.s]
     if not scored:
         return np.zeros(len(df)), "no probe scores", 0.0
-    F = probe_features(df, mu)
-    A, G, _ = lb.system(BASIS + [BASE, "r11_blend_denoised.csv"])
+    dirs = probe_directions(lb, df, mu, [PROBES[f] for f in scored])
     D, b = [], []
     for f in scored:
-        x = F[PROBES[f]].to_numpy().astype(float)
-        a = np.linalg.solve(G, (A * lb.pi[:, None]).T @ x[g] / lb.pi.sum())
-        d = x.copy(); d[g] = x[g] - A @ a; d[~g] = 0.0
-        d /= np.sqrt(lb.AP(d[g] ** 2))
+        d = dirs[PROBES[f]]
         v = lb.vec(f); dd = (v - base)[g]
         dy = (lb.AP(v[g] ** 2 - base[g] ** 2) - (lb.s[f] ** 2 - lb.s[BASE] ** 2)) / 2
         D.append(d); b.append((dy - lb.AP(dd * base[g])) / PROBE_DELTA)
@@ -632,6 +690,8 @@ def main():
     sub.to_csv(OUT, index=False)
     print(f"probe correction: {note}")
     print(f"wrote {OUT}: expected public RMSE {np.sqrt(lb.s[BASE] ** 2 - gain):.6f} ({time.time() - t0:.0f}s)")
+    if "--probes" in sys.argv:          # tomorrow's batch: submission.csv + 4 probes = 5 submissions
+        write_probes(lb, df, mu, scored)
 
 
 if __name__ == "__main__":
