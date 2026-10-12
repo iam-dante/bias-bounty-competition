@@ -10,7 +10,14 @@ aws s3 sync $B/reference/ data/reference/ --no-sign-request --exclude '*roads-un
 for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
   aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
 python solution.py      # -> submission.csv (features are cached in data/features/ after the first run)
+python solution.py --probes   # also writes the next 4 probe files to next/
 ```
+
+**Daily cycle (5 submissions a day):** submit `submission.csv` plus the 4 files in `next/`. Copy each
+scored file into `scored/` and append `file,score` to `lb_scores.csv`. Then rerun
+`python solution.py --probes`: it fits every scored probe jointly and writes the next batch. The
+queue (`PROBE_QUEUE`) is ordered by how much the physics models disagree along each direction,
+after removing what the leaderboard has already measured.
 
 ## Layout
 
@@ -60,7 +67,11 @@ withdrawn and rebuilding them is prohibited, so there are no labels. `solution.p
    - A probe (r12 plus a small push along one standardised feature direction) measures how much
      of r12's remaining error lies along that feature. The road-ratio probe found a correlation
      of −0.113 (z = −6): true road gaps are sharper than the model predicts. `solution.py`
-     applies that correction with James–Stein shrinkage.
+     applies that correction with James–Stein shrinkage. On semi-synthetic splits, that shrinkage
+     beat ridge and no shrinkage for 5 and 10 probes.
+   - Probe directions include physics directions: how predictions move when one mechanism changes,
+     such as boundary-highway miss, TIGER length noise or TIGER record multiplicity. Of all
+     mechanisms, TIGER multiplicity lines up best (−0.46) with the measured road residual.
 
 ## Score history (public RMSE)
 
