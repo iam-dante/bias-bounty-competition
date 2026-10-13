@@ -47,6 +47,11 @@ data/            challenge data and feature cache (gitignored, downloaded by sol
    writes the next probes. Probes are built on the current corrected prediction, so each one is also a
    near-best submission.
 
+A probe built on a one-sided mechanism, such as `county_s1200` or `unrouted_s1200` (TIGER can only hold
+*more* length than the route-based estimate), is a bet as well: its sign is the physical one. Every probe has
+the directions already measured removed, so it pays only for new signal. If the new direction carries no
+signal, it scores about r14 + 0.00013.
+
 Submit only the score column. Zindi grades every column in the file, and the optional component columns
 cost about 0.08 RMSE.
 

@@ -154,6 +154,7 @@ def _route_sql(st):
         OR (class IN ('motorway','trunk') AND len(list_filter({nets}, n -> n = '')) > 0) AS is_route,
       len(list_filter({nets}, n -> regexp_matches(n, '^US:I(:.*)?$'))) > 0 AS is_interstate,
       len(list_filter({nets}, n -> regexp_matches(n, '^US:TX:(FM|RM|PR|RE|UR)$'))) > 0 AS is_fm,
+      len(list_filter({nets}, n -> regexp_matches(n, '^US:{st}:') AND NOT regexp_matches(n, '{core}'))) > 0 AS is_county,
       len(list_distinct(list_filter(list_transform(coalesce(routes, []), x -> x.network || '|' || x.ref), x -> x IS NOT NULL))) AS n_ref,
       coalesce(names.primary IS NOT NULL AND NOT regexp_matches(names.primary, '{ROUTE_NAME_RE}'), false) AS local_name"""
 
@@ -173,7 +174,13 @@ def _road_features(con, region, st):
           sum(L) FILTER (is_route AND n_ref >= 2) AS L_route_multiref,
           sum(L) FILTER (is_interstate)           AS L_interstate,
           sum(L) FILTER (is_fm)                   AS L_fm,
-          sum(L) FILTER (class = 'tertiary')      AS L_tertiary        -- roads TIGER may call S1200
+          sum(L) FILTER (class = 'tertiary')      AS L_tertiary,       -- roads TIGER may call S1200
+          -- TIGER S1200 is "usually in the U.S., State or County Highway system": county routes and
+          -- unrouted arterials are length TIGER may hold that the route-based estimate leaves out
+          sum(L) FILTER (is_county AND NOT is_route AND NOT is_fm
+                         AND class IN ('primary','secondary','tertiary')) AS L_county,
+          sum(L) FILTER (NOT is_route AND NOT is_fm AND NOT is_county AND class IN ('primary','secondary')
+                         AND coalesce(subclass, '') <> 'link') AS L_unrouted
         FROM rl GROUP BY GEOID""").df()
     # Overture route length within 30 m of the tract boundary
     nb = con.sql("""
@@ -339,6 +346,8 @@ class Params:
     r_sch: float = 0.95
     eps_cbp: float = 0.025             # business establishments = eps * population * noise
     sigma_c: float = 0.35
+    w_cty: float = 0.0                 # share of county-route length TIGER calls S1200
+    w_unr: float = 0.0                 # share of unrouted primary/secondary length TIGER calls S1200
     use_cbp: bool = True
     use_points: bool = False           # facility copies leak across tract boundaries, Phi(d / sigma_loc)
     sigma_loc: float = 60.0
@@ -409,7 +418,8 @@ def simulate(df, mu, p: Params, n_sims=512, seed=0):
                       + p.gf_svi * g("g_svi") + p.gf_heat * g("g_heat") + p.gf_cvi * g("g_cvi"))
     # road: 1 - min(1, Overture named length / TIGER S1100+S1200 length)
     N = df["L_named"].to_numpy()
-    G = (df["L_route"] + p.w_fm * df["L_fm"] + p.beta_bnd * (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)).to_numpy()
+    G = (df["L_route"] + p.w_fm * df["L_fm"] + p.beta_bnd * (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)
+         + p.w_cty * df["L_county"] + p.w_unr * df["L_unrouted"]).to_numpy()
     has_ev = G > 1.0
     T = (m_r * G * np.where(burned, p.burn_road, 1.0) * road_mult)[None, :] * _lognoise(rng, p.sigma_t, (S, n))
     surprise = (~has_ev)[None, :] & (rng.random((S, n)) < p.p_def0)
@@ -612,7 +622,7 @@ PROBE_DELTA = 0.004
 PROBE_FILE = re.compile(r"^p(\d+)_(\d+)_(.+)\.csv$")   # p<round>_<n>_<direction>.csv
 # Next probes for --probes, highest information first: physics disagreement along each direction after
 # removing the scored files and every measured direction (road ratio, boundary leak). 5 submissions a day.
-PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "tertiary_vs_named", "poi_share_brightquery", "poi_share_meta",
+PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s1200", "tertiary_vs_named", "poi_share_brightquery", "poi_share_meta",
                "log_land_area", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
@@ -628,7 +638,10 @@ def probe_direction_of(f):
 # common random numbers). TIGER records +10 %, boundary-highway miss +0.2, TIGER length noise -0.1.
 PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1 for x in p.m)),
                       "boundary_leak": lambda p: replace(p, beta_bnd=p.beta_bnd + 0.2),
-                      "tiger_noise": lambda p: replace(p, sigma_t=max(0.05, p.sigma_t - 0.1))}
+                      "tiger_noise": lambda p: replace(p, sigma_t=max(0.05, p.sigma_t - 0.1)),
+                      # one-sided mechanisms (TIGER can only hold more length), so the + sign is a bet as well as a probe
+                      "county_s1200": lambda p: replace(p, w_cty=p.w_cty + 0.5),
+                      "unrouted_s1200": lambda p: replace(p, w_unr=p.w_unr + 0.2)}
 
 
 def physics_direction(df, mu, name):
@@ -680,10 +693,12 @@ def probe_features(df, mu, names):
 
 
 def probe_directions(lb, df, mu, names):
-    """Each feature minus its projection on the scored files (public-subset weights), unit rms."""
+    """Each feature minus its projection on the scored files, measured probes included (public-subset
+    weights), unit rms. The current correction already uses everything measured, so any overlap with a
+    measured direction is pure cost: removing it makes every probe a cheaper bet on new signal only."""
     g = lb.graded
     F = probe_features(df, mu, names)
-    A, G, _ = lb.system(BASIS + [BASE, "r11_blend_denoised.csv"])
+    A, G, _ = lb.system(BASIS + [BASE, "r11_blend_denoised.csv"] + [f for f in lb.s if probe_direction_of(f)])
     out = {}
     for k in names:
         x = F[k].to_numpy().astype(float)

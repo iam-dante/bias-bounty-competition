@@ -81,6 +81,19 @@ do not already explain. A high value means a probe can test it, not that it pred
 | `strata/national/*` | 0.5 GB | the same tables for all 85,396 US tracts | not useful: no labels anywhere, and the regional rows are identical |
 | `census-aiannh`, tribal tracts/subdivisions, `boundaries/` | small | tribal and region geometry | not used: tribal overlap is already in the joined table |
 
+### Region profiles (from the provided data)
+
+Road lengths are in km of Overture road. "Route" is the Interstate/US/State system, our TIGER S1100/S1200
+estimate. "County" and "unrouted" are primary/secondary roads outside it that TIGER's S1200 ("usually in the
+U.S., State or County Highway system") may still hold. Building sources are shares of Overture footprints.
+
+| region | named roads | route | county | unrouted | buildings from MS ML / OSM / Esri | notes |
+|---|---|---|---|---|---|---|
+| eastern-ok | 27,944 | 24,531 | 1,893 | 2,502 | 64 / 21 / 15 % | rural and tribal; most footprints are Microsoft ML |
+| maricopa-az | 22,114 | 11,438 | 415 | 9,202 | 13 / 83 / 3 % | 55 % of tracts have no TIGER highway; arterial grid is mostly unrouted |
+| northern-ca | 12,204 | 7,191 | 1,459 | 3,513 | 45 / 52 / 2 % | signed county routes (`US:CA:CR`); Camp Fire area; 5 published Paradise scores |
+| south-central-tx | 118,177 | 52,445 | 1,886 | 23,316 | 39 / 57 / 2 % | Farm-to-Market roads (not TIGER highways) are about 47,000 km of the network |
+
 ### Open question: Overture's own source attribution
 
 About half of the Overture buildings come from **Microsoft ML Buildings** (eastern-ok 64 %, northern-ca 45 %,
