@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 import warnings
@@ -558,21 +559,20 @@ DENOISE = {"r10d_regional_affine.csv": "r10", "r9d_routefix_affine.csv": "r9"}
 BASE = "r12_blend_with_AB.csv"         # scored 0.064009: the blend above, rebuilt and checked below
 # Probe files: BASE + 0.004 * direction(feature). A probe's score gives mean_P(direction * (y - BASE)).
 PROBE_DELTA = 0.004
-PROBES = {"p12_01_route_ratio.csv": "route_ratio", "p12_02_fire_vs_expected.csv": "fire_vs_expected",
-          "p12_03_log_pop_density.csv": "log_pop_density", "p12_04_pct_urban.csv": "pct_urban",
-          "p12_05_wildfire_hazard.csv": "wildfire_hazard", "p12_06_svi.csv": "svi", "p12_07_poi_per_person.csv": "poi_per_person",
-          "p12_08_boundary_share.csv": "boundary_share", "p12_09_tribal_pct.csv": "tribal_pct", "p12_10_building_coverage.csv": "building_coverage",
-          "p13_01_tiger_multiplicity.csv": "tiger_multiplicity", "p13_02_boundary_leak.csv": "boundary_leak",
-          "p13_03_tiger_noise.csv": "tiger_noise", "p13_04_route_ratio_northern-ca.csv": "route_ratio_northern-ca",
-          "p13_05_route_ratio_maricopa-az.csv": "route_ratio_maricopa-az",
-          "p14_01_interstate_share.csv": "interstate_share", "p14_02_log_route_length.csv": "log_route_length",
-          "p14_03_multiref_share.csv": "multiref_share", "p14_04_gmm_route.csv": "gmm_route"}
+PROBE_FILE = re.compile(r"^p(\d+)_(\d+)_(.+)\.csv$")   # p<round>_<n>_<direction>.csv
 # Next probes for --probes, highest information first: physics disagreement along each direction after
-# removing the scored files and the measured route-ratio direction. 5 submissions a day.
-PROBE_QUEUE = ["boundary_leak", "tiger_noise", "boundary_share", "fire_vs_expected",            # batch 1
-               "gmm_route", "interstate_share", "tiger_multiplicity", "log_route_length", "multiref_share",  # batch 2
-               "building_coverage", "pct_urban", "route_ratio_northern-ca", "route_ratio_maricopa-az", "svi",
-               "wildfire_hazard", "tribal_pct", "log_pop_density", "poi_per_person"]
+# removing the scored files and every measured direction (road ratio, boundary leak). 5 submissions a day.
+PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "tiger_noise", "interstate_share", "fire_vs_expected",
+               "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
+               "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
+               "wildfire_hazard", "poi_per_person"]
+
+
+def probe_direction_of(f):
+    m = PROBE_FILE.match(f)
+    return m.group(3) if m else None
+
+
 # physics directions: how predictions move under a small change of one mechanism (r10a specialists,
 # common random numbers). TIGER records +10 %, boundary-highway miss +0.2, TIGER length noise -0.1.
 PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1 for x in p.m)),
@@ -641,16 +641,17 @@ def write_probes(lb, df, mu, base, n=4, folder="next"):
     """Write the next n unscored probes: base (the current corrected prediction) + PROBE_DELTA *
     direction, so every probe is itself a near-best submission."""
     import glob
-    waiting = {os.path.basename(p) for p in glob.glob(os.path.join("batches", "*", "*.csv"))}
-    done = {PROBES[f] for f in PROBES if f in lb.s or f in waiting}      # scored, or saved in a batch to upload
+    files = set(lb.s) | {os.path.basename(p) for p in glob.glob(os.path.join("batches", "*", "*.csv"))}
+    done = {probe_direction_of(f) for f in files} - {None}         # measured, or saved in a batch to upload
+    rnd = 1 + max([int(PROBE_FILE.match(f).group(1)) for f in files if PROBE_FILE.match(f)] + [0])
     todo = [k for k in PROBE_QUEUE if k not in done][:n]
     dirs = probe_directions(lb, df, mu, todo)
     os.makedirs(folder, exist_ok=True)
-    name = {v: f for f, v in PROBES.items()}
-    for k in todo:
+    for i, k in enumerate(todo, 1):
+        name = f"p{rnd}_{i:02d}_{k}.csv"
         v = np.clip(base + PROBE_DELTA * dirs[k], 0, 1).round(6)
-        pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": v}).to_csv(os.path.join(folder, name[k]), index=False)
-        print(f"  wrote {folder}/{name[k]}")
+        pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": v}).to_csv(os.path.join(folder, name), index=False)
+        print(f"  wrote {folder}/{name}")
 
 
 def probe_correction(lb, df, mu, r12):
@@ -661,7 +662,7 @@ def probe_correction(lb, df, mu, r12):
     shrinkage 1 - K / chi^2 (1 - 1/z^2 for one probe; on semi-synthetic splits it beat ridge and no
     shrinkage for 5 and 10 probes)."""
     g, AP, Z = lb.graded, lb.AP, lb.Z
-    scored = [f for f in PROBES if f in lb.s]
+    scored = [f for f in lb.s if probe_direction_of(f)]
     if not scored:
         return np.zeros(len(df)), "no probe scores", 0.0
     basis = BASIS + [BASE, "r11_blend_denoised.csv"]
@@ -685,7 +686,7 @@ def probe_correction(lb, df, mu, r12):
     gam *= shrink
     gain = 2 * gam @ b - gam @ Gp @ gam
     z = b / np.sqrt(np.diag(Gp)) / s12 * np.sqrt(lb.pi.sum())
-    note = ", ".join(f"{PROBES[f]} z={zi:+.1f}" for f, zi in zip(scored, z)) + f"; shrink {shrink:.3f}"
+    note = ", ".join(f"{probe_direction_of(f)} z={zi:+.1f}" for f, zi in zip(scored, z)) + f"; shrink {shrink:.3f}"
     full = np.zeros(len(df)); full[g] = P @ gam
     return full, note, gain
 
