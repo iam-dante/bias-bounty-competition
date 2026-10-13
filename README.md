@@ -96,8 +96,9 @@ withdrawn and rebuilding them is prohibited, so there are no labels. `solution.p
 - Full anchoring to the published cell means (0.064221): the means predate the 28 Sep re-scoring.
 - Physics calibrated directly on leaderboard moments (0.064317): its new direction had no signal.
 - Physics refitted on every leaderboard moment including the road-ratio probe (probe 0.063802): z = +5.0
-  alone, but z = 0.4 given the two measured directions. A probe only enters the correction if its
-  conditional z is at least 2.
+  alone, but z = 0.4 given the two measured directions. Probes are tested in the order they were
+  scored, and one enters the correction only if its conditional z is at least 2.
+- TIGER record multiplicity (probe 0.063592): conditional z = 0.5.
 - The published TIGER/Overture ratio range.
 - A live business-count half.
 
