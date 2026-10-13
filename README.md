@@ -95,6 +95,9 @@ withdrawn and rebuilding them is prohibited, so there are no labels. `solution.p
 - Re-blending earlier stacks: costs private RMSE on semi-synthetic public/private splits.
 - Full anchoring to the published cell means (0.064221): the means predate the 28 Sep re-scoring.
 - Physics calibrated directly on leaderboard moments (0.064317): its new direction had no signal.
+- Physics refitted on every leaderboard moment including the road-ratio probe (probe 0.063802): z = +5.0
+  alone, but z = 0.4 given the two measured directions. A probe only enters the correction if its
+  conditional z is at least 2.
 - The published TIGER/Overture ratio range.
 - A live business-count half.
 
