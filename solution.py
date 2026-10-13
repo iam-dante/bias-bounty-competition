@@ -681,14 +681,12 @@ def probe_correction(lb, df, mu, r12):
     Gp_all = (P * lb.pi[:, None]).T @ P / lb.pi.sum()
     s12 = lb.s[BASE]
     chi = lambda idx: float(b[idx] @ np.linalg.solve(Gp_all[np.ix_(idx, idx)], b[idx])) / s12 ** 2 * lb.pi.sum() if idx else 0.0
-    # forward selection: a probe enters only if its information given the ones already in has z >= 2
-    # (the refitted physics model's direction scored z = +5.0 alone but 0.4 given the road ratio)
-    sel, rest = [], list(range(len(b)))
-    while rest:
-        j = max(rest, key=lambda k: chi(sel + [k]))
-        if chi(sel + [j]) - chi(sel) < 4.0:
-            break
-        sel.append(j); rest.remove(j)
+    # sequential test in the order the probes were scored: a probe enters only if its information given
+    # the ones already in has z >= 2. (Greedy selection is wrong here: a probe built on a corrected base
+    # carries that whole correction, so alone it looks like it explains everything.)
+    sel, rest = [], []
+    for j in range(len(b)):
+        (sel if chi(sel + [j]) - chi(sel) >= 4.0 else rest).append(j)
     if not sel:
         return np.zeros(len(df)), "no probe direction clears z = 2", 0.0
     dropped = [probe_direction_of(scored[k]) for k in rest]
