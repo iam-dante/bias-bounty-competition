@@ -1,7 +1,7 @@
 # Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
 
-**Current submission: `submission.csv`.** Expected public RMSE 0.0636. It is r12 (scored 0.064009)
-plus a correction measured by a scored probe. Every leaderboard score is in `lb_scores.csv`.
+**Current submission: `submission.csv` (r14).** Expected public RMSE 0.06345. It is r12 (scored 0.064009)
+plus a correction along two directions measured by scored probes. Every leaderboard score is in `lb_scores.csv`.
 
 ```
 pip install -r requirements.txt
@@ -10,7 +10,7 @@ aws s3 sync $B/reference/ data/reference/ --no-sign-request --exclude '*roads-un
 for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
   aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
 python solution.py      # -> submission.csv (features are cached in data/features/ after the first run)
-python solution.py --probes   # also writes the next 4 probe files to next/
+python solution.py --probes [n]   # also writes the next n (default 4) probe files to next/
 ```
 
 **Daily cycle (5 submissions a day):** submit `submission.csv` plus the 4 files in `next/`. Copy each
@@ -71,7 +71,8 @@ withdrawn and rebuilding them is prohibited, so there are no labels. `solution.p
    - A probe (r12 plus a small push along one standardised feature direction) measures how much
      of r12's remaining error lies along that feature. The road-ratio probe found a correlation
      of −0.113 (z = −6): true road gaps are sharper than the model predicts. `solution.py`
-     applies that correction with James–Stein shrinkage. On semi-synthetic splits, that shrinkage
+     applies that correction with James–Stein shrinkage. The boundary-leak probe (physics: more
+     of a boundary highway's TIGER length belongs to the tract) found z = +4.7. On semi-synthetic splits, that shrinkage
      beat ridge and no shrinkage for 5 and 10 probes.
    - Probe directions include physics directions: how predictions move when one mechanism changes,
      such as boundary-highway miss, TIGER length noise or TIGER record multiplicity. Of all
@@ -87,7 +88,8 @@ withdrawn and rebuilding them is prohibited, so there are no labels. `solution.p
 | r6e | 0.065531 | vulnerability effects in the physics |
 | stack7 | 0.064214 | regional specialists, Arizona route fix |
 | r12 | **0.064009** | public-subset-corrected blend, Monte-Carlo denoising, partial cell anchoring |
-| submission.csv | ≈0.0636 expected | r12 + road-ratio probe correction |
+| p13_02_boundary_leak (probe) | 0.063780 | r12 + 0.004 × boundary-leak direction: z = +4.7 |
+| submission.csv (r14) | ≈0.06345 expected | r12 + joint correction along road ratio (z = −6.1) and boundary leak (z = +4.7) |
 
 **Tested and dropped:**
 - Re-blending earlier stacks: costs private RMSE on semi-synthetic public/private splits.
