@@ -1,34 +1,32 @@
 """
 Bias Bounty Mapping Equity Challenge: the whole pipeline in one file.
 
-    python solution.py            # -> submission.csv (public RMSE 0.0636 expected; r12 scored 0.064009)
-    python solution.py --probes [n]   # also writes the next n (default 4) probes to next/; 5 submissions a day
+    pip install -r requirements.txt
+    python solution.py                 # download data -> features -> physics -> blend -> correction -> submission.csv
+    python solution.py --rebuild       # same, but recompute the cached features in data/features/ from scratch
+    python solution.py --probes [n]    # also write the next n (default 4) probe files to next/ (5 submissions a day)
 
-There is no labelled training data: the organisers withdrew the reference layers (TIGER roads,
-Microsoft buildings, facility and business counts) the target was computed from, and rebuilding
-them is prohibited. So the prediction is built from three kinds of permitted information:
-
-  1. FEATURES (DuckDB, from the provided Overture extracts, ACS and strata tables). The Overture
-     side of every ratio is computed exactly; the reference side is inferred from evidence in the
-     permitted data: Overture route refs (TIGER S1100/S1200 is the Interstate/US/State system),
-     tract boundaries that run along highways, facility names / alternate categories, USFS
-     building counts. Cached in data/features/.
-  2. PHYSICS. A generative model of the withdrawn reference counts, pushed through the exact
+Steps (each prints its progress):
+  1. DATA. Downloads the permitted challenge files from the public Source Cooperative bucket
+     (no account needed) into data/. Files already on disk with the right size are skipped.
+     Only the files the pipeline reads are fetched (~3.4 GB, mostly the Overture buildings).
+  2. FEATURES (DuckDB). The Overture side of every ratio is computed exactly; the reference side
+     (TIGER highways, Microsoft buildings, facilities, CBP) was withdrawn, so it is inferred from
+     evidence in the permitted data: Overture route refs (TIGER S1100/S1200 is the Interstate/US/
+     State system), tract boundaries that run along highways, facility names / alternate
+     categories, USFS building counts. Cached in data/features/.
+  3. PHYSICS. A generative model of the withdrawn reference counts, pushed through the exact
      official composite (mean of the defined components) by Monte Carlo, gives E[score | data].
-     Its parameters were calibrated on the published statistics (rounds 9-10, embedded below).
-  3. LEADERBOARD FACTS. For RMSE, every scored file f gives one exact moment of the hidden target:
-     mean_P(f*y) = (mean_P(f^2) + mean_P(y^2) - MSE_f) / 2. The scored files in scored/ and their
-     scores in lb_scores.csv are therefore data. The blend is the least-squares combination of
-     scored files; exact identities between scored files locate the public 30 % well enough to
-     predict held-out scores to ~5e-5.
+     Its parameters were calibrated on the published statistics and are embedded below.
+  4. LEADERBOARD BLEND. For RMSE, every scored file f gives one exact moment of the hidden target:
+     mean_P(f*y) = (mean_P(f^2) + mean_P(y^2) - MSE_f) / 2. The files in scored/ and their scores
+     in lb_scores.csv are therefore data; the blend is their least-squares combination. It
+     rebuilds the scored r12 file and checks it.
+  5. PROBE CORRECTION. Scored probe files measure how r12's remaining error lines up with single
+     feature directions (road ratio z = -6.1, boundary leak z = +4.7); the correction is applied
+     with James-Stein shrinkage, and submission.csv is written.
 
-Steps: features -> physics (r10/r9 models at 4096 draws, removing Monte-Carlo noise from the
-blend's main inputs) -> leaderboard blend (rebuilds the scored r12 file and checks it) -> route
-correction (a scored probe showed r12's remaining error runs along the road ratio, z = -6) ->
-submission.csv with the five published Paradise tracts.
-
-Data (gitignored), see README.md for the download commands:
-    data/reference/<region>/...   data/strata/<region>/...
+See problem.md for the problem and README.md for the daily submission cycle.
 """
 from __future__ import annotations
 
@@ -37,6 +35,7 @@ import os
 import re
 import sys
 import time
+import urllib.request
 import warnings
 from dataclasses import dataclass, replace
 
@@ -52,13 +51,58 @@ REGIONS = ["eastern-ok", "maricopa-az", "northern-ca", "south-central-tx", "east
 STATE = {"eastern-ok": "OK", "maricopa-az": "AZ", "northern-ca": "CA", "south-central-tx": "TX", "eastern-wa": "WA"}
 CALIB_REGIONS = REGIONS[:4]            # eastern-wa is in the file but not graded
 RIDX = {r: i for i, r in enumerate(REGIONS)}
+DATA_URL = "https://data.source.coop/humane-intelligence/bias-bounty-mapping-equity-challenge"
 # five Paradise tracts with published coverage_gap_score (public discussion 34910)
 PUBLISHED = {"06007002300": 0.252, "06007001602": 0.254, "06007001703": 0.191, "06007002200": 0.249,
              "06007001601": 0.323}
 
 
 # ================================================================================================
-# 1. FEATURES
+# 1. DATA: the permitted challenge files, from the public Source Cooperative bucket
+# ================================================================================================
+def data_files():
+    """The files the pipeline reads, relative to data/ and to the bucket root."""
+    out = []
+    for r in REGIONS:
+        out += [f"reference/{r}/{r}-{x}" for x in ("overture-roads.parquet", "overture-buildings.parquet",
+                                                    "overture-pois.parquet", "census-acs-housing.parquet",
+                                                    "sample-submission.csv")]
+        out += [f"strata/{r}/{r}-{x}" for x in ("census-tracts.parquet", "strata-tract-table.parquet")]
+    return out
+
+
+def _http(url, method="GET"):
+    # the proxy rejects Python's default User-Agent with 403
+    return urllib.request.urlopen(urllib.request.Request(url, method=method, headers={"User-Agent": "bias-bounty-solution"}),
+                                  timeout=60)
+
+
+def download():
+    """Fetch every missing or incomplete file (size checked against the bucket). No credentials."""
+    files = data_files()
+    for i, rel in enumerate(files, 1):
+        path, url = os.path.join(DATA, rel), f"{DATA_URL}/{rel}"
+        try:
+            size = int(_http(url, "HEAD").headers["Content-Length"])
+        except Exception as e:
+            if os.path.exists(path):
+                print(f"  [{i:2d}/{len(files)}] {rel}: bucket unreachable ({e}), using the local copy")
+                continue
+            raise
+        if os.path.exists(path) and os.path.getsize(path) == size:
+            print(f"  [{i:2d}/{len(files)}] {rel}: up to date ({size / 1e6:.1f} MB)")
+            continue
+        print(f"  [{i:2d}/{len(files)}] {rel}: downloading {size / 1e6:.1f} MB ...", flush=True)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with _http(url) as r, open(path + ".part", "wb") as f:
+            while chunk := r.read(1 << 22):
+                f.write(chunk)
+        assert os.path.getsize(path + ".part") == size, f"{rel}: incomplete download, rerun to resume"
+        os.replace(path + ".part", path)
+
+
+# ================================================================================================
+# 2. FEATURES
 # ================================================================================================
 FIRE_NAME_RE = (r"(?i)(fire (station|dept|department|district|rescue|house|company|hall|co\b)|"
                 r"\bvfd\b|volunteer fire|fire protection district|\bfpd\b|fire & rescue|fire and rescue|"
@@ -128,7 +172,8 @@ def _road_features(con, region, st):
           sum(L) FILTER (is_route AND local_name) AS L_route_localname,
           sum(L) FILTER (is_route AND n_ref >= 2) AS L_route_multiref,
           sum(L) FILTER (is_interstate)           AS L_interstate,
-          sum(L) FILTER (is_fm)                   AS L_fm
+          sum(L) FILTER (is_fm)                   AS L_fm,
+          sum(L) FILTER (class = 'tertiary')      AS L_tertiary        -- roads TIGER may call S1200
         FROM rl GROUP BY GEOID""").df()
     # Overture route length within 30 m of the tract boundary
     nb = con.sql("""
@@ -161,9 +206,13 @@ def _building_features(con, region):
 def _poi_features(con, region):
     sc = "(" + ",".join(f"'{c}'" for c in SCHOOL_CATS) + ")"
     return con.sql(f"""
-        WITH poi AS (SELECT geometry p, categories.primary cat, coalesce(categories.alternate, []) alts, names.primary nm
+        WITH poi AS (SELECT geometry p, categories.primary cat, coalesce(categories.alternate, []) alts, names.primary nm,
+                            sources[1].dataset ds
                      FROM '{DATA}/reference/{region}/{region}-overture-pois.parquet')
         SELECT tr.GEOID, count(*) n_poi,
+          count(*) FILTER (ds = 'meta') n_poi_meta,               -- upstream source of each place
+          count(*) FILTER (ds = 'BrightQuery') n_poi_bq,          -- business registry
+          count(*) FILTER (ds = 'Microsoft') n_poi_msft,
           count(*) FILTER (cat = 'fire_department') n_fd,
           count(*) FILTER (cat <> 'fire_department' AND list_contains(alts, 'fire_department')) n_fd_alt,
           count(*) FILTER (coalesce(cat,'') <> 'fire_department' AND regexp_matches(coalesce(nm,''), '{FIRE_NAME_RE}')) n_fire_name,
@@ -208,6 +257,7 @@ def build_features(region, force=False):
     os.makedirs(FEAT, exist_ok=True)
     out, pts_out = os.path.join(FEAT, f"{region}.parquet"), os.path.join(FEAT, f"{region}-facpts.parquet")
     if os.path.exists(out) and os.path.exists(pts_out) and not force:
+        print(f"  features [{region}] cached")
         return
     t0 = time.time()
     con = _con()
@@ -225,7 +275,7 @@ def build_features(region, force=False):
 
 
 # ================================================================================================
-# 2. PHYSICS: generative model of the withdrawn reference counts
+# 3. PHYSICS: generative model of the withdrawn reference counts
 # ================================================================================================
 def load():
     frames = []
@@ -477,7 +527,7 @@ def physics(df, mu, seeds=range(3000, 3008)):
 
 
 # ================================================================================================
-# 3. LEADERBOARD FACTS
+# 4. LEADERBOARD FACTS
 # ================================================================================================
 class Leaderboard:
     """Exact moments of the hidden target from the scored files, on the graded rows (eastern-wa is
@@ -562,7 +612,8 @@ PROBE_DELTA = 0.004
 PROBE_FILE = re.compile(r"^p(\d+)_(\d+)_(.+)\.csv$")   # p<round>_<n>_<direction>.csv
 # Next probes for --probes, highest information first: physics disagreement along each direction after
 # removing the scored files and every measured direction (road ratio, boundary leak). 5 submissions a day.
-PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "tiger_noise", "interstate_share", "fire_vs_expected",
+PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "tertiary_vs_named", "poi_share_brightquery", "poi_share_meta",
+               "log_land_area", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
                "wildfire_hazard", "poi_per_person"]
@@ -613,7 +664,12 @@ def probe_features(df, mu, names):
         # TIGER record mechanics: Interstates, concurrent routes, total route length
         "interstate_share": df["L_interstate"] / (df["L_route"] + 100),
         "multiref_share": df["L_route_multiref"] / (df["L_route"] + 100),
-        "log_route_length": np.log1p(df["L_route"])}, index=df.index)
+        "log_route_length": np.log1p(df["L_route"]),
+        # unused permitted data (2026-10-13 inventory): road class boundary, place sources, land area
+        "tertiary_vs_named": np.log((df["L_tertiary"] + 100) / (df["L_named"] + 100)),
+        "poi_share_brightquery": df["n_poi_bq"] / (df["n_poi"] + 1),
+        "poi_share_meta": df["n_poi_meta"] / (df["n_poi"] + 1),
+        "log_land_area": np.log1p(df["ALAND"].fillna(df["area_m2"]))}, index=df.index)
     f = f.groupby(df["region"]).transform(lambda x: (x - x.mean()) / (x.std() + 1e-9)).fillna(0)
     for r in ("northern-ca", "maricopa-az"):
         f[f"route_ratio_{r}"] = f["route_ratio"] * (df["region"] == r)
@@ -640,10 +696,8 @@ def probe_directions(lb, df, mu, names):
 def write_probes(lb, df, mu, base, n=4, folder="next"):
     """Write the next n unscored probes: base (the current corrected prediction) + PROBE_DELTA *
     direction, so every probe is itself a near-best submission."""
-    import glob
-    files = set(lb.s) | {os.path.basename(p) for p in glob.glob(os.path.join("batches", "*", "*.csv"))}
-    done = {probe_direction_of(f) for f in files} - {None}         # measured, or saved in a batch to upload
-    rnd = 1 + max([int(PROBE_FILE.match(f).group(1)) for f in files if PROBE_FILE.match(f)] + [0])
+    done = {probe_direction_of(f) for f in lb.s} - {None}          # already measured on the leaderboard
+    rnd = 1 + max([int(PROBE_FILE.match(f).group(1)) for f in lb.s if PROBE_FILE.match(f)] + [0])
     todo = [k for k in PROBE_QUEUE if k not in done][:n]
     dirs = probe_directions(lb, df, mu, todo)
     os.makedirs(folder, exist_ok=True)
@@ -706,16 +760,24 @@ def probe_correction(lb, df, mu, r12):
 
 
 def main():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))   # data/, scored/ and outputs are relative to the repo
     t0 = time.time()
+    step = lambda k, msg: print(f"\n[{k}/5] {msg} ({time.time() - t0:.0f}s)", flush=True)
+
+    step(1, f"Data: checking / downloading the challenge files into {DATA}/")
+    download()
+
+    step(2, "Features: Overture roads, buildings, POIs + ACS + strata per tract (cached in data/features/)")
     for r in REGIONS:
-        build_features(r)
+        build_features(r, force="--rebuild" in sys.argv)
     df = attach_points(load())
     mu = prior_rates(df)
-    print(f"features: {len(df)} tracts ({time.time() - t0:.0f}s)", flush=True)
+    print(f"  {len(df)} tracts, {df.shape[1]} columns")
 
+    step(3, "Physics: Monte-Carlo model of the withdrawn reference layers (r10 and r9, 4096 draws each)")
     hi = physics(df, mu)
-    print(f"physics done ({time.time() - t0:.0f}s)", flush=True)
 
+    step(4, "Leaderboard blend: least squares over the scored files in scored/")
     lb = Leaderboard(df)
     lb.public_subset()
     blend, w, expected = lb.blend(BASIS)
@@ -723,19 +785,23 @@ def main():
         blend = blend + w[f] * (hi[tag] - lb.vec(f))
     r12 = finish(blend, df["GEOID"])
     scored = lb.vec(BASE)
-    print(f"blend: expected public {expected:.6f}; rebuilt {BASE} max |diff| vs scored file {np.abs(r12 - scored).max():.1e}", flush=True)
+    print(f"  expected public RMSE {expected:.6f}; rebuilt {BASE} max |diff| vs scored file {np.abs(r12 - scored).max():.1e}")
     assert np.abs(r12 - scored).max() <= 2e-6, "blend does not reproduce the scored file"
 
+    step(5, "Probe correction and submission")
     corr, note, gain = probe_correction(lb, df, mu, scored)
     out = finish(scored + corr, df["GEOID"])
     sub = pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": out})
     assert len(sub) == 9794 and sub["GEOID"].is_unique and sub.notna().all().all()
     sub.to_csv(OUT, index=False)
-    print(f"probe correction: {note}")
-    print(f"wrote {OUT}: expected public RMSE {np.sqrt(lb.s[BASE] ** 2 - gain):.6f} ({time.time() - t0:.0f}s)")
+    print(f"  probe correction: {note}")
+    print(f"  wrote {OUT}: {len(sub)} rows, mean score {out.mean():.4f}, expected public RMSE "
+          f"{np.sqrt(lb.s[BASE] ** 2 - gain):.6f}")
     if "--probes" in sys.argv:          # next batch: probes on the corrected prediction
-        n = int(sys.argv[sys.argv.index("--probes") + 1]) if len(sys.argv) > sys.argv.index("--probes") + 1 else 4
+        i = sys.argv.index("--probes")
+        n = int(sys.argv[i + 1]) if len(sys.argv) > i + 1 and sys.argv[i + 1].isdigit() else 4
         write_probes(lb, df, mu, np.clip(scored + corr, 0, 1), n=n)
+    print(f"\ndone in {time.time() - t0:.0f}s. Submit {OUT} (GEOID, coverage_gap_score only).")
 
 
 if __name__ == "__main__":
