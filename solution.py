@@ -678,15 +678,31 @@ def probe_correction(lb, df, mu, r12):
         py = (cy(lb.vec(f)[g], lb.s[f]) - ry) - a @ c                # mean_P(p * y)
         P.append(p); b.append(py - AP(p * r))
     P, b = np.column_stack(P), np.array(b)
-    Gp = (P * lb.pi[:, None]).T @ P / lb.pi.sum()
-    gam = np.linalg.solve(Gp, b)
+    Gp_all = (P * lb.pi[:, None]).T @ P / lb.pi.sum()
     s12 = lb.s[BASE]
+    chi = lambda idx: float(b[idx] @ np.linalg.solve(Gp_all[np.ix_(idx, idx)], b[idx])) / s12 ** 2 * lb.pi.sum() if idx else 0.0
+    # forward selection: a probe enters only if its information given the ones already in has z >= 2
+    # (the refitted physics model's direction scored z = +5.0 alone but 0.4 given the road ratio)
+    sel, rest = [], list(range(len(b)))
+    while rest:
+        j = max(rest, key=lambda k: chi(sel + [k]))
+        if chi(sel + [j]) - chi(sel) < 4.0:
+            break
+        sel.append(j); rest.remove(j)
+    if not sel:
+        return np.zeros(len(df)), "no probe direction clears z = 2", 0.0
+    dropped = [probe_direction_of(scored[k]) for k in rest]
+    scored, P, b = [scored[k] for k in sel], P[:, sel], b[sel]
+    Gp = Gp_all[np.ix_(sel, sel)]
+    gam = np.linalg.solve(Gp, b)
     chi2 = float(b @ gam) / s12 ** 2 * lb.pi.sum()
     shrink = max(0.0, 1 - len(b) / chi2)
     gam *= shrink
     gain = 2 * gam @ b - gam @ Gp @ gam
     z = b / np.sqrt(np.diag(Gp)) / s12 * np.sqrt(lb.pi.sum())
     note = ", ".join(f"{probe_direction_of(f)} z={zi:+.1f}" for f, zi in zip(scored, z)) + f"; shrink {shrink:.3f}"
+    if dropped:
+        note += f"; no new signal: {', '.join(dropped)}"
     full = np.zeros(len(df)); full[g] = P @ gam
     return full, note, gain
 

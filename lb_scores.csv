@@ -28,3 +28,4 @@ r12_blend_with_AB.csv,0.064008915
 r11_blend_denoised.csv,0.064057534
 p12_01_route_ratio.csv,0.064583076
 p13_02_boundary_leak.csv,0.063780455
+p14_04_gmm_route.csv,0.063801619
