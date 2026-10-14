@@ -31,3 +31,8 @@ p13_02_boundary_leak.csv,0.063780455
 p14_04_gmm_route.csv,0.063801619
 r14_route_boundary_corrected.csv,0.063433173
 p14_02_tiger_multiplicity.csv,0.063591517
+p15_01_county_s1200.csv,0.063466552
+p15_02_unrouted_s1200.csv,0.063373747
+p15_03_tertiary_vs_named.csv,0.063190463
+p15_04_poi_share_brightquery.csv,0.063752599
+p15_05_poi_share_meta.csv,0.063449447

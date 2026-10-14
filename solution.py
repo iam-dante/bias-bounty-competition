@@ -348,6 +348,7 @@ class Params:
     sigma_c: float = 0.35
     w_cty: float = 0.0                 # share of county-route length TIGER calls S1200
     w_unr: float = 0.0                 # share of unrouted primary/secondary length TIGER calls S1200
+    w_tert: float = 0.0                # share of Overture tertiary length TIGER calls S1200
     use_cbp: bool = True
     use_points: bool = False           # facility copies leak across tract boundaries, Phi(d / sigma_loc)
     sigma_loc: float = 60.0
@@ -419,7 +420,7 @@ def simulate(df, mu, p: Params, n_sims=512, seed=0):
     # road: 1 - min(1, Overture named length / TIGER S1100+S1200 length)
     N = df["L_named"].to_numpy()
     G = (df["L_route"] + p.w_fm * df["L_fm"] + p.beta_bnd * (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)
-         + p.w_cty * df["L_county"] + p.w_unr * df["L_unrouted"]).to_numpy()
+         + p.w_cty * df["L_county"] + p.w_unr * df["L_unrouted"] + p.w_tert * df["L_tertiary"]).to_numpy()
     has_ev = G > 1.0
     T = (m_r * G * np.where(burned, p.burn_road, 1.0) * road_mult)[None, :] * _lognoise(rng, p.sigma_t, (S, n))
     surprise = (~has_ev)[None, :] & (rng.random((S, n)) < p.p_def0)
@@ -623,7 +624,8 @@ PROBE_FILE = re.compile(r"^p(\d+)_(\d+)_(.+)\.csv$")   # p<round>_<n>_<direction
 # Next probes for --probes, highest information first: physics disagreement along each direction after
 # removing the scored files and every measured direction (road ratio, boundary leak). 5 submissions a day.
 PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s1200", "tertiary_vs_named", "poi_share_brightquery", "poi_share_meta",
-               "log_land_area", "tiger_noise", "interstate_share", "fire_vs_expected",
+               "tertiary_s1200", "tertiary_vs_named_maricopa-az", "tertiary_vs_named_northern-ca",
+               "tertiary_vs_named_eastern-ok", "log_land_area", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
                "wildfire_hazard", "poi_per_person"]
@@ -641,7 +643,8 @@ PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1
                       "tiger_noise": lambda p: replace(p, sigma_t=max(0.05, p.sigma_t - 0.1)),
                       # one-sided mechanisms (TIGER can only hold more length), so the + sign is a bet as well as a probe
                       "county_s1200": lambda p: replace(p, w_cty=p.w_cty + 0.5),
-                      "unrouted_s1200": lambda p: replace(p, w_unr=p.w_unr + 0.2)}
+                      "unrouted_s1200": lambda p: replace(p, w_unr=p.w_unr + 0.2),
+                      "tertiary_s1200": lambda p: replace(p, w_tert=p.w_tert + 0.1)}
 
 
 def physics_direction(df, mu, name):
@@ -686,6 +689,9 @@ def probe_features(df, mu, names):
     f = f.groupby(df["region"]).transform(lambda x: (x - x.mean()) / (x.std() + 1e-9)).fillna(0)
     for r in ("northern-ca", "maricopa-az"):
         f[f"route_ratio_{r}"] = f["route_ratio"] * (df["region"] == r)
+    # the tertiary probe (z = +8.6) split by region: Overture and TIGER draw the class line differently in each
+    for r in ("maricopa-az", "northern-ca", "eastern-ok"):
+        f[f"tertiary_vs_named_{r}"] = f["tertiary_vs_named"] * (df["region"] == r)
     for k in names:
         if k in PHYSICS_DIRECTIONS or k == "gmm_route":
             f[k] = physics_direction(df, mu, k)

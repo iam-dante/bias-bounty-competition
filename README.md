@@ -3,7 +3,8 @@
 Predict the Overture Maps coverage gap of every Census tract. The problem, the data and the rules are in
 [problem.md](problem.md).
 
-**Current submission:** `submission.csv` (r14), public RMSE **0.063433**.
+**Current submission:** `submission.csv` (r16), expected public RMSE **0.062992**. Best scored so far:
+`p15_03_tertiary_vs_named` at **0.063190**.
 
 ## Run
 
@@ -64,8 +65,11 @@ cost about 0.08 RMSE.
 | r6e | 0.065531 | vulnerability effects in the physics |
 | stack7 | 0.064214 | regional specialists, Arizona route fix |
 | r12 | 0.064009 | public-subset-corrected blend, Monte-Carlo denoising |
-| **r14** | **0.063433** | r12 + correction along road ratio (z = −6.1) and boundary leak (z = +4.7) |
+| r14 | 0.063433 | r12 + correction along road ratio (z = −6.1) and boundary leak (z = +4.7) |
+| **p15_03_tertiary_vs_named** | **0.063190** | r14 + probe: tertiary vs named road length |
+| r16 (submission.csv) | 0.062992 expected | + unrouted arterials (z = +7.5), tertiary (z = +8.6), BrightQuery places (z = +5.2) |
 
 Tested and dropped: full anchoring to the published cell means (0.064221), physics calibrated on
 leaderboard moments (0.064317), the refitted-physics probe (0.063802, conditional z 0.4) and TIGER record
-multiplicity (0.063592, conditional z 0.5).
+multiplicity (0.063592, conditional z 0.5), county routes (0.063467) and Meta place share
+(0.063449), which add nothing given the other p15 directions.
