@@ -3,8 +3,8 @@
 Predict the Overture Maps coverage gap of every Census tract. The problem, the data and the rules are in
 [problem.md](problem.md).
 
-**Current submission:** `submission.csv` (r16), expected public RMSE **0.062992**. Best scored so far:
-`p15_03_tertiary_vs_named` at **0.063190**.
+**Current submission:** `submission.csv` (r17), expected public RMSE **0.062703**. Best scored so far:
+`p16_03_tertiary_vs_named_northern-ca` at **0.063072** (r16 itself decodes to about 0.06295).
 
 ## Run
 
@@ -67,7 +67,9 @@ cost about 0.08 RMSE.
 | r12 | 0.064009 | public-subset-corrected blend, Monte-Carlo denoising |
 | r14 | 0.063433 | r12 + correction along road ratio (z = −6.1) and boundary leak (z = +4.7) |
 | **p15_03_tertiary_vs_named** | **0.063190** | r14 + probe: tertiary vs named road length |
-| r16 (submission.csv) | 0.062992 expected | + unrouted arterials (z = +7.5), tertiary (z = +8.6), BrightQuery places (z = +5.2) |
+| r16 | 0.062992 expected, ≈0.06295 decoded | + unrouted arterials (z = +7.5), tertiary (z = +8.6), BrightQuery places (z = +5.2) |
+| **p16_03_tertiary_vs_named_northern-ca** | **0.063072** | r16 + probe (no new signal: it confirms r16) |
+| r17 (submission.csv) | 0.062703 expected | + tertiary physics (z = +7.8), Maricopa tertiary (z = +7.8), land area (z = +8.0) |
 
 Tested and dropped: full anchoring to the published cell means (0.064221), physics calibrated on
 leaderboard moments (0.064317), the refitted-physics probe (0.063802, conditional z 0.4) and TIGER record

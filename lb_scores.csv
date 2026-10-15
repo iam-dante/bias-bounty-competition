@@ -36,3 +36,8 @@ p15_02_unrouted_s1200.csv,0.063373747
 p15_03_tertiary_vs_named.csv,0.063190463
 p15_04_poi_share_brightquery.csv,0.063752599
 p15_05_poi_share_meta.csv,0.063449447
+p16_01_tertiary_s1200.csv,0.063349242
+p16_02_tertiary_vs_named_maricopa-az.csv,0.063360383
+p16_03_tertiary_vs_named_northern-ca.csv,0.063072465
+p16_04_tertiary_vs_named_eastern-ok.csv,0.063093421
+p16_05_log_land_area.csv,0.063314542

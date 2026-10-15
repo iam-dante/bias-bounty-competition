@@ -625,10 +625,14 @@ PROBE_FILE = re.compile(r"^p(\d+)_(\d+)_(.+)\.csv$")   # p<round>_<n>_<direction
 # removing the scored files and every measured direction (road ratio, boundary leak). 5 submissions a day.
 PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s1200", "tertiary_vs_named", "poi_share_brightquery", "poi_share_meta",
                "tertiary_s1200", "tertiary_vs_named_maricopa-az", "tertiary_vs_named_northern-ca",
-               "tertiary_vs_named_eastern-ok", "log_land_area", "tiger_noise", "interstate_share", "fire_vs_expected",
+               "tertiary_vs_named_eastern-ok", "log_land_area",
+               # round 17: region splits of the strongest hits (unrouted z = +7.5, land area z = +8.0)
+               "unrouted_s1200_maricopa-az", "unrouted_s1200_south-central-tx", "log_land_area_maricopa-az",
+               "route_ratio_maricopa-az", "fire_vs_expected", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
                "wildfire_hazard", "poi_per_person"]
+PROBE_QUEUE = list(dict.fromkeys(PROBE_QUEUE))   # first mention sets the order
 
 
 def probe_direction_of(f):
@@ -695,6 +699,13 @@ def probe_features(df, mu, names):
     for k in names:
         if k in PHYSICS_DIRECTIONS or k == "gmm_route":
             f[k] = physics_direction(df, mu, k)
+    # "<direction>_<region>": any direction restricted to one region (region heterogeneity of a measured hit)
+    for k in names:
+        for r in REGIONS:
+            base = k[:-len(r) - 1]
+            if k not in f and k.endswith("_" + r) and base:
+                x = f[base] if base in f else physics_direction(df, mu, base)
+                f[k] = x * (df["region"] == r)
     return f
 
 
