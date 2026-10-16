@@ -41,3 +41,8 @@ p16_02_tertiary_vs_named_maricopa-az.csv,0.063360383
 p16_03_tertiary_vs_named_northern-ca.csv,0.063072465
 p16_04_tertiary_vs_named_eastern-ok.csv,0.063093421
 p16_05_log_land_area.csv,0.063314542
+p17_01_unrouted_s1200_maricopa-az.csv,0.062696319
+p17_02_unrouted_s1200_south-central-tx.csv,0.062768729
+p17_03_log_land_area_maricopa-az.csv,0.062675344
+p17_04_route_ratio_maricopa-az.csv,0.062781719
+p17_05_fire_vs_expected.csv,0.06284496

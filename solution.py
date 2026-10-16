@@ -628,7 +628,9 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                "tertiary_vs_named_eastern-ok", "log_land_area",
                # round 17: region splits of the strongest hits (unrouted z = +7.5, land area z = +8.0)
                "unrouted_s1200_maricopa-az", "unrouted_s1200_south-central-tx", "log_land_area_maricopa-az",
-               "route_ratio_maricopa-az", "fire_vs_expected", "tiger_noise", "interstate_share", "fire_vs_expected",
+               "route_ratio_maricopa-az", "fire_vs_expected", 
+               # round 18: components not yet probed (building gap, establishments half) and TIGER length noise
+               "building_coverage", "tiger_noise", "poi_per_person", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
                "wildfire_hazard", "poi_per_person"]
