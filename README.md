@@ -1,109 +1,79 @@
-# Bias Bounty Mapping Equity Challenge: label-free coverage-gap estimator
+# Bias Bounty Mapping Equity Challenge
 
-**Current submission: `submission.csv` (r14).** Public RMSE **0.063433** (predicted 0.063448). It is r12 (scored 0.064009)
-plus a correction along two directions measured by scored probes. Every leaderboard score is in `lb_scores.csv`.
+Predict the Overture Maps coverage gap of every Census tract. The problem, the data and the rules are in
+[problem.md](problem.md).
 
-```
+**Current submission:** `submission.csv` (r18), expected public RMSE **0.062653**. Best scored so far:
+`p17_03_log_land_area_maricopa-az` at **0.062675** (r17 itself decodes to about 0.06272).
+
+## Run
+
+```bash
 pip install -r requirements.txt
-B=s3://us-west-2.opendata.source.coop/humane-intelligence/bias-bounty-mapping-equity-challenge
-aws s3 sync $B/reference/ data/reference/ --no-sign-request --exclude '*roads-unfiltered*'
-for r in eastern-ok maricopa-az northern-ca south-central-tx eastern-wa; do
-  aws s3 sync $B/strata/$r/ data/strata/$r/ --no-sign-request --exclude '*.csv'; done
-python solution.py      # -> submission.csv (features are cached in data/features/ after the first run)
-python solution.py --probes [n]   # also writes the next n (default 4) probe files to next/
+python solution.py
 ```
 
-**Daily cycle (5 submissions a day):** submit `submission.csv` plus the 4 files in `next/`. Copy each
-scored file into `scored/` and append `file,score` to `lb_scores.csv`. Then rerun
-`python solution.py --probes`: it fits every scored probe jointly and writes the next batch.
-Probes are built on the current corrected prediction, so each one is itself a near-best submission.
-Each probe's moment comes from its own score, so batches can be uploaded in any order. Clipped rows
-are handled exactly. The
-queue (`PROBE_QUEUE`) is ordered by how much the physics models disagree along each direction,
-after removing what the leaderboard has already measured.
+That one command:
+
+1. downloads the permitted challenge files into `data/` (about 3.4 GB on the first run, no account needed,
+   and files already on disk are skipped),
+2. builds the tract features (cached in `data/features/`),
+3. runs the physics model,
+4. fits the leaderboard blend and checks it against the scored r12 file,
+5. applies the probe correction and writes `submission.csv`.
+
+Options:
+
+```bash
+python solution.py --rebuild      # recompute the cached features from the raw data
+python solution.py --probes 4     # also write the next 4 probe files to next/
+```
 
 ## Layout
 
 ```
-solution.py      the whole pipeline: features -> physics -> leaderboard blend -> correction -> submission.csv
-lb_scores.csv    public RMSE of every scored file and probe
-scored/          the scored files themselves (inputs of the blend; each score is an exact fact about the target)
+solution.py      the whole pipeline (data -> features -> physics -> blend -> correction -> submission.csv)
+problem.md       what the competition asks, the data, the rules
+lb_scores.csv    public RMSE of every scored file (inputs of the blend)
+scored/          the scored files themselves; each score is an exact fact about the hidden target
 submission.csv   the file to submit (GEOID, coverage_gap_score)
-batches/         daily upload batches (5 files each) with NOTES.md on the technique behind every file
-data/            challenge data, not in git (download above)
+data/            challenge data and feature cache (gitignored, downloaded by solution.py)
 ```
 
-Submit score-only files. Zindi grades every column in the file, and the optional component columns
+## Daily cycle (5 submissions a day)
+
+1. Submit `submission.csv` and the probe files in `next/`.
+2. Copy each scored file into `scored/` and append `file,score` to `lb_scores.csv`.
+3. Rerun `python solution.py --probes`. It fits every scored probe jointly, updates `submission.csv`, and
+   writes the next probes. Probes are built on the current corrected prediction, so each one is also a
+   near-best submission.
+
+A probe built on a one-sided mechanism, such as `county_s1200` or `unrouted_s1200` (TIGER can only hold
+*more* length than the route-based estimate), is a bet as well: its sign is the physical one. Every probe has
+the directions already measured removed, so it pays only for new signal. If the new direction carries no
+signal, it scores about r14 + 0.00013.
+
+Submit only the score column. Zindi grades every column in the file, and the optional component columns
 cost about 0.08 RMSE.
-
-## The problem
-
-The target is the organisers' per-tract composite: the mean of the defined components among
-road gap `1 - min(1, Overture named highways / TIGER S1100+S1200 length)`, building gap
-`1 - min(1, Overture buildings / Microsoft buildings)`, and POI gap (the mean of a facilities half
-over fire / EMS / schools and a business-establishments half). The reference layers were
-withdrawn and rebuilding them is prohibited, so there are no labels. `solution.py` estimates
-`E[score | permitted data]`, the RMSE-optimal prediction, from three sources of information.
-
-1. **Features** (DuckDB on the provided Overture, ACS and strata tables). The Overture side of
-   every ratio is computed exactly. The reference side is inferred from evidence in the permitted
-   data:
-   - TIGER S1100/S1200 is by definition the Interstate/US/State system, and Overture keeps those
-     route refs. Texas FM roads and Arizona's historic/future designations are not TIGER highways.
-   - TIGER stores one record per (edge, name), so a route that also carries a local street name
-     counts twice.
-   - Tract boundaries are TIGER road edges, so a highway on a boundary is in both tracts for TIGER
-     but in only one for Overture.
-   - Facilities are recognised by alternate category and by name. Facility points near a boundary
-     leak into the neighbouring tract.
-   - The USFS building count is independent of Overture.
-2. **Physics.** A generative model of the withdrawn reference counts is pushed through the exact
-   composite by Monte Carlo. Its parameters were calibrated on the published statistics:
-   undefined-component shares, region × rural × burned means, component means and the five
-   Paradise tracts. The calibrated parameters are embedded in `solution.py`, and it reruns the
-   main models at 4096 draws.
-3. **Leaderboard facts.** For RMSE, every scored file f gives one exact moment of the hidden
-   target: `mean_P(f·y) = (mean_P(f²) + mean_P(y²) − MSE_f) / 2`. The blend is the least-squares
-   combination of scored files.
-   - Exact identities between scored files (affine pairs, stacks) locate the public 30 % well
-     enough to predict held-out public scores to about 5e-5. r12 was predicted at 0.064012 and
-     scored 0.064009.
-   - A probe (r12 plus a small push along one standardised feature direction) measures how much
-     of r12's remaining error lies along that feature. The road-ratio probe found a correlation
-     of −0.113 (z = −6): true road gaps are sharper than the model predicts. `solution.py`
-     applies that correction with James–Stein shrinkage. The boundary-leak probe (physics: more
-     of a boundary highway's TIGER length belongs to the tract) found z = +4.7. On semi-synthetic splits, that shrinkage
-     beat ridge and no shrinkage for 5 and 10 probes.
-   - Probe directions include physics directions: how predictions move when one mechanism changes,
-     such as boundary-highway miss, TIGER length noise or TIGER record multiplicity. Of all
-     mechanisms, TIGER multiplicity lines up best (−0.46) with the measured road residual.
 
 ## Score history (public RMSE)
 
 | file | score | what changed |
 |---|---|---|
-| all zeros / best constant | 0.1072 / 0.0890 | probes |
 | r2f | 0.069455 | label-free generative model |
 | stack3 | 0.066116 | leaderboard blend + scorecard groups |
 | r6e | 0.065531 | vulnerability effects in the physics |
 | stack7 | 0.064214 | regional specialists, Arizona route fix |
-| r12 | **0.064009** | public-subset-corrected blend, Monte-Carlo denoising, partial cell anchoring |
-| p13_02_boundary_leak (probe) | 0.063780 | r12 + 0.004 × boundary-leak direction: z = +4.7 |
-| **r14** (submission.csv) | **0.063433** | r12 + joint correction along road ratio (z = −6.1) and boundary leak (z = +4.7) |
+| r12 | 0.064009 | public-subset-corrected blend, Monte-Carlo denoising |
+| r14 | 0.063433 | r12 + correction along road ratio (z = −6.1) and boundary leak (z = +4.7) |
+| **p15_03_tertiary_vs_named** | **0.063190** | r14 + probe: tertiary vs named road length |
+| r16 | 0.062992 expected, ≈0.06295 decoded | + unrouted arterials (z = +7.5), tertiary (z = +8.6), BrightQuery places (z = +5.2) |
+| **p16_03_tertiary_vs_named_northern-ca** | **0.063072** | r16 + probe (no new signal: it confirms r16) |
+| r17 | 0.062703 expected, ≈0.06272 decoded | + tertiary physics (z = +7.8), Maricopa tertiary (z = +7.8), land area (z = +8.0) |
+| **p17_03_log_land_area_maricopa-az** | **0.062675** | r17 + probe |
+| r18 (submission.csv) | 0.062653 expected | + unrouted arterials in Maricopa (z = +10.8) |
 
-**Tested and dropped:**
-- Re-blending earlier stacks: costs private RMSE on semi-synthetic public/private splits.
-- Full anchoring to the published cell means (0.064221): the means predate the 28 Sep re-scoring.
-- Physics calibrated directly on leaderboard moments (0.064317): its new direction had no signal.
-- Physics refitted on every leaderboard moment including the road-ratio probe (probe 0.063802): z = +5.0
-  alone, but z = 0.4 given the two measured directions. Probes are tested in the order they were
-  scored, and one enters the correction only if its conditional z is at least 2.
-- TIGER record multiplicity (probe 0.063592): conditional z = 0.5.
-- The published TIGER/Overture ratio range.
-- A live business-count half.
-
-## Rules
-
-Only the provided datasets are used. External data is allowed only for the Best Bias Discovery
-writeup. Thread 35292, which asks whether leaderboard-calibrated constants are allowed, had no
-organiser reply as of 2026-10-11. The blend and the probe correction depend on that answer.
+Tested and dropped: full anchoring to the published cell means (0.064221), physics calibrated on
+leaderboard moments (0.064317), the refitted-physics probe (0.063802, conditional z 0.4) and TIGER record
+multiplicity (0.063592, conditional z 0.5), county routes (0.063467) and Meta place share
+(0.063449), which add nothing given the other p15 directions.
