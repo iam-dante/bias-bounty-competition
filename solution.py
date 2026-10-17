@@ -1,4 +1,4 @@
-"""R20: one ridge-calibrated model for the fixed competition tracts.
+"""R21: ridge calibration plus a bounded correction from the scored incumbent.
 
 Run: python solution.py
 Inputs and score history are frozen in model.npz; output is only submission.csv.
@@ -80,7 +80,7 @@ class Leaderboard:
 
 def finish(v, geoid):
     v = pd.Series(np.clip(v, 0, 1), index=geoid.index)
-    return geoid.map(PUBLISHED).fillna(v).round(6).to_numpy()
+    return geoid.map(PUBLISHED).fillna(v).round(6).to_numpy(copy=True)
 
 
 def main() -> None:
@@ -116,6 +116,27 @@ def main() -> None:
     raw = lb.vec(BASE).copy()
     raw[graded] += P @ gamma
     candidate = finish(raw, df["GEOID"])
+
+    # r19b contains clipping information outside the original scored direction
+    # span. Keep only that additional information, avoiding double counting.
+    span = np.column_stack([A, P])
+    span_moments = np.r_[c, b + (P * lb.pi[:, None]).T @ base / lb.pi.sum()]
+    incumbent = lb.vec("r19b_backward_selection.csv")[graded]
+    weights = np.sqrt(lb.pi)
+    projection = np.linalg.lstsq(
+        span * weights[:, None], incumbent * weights, rcond=1e-8
+    )[0]
+    extra = incumbent - span @ projection
+    extra_y = cy(incumbent, lb.s["r19b_backward_selection.csv"]) - projection @ span_moments
+    variance = lb.AP(extra**2)
+    covariance = extra_y - lb.AP(extra * candidate[graded])
+    noise = lb.s["r19b_backward_selection.csv"]**2 / lb.pi.sum()
+    z = covariance / np.sqrt(variance * noise) if variance > 1e-16 else 0.0
+    # Positive-part shrinkage; cap at one copy of the observed correction.
+    strength = float(np.clip(covariance / variance * (1 - 1 / z**2), 0, 1)) if z > 1 else 0.0
+    candidate[graded] += strength * extra
+    candidate = finish(candidate, df["GEOID"])
+
     # Estimate the score by projecting onto historical predictions. This assumes
     # the unexplained remainder has no target signal; it is not independent CV.
     score_files = [name for name in lb.s if not name.startswith("probe_")]
@@ -139,7 +160,8 @@ def main() -> None:
     assert np.isfinite(candidate).all() and np.all((candidate >= 0) & (candidate <= 1))
     assert anchor_count == 5
     output.to_csv(OUTPUT, index=False)
-    print(f"R20 ridge: {len(directions)} directions, lambda={RIDGE}; {len(output)} rows")
+    print(f"R21 ridge: {len(directions)} directions, lambda={RIDGE}; {len(output)} rows")
+    print(f"Incumbent residual: strength={strength:.3f}, approximate z={z:.3f}")
     print(f"Estimated public RMSE: {np.sqrt(max(projected_mse, 0)):.9f} (unconfirmed)")
     print(f"Wrote {OUTPUT}")
 
