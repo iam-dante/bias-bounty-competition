@@ -169,3 +169,23 @@ On the real scores:
   the latest probes and contain the earlier corrections, so expected public improves from 0.062502 to
   **0.062470**: lighter shrinkage (0.978 vs 0.918) and 3 fitted numbers instead of 11.
 - It is the default in `solution.py` since 2026-10-16.
+
+## 13. Does the 14-number blend overfit? (`blend_optimism.py`)
+
+The truth is the real blend plus noise. The blend is refitted on 200 random 30 % public sets (with the
+pipeline's 1e-7 ridge) and scored on the 70 %. Paired differences in private RMSE are relative to the used
+blend.
+
+| blend | private (Gaussian) | gap | private (t4) | gap | paired vs used (Gaussian / t4) |
+|---|---|---|---|---|---|
+| **14 numbers (used)** | **0.062630** | +0.000258 | **0.062774** | +0.000285 | – |
+| 5 files | 0.062663 | +0.000081 | 0.062788 | +0.000079 | +0.000033 / +0.000013 |
+| ridge to equal weights, 0.01 | 0.062829 | +0.000032 | 0.062940 | +0.000014 | +0.000199 / +0.000165 |
+| ridge to equal weights, 0.1 | 0.063136 | −0.000022 | 0.063242 | −0.000038 | +0.000506 / +0.000468 |
+
+- The used blend is the best on private. Its larger public-to-private gap is the price of a better fit, and
+  no simpler blend recovers it.
+- The blend contributes about 0.00026–0.00029 to the public-to-private loss. The correction contributes the
+  rest of the ~0.0004–0.0005 in section 3.
+- Without the 1e-7 ridge, the near-collinear basis (stacks are combinations of other files) blows up on
+  private, to an RMSE of about 1. The ridge is essential.
