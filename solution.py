@@ -650,7 +650,8 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
                "wildfire_hazard", "poi_per_person"]
-PROBE_QUEUE = list(dict.fromkeys(PROBE_QUEUE))   # first mention sets the order
+PROBE_QUEUE = [k for k in dict.fromkeys(PROBE_QUEUE)   # first mention sets the order
+               if k != "tribal_pct"]                  # duplicate of tribal_legal_pct (research 14)
 
 
 def probe_direction_of(f):
