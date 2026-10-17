@@ -20,7 +20,8 @@ That one command:
 2. builds the tract features (cached in `data/features/`),
 3. runs the physics model,
 4. fits the leaderboard blend and checks it against the scored r12 file,
-5. applies the probe correction and writes `submission.csv`.
+5. applies the probe correction and writes `submission.csv`,
+6. validates the local score prediction against every scored file (`validation.csv`).
 
 Options:
 
@@ -55,6 +56,26 @@ signal, it scores about r14 + 0.00013.
 
 Submit only the score column. Zindi grades every column in the file, and the optional component columns
 cost about 0.08 RMSE.
+
+## Validation (no labels, so the leaderboard is the test set)
+
+No tract has a known answer (the reference layers were withdrawn), so a train/validation split is impossible.
+Step 6 of `solution.py` validates the local score prediction instead. It hides each scored file's own score
+and predicts it from the files scored **before** it, which is the position before every submission. It also
+predicts it from **all other** files (leave-one-out). The 48 data points are in `validation.csv`.
+
+| test (24 files from r12 on) | mean abs error | max abs error | within 0.0005 |
+|---|---|---|---|
+| predicted before scoring | 0.000140 | 0.000446 | 24 / 24 |
+| leave-one-out | 0.000050 | 0.000187 | 24 / 24 |
+
+**Private set (70 %, the final ranking).** A semi-synthetic test was run on 2026-10-16: 300 random 30/70
+splits, with a truth that carries the 22 measured probe directions plus noise. On those splits the current
+policy (a direction enters at z ≥ 2, then James–Stein shrinkage) gave the lowest private RMSE among: no
+shrinkage, 2× shrinkage, z ≥ 3, and all directions. z ≥ 1.5 was within 0.00001 (noise). The correction loses
+about **0.0004–0.0005** from public to private. Which tracts fall in the private set moves the private score
+by **±0.0006** with Gaussian errors and up to ±0.0015 with heavy-tailed errors. So expect r19's private
+score to be about public + 0.0004.
 
 ## Score history (public RMSE)
 

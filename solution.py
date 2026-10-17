@@ -796,10 +796,41 @@ def probe_correction(lb, df, mu, r12):
     return full, note, gain
 
 
+def validate(lb, out="validation.csv"):
+    """Local validation without labels: hide each scored file's own score and predict it from the files
+    scored before it (the position we are in before every submission) and from all other files
+    (leave-one-out). The prediction projects the file on the other scored files, whose exact moments
+    mean_P(f*y) are known, and assumes the unexplained remainder carries no signal. Every row is a data
+    point: predicted vs actual public RMSE."""
+    g, pi, W = lb.graded, lb.pi, lb.pi.sum()
+    files = [f for f in lb.s if not f.startswith("probe_")]
+    V = {f: lb.vec(f)[g] for f in files}
+    cy = {f: (lb.AP(V[f] ** 2) + lb.Z - lb.s[f] ** 2) / 2 for f in files}
+
+    def predict(f, others, ridge=1e-7):
+        X = np.column_stack([np.ones(len(pi))] + [V[o] for o in others])
+        c = np.array([lb.ybar] + [cy[o] for o in others])
+        G = (X * pi[:, None]).T @ X / W
+        G += ridge * np.trace(G) / len(c) * np.eye(len(c))
+        a = np.linalg.solve(G, (X * pi[:, None]).T @ V[f] / W)
+        return float(np.sqrt(max(lb.AP(V[f] ** 2) - 2 * a @ c + lb.Z, 0.0)))
+
+    t = pd.DataFrame({"file": files, "actual": [lb.s[f] for f in files]})
+    t["pred_before"] = [predict(f, files[:i]) if i >= 3 else np.nan for i, f in enumerate(files)]
+    t["pred_loo"] = [predict(f, [o for o in files if o != f]) for f in files]
+    t["err_before"], t["err_loo"] = t["pred_before"] - t["actual"], t["pred_loo"] - t["actual"]
+    t.round(9).to_csv(out, index=False)
+    modern = t[t["file"].str.match(r"^(r1[2-9]|p1[2-9]|p[2-9]\d)_")]
+    for k, label in [("err_before", "predicted before scoring"), ("err_loo", "leave-one-out")]:
+        e = modern[k].dropna().abs()
+        print(f"  {label:25s}: {len(e)} files, MAE {e.mean():.6f}, max {e.max():.6f}, within 0.0005: {(e < 5e-4).sum()}/{len(e)}")
+    return t
+
+
 def main():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))   # data/, scored/ and outputs are relative to the repo
     t0 = time.time()
-    step = lambda k, msg: print(f"\n[{k}/5] {msg} ({time.time() - t0:.0f}s)", flush=True)
+    step = lambda k, msg: print(f"\n[{k}/6] {msg} ({time.time() - t0:.0f}s)", flush=True)
 
     step(1, f"Data: checking / downloading the challenge files into {DATA}/")
     download()
@@ -838,6 +869,8 @@ def main():
         i = sys.argv.index("--probes")
         n = int(sys.argv[i + 1]) if len(sys.argv) > i + 1 and sys.argv[i + 1].isdigit() else 4
         write_probes(lb, df, mu, np.clip(scored + corr, 0, 1), n=n)
+    step(6, "Validation: predict every scored file's public RMSE without its own score (-> validation.csv)")
+    validate(lb)
     print(f"\ndone in {time.time() - t0:.0f}s. Submit {OUT} (GEOID, coverage_gap_score only).")
 
 
