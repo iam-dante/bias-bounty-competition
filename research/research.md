@@ -303,3 +303,27 @@ variance (0.0555² = 0.00308).
 - If the model overstates facility noise the way it overstated TIGER noise (§19), the queued facility
   probes have reducible error to find: `ems_evidence`, `school_alt_share`, `school_unseen_share`,
   `fire_weak_evidence`.
+
+## 22. What the leaderboard has taught us, in physical terms (`correction_anatomy.py` → `correction_anatomy.csv`)
+
+r19b's correction (r19b − r12, rms 0.0136) was regressed on 22 physics mechanism directions, each the
+response to one parameter step (2 × 512 draws). The mechanisms explain **R² = 0.43** of it. Implied
+parameter changes (coefficient × step):
+
+| mechanism | corr with correction | implied change |
+|---|---|---|
+| unrouted arterials as S1200 | +0.54 | w_unr ≈ **+0.21**: TIGER holds about a fifth of unrouted primary/secondary length |
+| boundary leak | +0.30 | β_bnd +0.06 |
+| TIGER record multiplicity | +0.29 | ≈0 once the others are in (collinear with unrouted) |
+| unseen schools | −0.27 | r_sch +0.007 |
+| MS / USFS building ratio | −0.22 | κ_b ×0.98 |
+| unseen EMS stations | −0.20 | r_ems +0.04 (fewer than modelled) |
+| CBP per person | +0.16 | ε_cbp ×1.15 |
+| TIGER length noise | +0.14 | **σ_t −0.10**, consistent with the lower floor in §19 |
+| TX Farm-to-Market as S1200 | +0.04 | ≈0: not yet measured (p19_11 tests it) |
+
+The other 57 % of the correction is not any single mechanism: it comes from feature directions (tertiary
+share, land area, places per person, BrightQuery).
+
+New probe `lb_recalibrated` applies these changes together. Its part outside the measured span is the
+physics model's extrapolation of what the leaderboard implies, so its sign comes from the model.
