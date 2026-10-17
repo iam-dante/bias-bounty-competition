@@ -637,10 +637,11 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                "fm_s1200", "burned_unseen", "fac_tribal", "cbp_noise", "ms_vs_usfs_buildings",
                "unrouted_s1200_clean", "tiger_noise_clean",
                # research/queue_plan.py (2026-10-17): ranked by the share of new variance left after the scored
-               # files and the pending probes, global directions interleaved with region splits
-               "heat_wbgt", "poi_per_person_northern-ca", "multiref_share", "poi_per_person_maricopa-az",
+               # files and the pending probes, global directions interleaved with region splits;
+               # facility mechanisms moved up (research 21: facilities are 66 % of the floor)
+               "heat_wbgt", "school_unseen_share", "fire_weak_evidence", "poi_per_person_northern-ca", "multiref_share", "poi_per_person_maricopa-az",
                "boundary_share", "poi_per_person_eastern-ok", "cbp_per_person",
-               "building_coverage_maricopa-az", "school_unseen_share", "route_ratio_northern-ca",
+               "building_coverage_maricopa-az", "route_ratio_northern-ca",
                "burned_road", "tiger_noise_clean_northern-ca", "fire_weak_evidence",
                "tiger_noise_clean_maricopa-az", "building_count_noise", "unrouted_s1200_clean_northern-ca",
                "road_heat", "fire_vs_expected_south-central-tx", "surprise_highway",
