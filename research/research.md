@@ -189,3 +189,27 @@ blend.
   rest of the ~0.0004–0.0005 in section 3.
 - Without the 1e-7 ridge, the near-collinear basis (stacks are combinations of other files) blows up on
   private, to an RMSE of about 1. The ridge is essential.
+
+## 14. Overlap between pending probes (`pending_overlap.py` → `pending_overlap.csv`)
+
+Each pending probe's push in `next/`, minus everything the scored files span, was correlated pairwise.
+
+- Only one pair overlaps: `tribal_pct` ~ `tribal_legal_pct` (+0.88). `p19_04_tribal_pct` was moved to
+  `next/superseded/`; upload `p19_09` (smaller push) instead.
+- Next largest: population density ~ urban share (+0.47); burned-area ~ tribal facilities (+0.30).
+- Every other pair is below 0.25, so the remaining probes are close to independent and none wastes a slot.
+
+## 15. Final pick (`final_pick.csv`)
+
+Private estimate = public + blend loss (section 13, about 0.00027) + correction loss (section 12, by
+selection rule and number of directions).
+
+| file | public | private estimate |
+|---|---|---|
+| **r19b = submission.csv** | 0.062470 (expected) | **0.06309** |
+| p18_02_tiger_noise (scored best) | 0.062562 (scored) | 0.06316 |
+| r19 | 0.062502 (expected) | 0.06317 |
+
+r19b has the best expected private score as well as public. The final private score is the better of the 2
+selected files. A good pair is the newest pipeline output plus one confirmed, differently built file
+(for example a scored probe), rather than two near-copies.
