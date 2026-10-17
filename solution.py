@@ -619,7 +619,7 @@ BASIS = ["r2f_ensemble.csv", "e02_r2f_only_eastern-ok.csv", "e05_r2f_only_south-
 DENOISE = {"r10d_regional_affine.csv": "r10", "r9d_routefix_affine.csv": "r9"}
 BASE = "r12_blend_with_AB.csv"         # scored 0.064009: the blend above, rebuilt and checked below
 # Probe files: BASE + 0.004 * direction(feature). A probe's score gives mean_P(direction * (y - BASE)).
-PROBE_DELTA = 0.004
+PROBE_DELTA = 0.002   # 0.004 until p19: the decoded signal does not depend on it, the probe's cost is delta^2
 PROBE_FILE = re.compile(r"^p(\d+)_(\d+)_(.+)\.csv$")   # p<round>_<n>_<direction>.csv
 # Next probes for --probes, highest information first: physics disagreement along each direction after
 # removing the scored files and every measured direction (road ratio, boundary leak). 5 submissions a day.
@@ -633,6 +633,7 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                "building_coverage", "tiger_noise", "poi_per_person", 
                # then: density and the organisers' scorecard strata (rural, tribal, SVI, wildfire), more road mechanics
                "log_pop_density", "interstate_share", "wildfire_hazard", "tribal_pct", "svi", "pct_urban",
+               "ems_evidence", "school_alt_share", "tribal_legal_pct", "drought_d2", "heat_wbgt",
                "multiref_share", "log_route_length", "route_ratio_northern-ca", "boundary_share", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
@@ -694,7 +695,13 @@ def probe_features(df, mu, names):
         "tertiary_vs_named": np.log((df["L_tertiary"] + 100) / (df["L_named"] + 100)),
         "poi_share_brightquery": df["n_poi_bq"] / (df["n_poi"] + 1),
         "poi_share_meta": df["n_poi_meta"] / (df["n_poi"] + 1),
-        "log_land_area": np.log1p(df["ALAND"].fillna(df["area_m2"]))}, index=df.index)
+        "log_land_area": np.log1p(df["ALAND"].fillna(df["area_m2"])),
+        # research/ scan (2026-10-16): high unexplained share AND tied to a component or a scorecard stratum
+        "ems_evidence": np.log1p(df["E_ems"]),
+        "school_alt_share": df["n_sch_alt"] / (df["E_sch"] + 1),
+        "tribal_legal_pct": df["tribal_legal_pct"].fillna(0),
+        "drought_d2": df["usdm_summer_pct_d2plus"].fillna(df["usdm_summer_pct_d2plus"].median()),
+        "heat_wbgt": df["gehe_wbgt32_days_mean"].fillna(df["gehe_wbgt32_days_mean"].median())}, index=df.index)
     f = f.groupby(df["region"]).transform(lambda x: (x - x.mean()) / (x.std() + 1e-9)).fillna(0)
     for r in ("northern-ca", "maricopa-az"):
         f[f"route_ratio_{r}"] = f["route_ratio"] * (df["region"] == r)
@@ -738,7 +745,15 @@ def write_probes(lb, df, mu, base, n=4, folder="next"):
     todo = [k for k in PROBE_QUEUE if k not in done][:n]
     dirs = probe_directions(lb, df, mu, todo)
     os.makedirs(folder, exist_ok=True)
-    for i, k in enumerate(todo, 1):
+    # never overwrite a written probe: it may already be uploaded, and its score is decoded from its exact content
+    kept = {probe_direction_of(f): f for f in os.listdir(folder) if probe_direction_of(f)}
+    taken = [int(m.group(2)) for f in os.listdir(folder) if (m := PROBE_FILE.match(f)) and int(m.group(1)) == rnd]
+    i = max(taken + [0])
+    for k in todo:
+        if k in kept:
+            print(f"  kept  {folder}/{kept[k]} (already written; delete it to rebuild)")
+            continue
+        i += 1
         name = f"p{rnd}_{i:02d}_{k}.csv"
         v = np.clip(base + PROBE_DELTA * dirs[k], 0, 1).round(6)
         pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": v}).to_csv(os.path.join(folder, name), index=False)

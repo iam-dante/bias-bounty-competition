@@ -38,6 +38,8 @@ problem.md       what the competition asks, the data, the rules
 lb_scores.csv    public RMSE of every scored file (inputs of the blend)
 scored/          the scored files themselves; each score is an exact fact about the hidden target
 submission.csv   the file to submit (GEOID, coverage_gap_score)
+validation.csv   step 6 backtest: every scored file's predicted vs actual public RMSE
+research/        experiments on validation, correction policy, probe size and candidates (research.md)
 data/            challenge data and feature cache (gitignored, downloaded by solution.py)
 ```
 
@@ -75,7 +77,8 @@ policy (a direction enters at z ≥ 2, then James–Stein shrinkage) gave the lo
 shrinkage, 2× shrinkage, z ≥ 3, and all directions. z ≥ 1.5 was within 0.00001 (noise). The correction loses
 about **0.0004–0.0005** from public to private. Which tracts fall in the private set moves the private score
 by **±0.0006** with Gaussian errors and up to ±0.0015 with heavy-tailed errors. So expect r19's private
-score to be about public + 0.0004.
+score to be about public + 0.0004. More experiments, with their data and scripts, are in
+[research/research.md](research/research.md).
 
 ## Score history (public RMSE)
 
