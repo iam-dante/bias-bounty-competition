@@ -327,3 +327,15 @@ share, land area, places per person, BrightQuery).
 
 New probe `lb_recalibrated` applies these changes together. Its part outside the measured span is the
 physics model's extrapolation of what the leaderboard implies, so its sign comes from the model.
+
+## 23. New share of each pending probe (`pending_newshare.py` → `pending_newshare.csv`)
+
+For each file in `next/`: the part of the probe that no scored file (or r19b) explains, against its push away
+from r19b.
+
+- Every probe's new part is about the size of its designed push: about 0.004 for p19_01–05 (old δ) and
+  0.0014–0.0020 for the rest (δ = 0.002). **No pending probe is redundant.**
+- Probes built on r19 show a 58 % "new share" relative to r19b. That is not overlap: their push includes the
+  r19 → r19b difference, which the scored files already span.
+- So information per slot is about equal across pending probes. Order them by prior: one-sided mechanisms,
+  clean rebuilds of measured hits, the recalibrated physics, then features.
