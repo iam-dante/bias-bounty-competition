@@ -259,3 +259,27 @@ of new variance each still adds.
   multiplicity by concurrent routes (59 %), places per person in Maricopa (75 %), boundary share (43 %).
 
 With the 16 pending probes, that is about 38 slots, roughly 8 days at 5 a day.
+
+## 19. The floor: irreducible error under the physics model (`floor.py` → `floor.csv`)
+
+For each tract, the official composite's spread across 2048 Monte-Carlo draws of the withdrawn reference
+counts, under the r10a regional specialists. Its RMS is the RMSE that even a perfect E[score | permitted data]
+would have, if the model's noise assumptions are right.
+
+| TIGER length noise σ_t | floor (all) | eastern-ok | maricopa-az | northern-ca | south-central-tx |
+|---|---|---|---|---|---|
+| model (≈0.29) | **0.0555** | 0.0693 | 0.0492 | 0.0704 | 0.0522 |
+| −0.1 | 0.0512 | 0.0625 | 0.0461 | 0.0660 | 0.0482 |
+| −0.2 | 0.0481 | 0.0577 | 0.0437 | 0.0614 | 0.0455 |
+
+- r19b's 0.062470 = floor 0.0555 combined in quadrature with about 0.029 of model error.
+- The `tiger_noise` probe (z = +11.3) measured in the direction of *less* TIGER noise, so the true floor is
+  probably nearer 0.051. The headroom is larger than the earlier ~0.056 estimate.
+- TIGER length noise is the largest assumed noise source, so road-component probes have the most reducible
+  error left to find. The queue already favours them.
+
+## 20. Uncertainty of r19b's expected score (`expected_uncertainty.py`)
+
+Over 30 redraws of the public set from the estimated membership probabilities (correction refitted each
+time), r19b's expected public RMSE was **0.062473 ± 0.000048** (range 0.062401–0.062580). This matches the
+backtest's typical error (section 1), so the expected score is as precise as the validation says.
