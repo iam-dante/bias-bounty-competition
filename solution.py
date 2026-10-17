@@ -633,7 +633,8 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                "building_coverage", "tiger_noise", "poi_per_person", 
                # then: density and the organisers' scorecard strata (rural, tribal, SVI, wildfire), more road mechanics
                "log_pop_density", "interstate_share", "wildfire_hazard", "tribal_pct", "svi", "pct_urban",
-               "ems_evidence", "school_alt_share", "tribal_legal_pct", "drought_d2", "heat_wbgt",
+               "ems_evidence", "school_alt_share", "tribal_legal_pct", "drought_d2",
+               "fm_s1200", "burned_unseen", "fac_tribal", "cbp_noise", "ms_vs_usfs_buildings", "heat_wbgt",
                "multiref_share", "log_route_length", "route_ratio_northern-ca", "boundary_share", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
@@ -654,7 +655,13 @@ PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1
                       # one-sided mechanisms (TIGER can only hold more length), so the + sign is a bet as well as a probe
                       "county_s1200": lambda p: replace(p, w_cty=p.w_cty + 0.5),
                       "unrouted_s1200": lambda p: replace(p, w_unr=p.w_unr + 0.2),
-                      "tertiary_s1200": lambda p: replace(p, w_tert=p.w_tert + 0.1)}
+                      "tertiary_s1200": lambda p: replace(p, w_tert=p.w_tert + 0.1),
+                      # research/physics_candidates.py (2026-10-16): largest unexplained mechanisms
+                      "fm_s1200": lambda p: replace(p, w_fm=p.w_fm + 0.1),          # one-sided: TX FM roads as S1200
+                      "burned_unseen": lambda p: replace(p, burn_unseen=p.burn_unseen * 1.3),
+                      "fac_tribal": lambda p: replace(p, gf_tribal=p.gf_tribal + 0.3),
+                      "cbp_noise": lambda p: replace(p, sigma_c=p.sigma_c + 0.15),
+                      "ms_vs_usfs_buildings": lambda p: replace(p, kappa_b=p.kappa_b * 1.05)}
 
 
 def physics_direction(df, mu, name):
