@@ -1,0 +1,6 @@
+region,irreducible_rmse
+eastern-ok,0.069263
+maricopa-az,0.049241
+northern-ca,0.070392
+south-central-tx,0.052189
+all,0.055471
