@@ -10,9 +10,18 @@ src = src.replace(".mean(0)\n", "\n")      # keep every draw instead of the mean
 ns = dict(vars(S)); exec(src, ns); simulate_draws = ns["simulate_draws"]
 df = S.load(); mu = S.prior_rates(df)
 from dataclasses import replace
-shift = float(sys.argv[1]) if len(sys.argv) > 1 else 0.0
-frame = S.road_frame(df); sets = {k: replace(S.Params(**v), sigma_t=max(0.02, S.Params(**v).sigma_t + shift)) for k, v in S.PHYSICS["r10a"].items()}
-print(f"TIGER length noise sigma_t shifted by {shift:+.2f} (global {sets['global'].sigma_t:.3f})")
+arg = sys.argv[1] if len(sys.argv) > 1 else "0"
+OFF = {"road_off": dict(sigma_t=0.01), "buildings_off": dict(sigma_b=0.001), "cbp_off": dict(sigma_c=0.001),
+       "all_three_off": dict(sigma_t=0.01, sigma_b=0.001, sigma_c=0.001)}
+if arg in OFF:
+    shift = None
+    sets = {k: replace(S.Params(**v), **OFF[arg]) for k, v in S.PHYSICS["r10a"].items()}
+    print(f"noise switched off: {arg}")
+else:
+    shift = float(arg)
+    sets = {k: replace(S.Params(**v), sigma_t=max(0.02, S.Params(**v).sigma_t + shift)) for k, v in S.PHYSICS["r10a"].items()}
+    print(f"TIGER length noise sigma_t shifted by {shift:+.2f} (global {sets['global'].sigma_t:.3f})")
+frame = S.road_frame(df)
 draws = []
 for seed in range(4):
     v = simulate_draws(frame, mu, sets["global"], 512, 500 + seed)

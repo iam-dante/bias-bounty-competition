@@ -283,3 +283,23 @@ would have, if the model's noise assumptions are right.
 Over 30 redraws of the public set from the estimated membership probabilities (correction refitted each
 time), r19b's expected public RMSE was **0.062473 ± 0.000048** (range 0.062401–0.062580). This matches the
 backtest's typical error (section 1), so the expected score is as precise as the validation says.
+
+## 21. Where the floor comes from (`floor.py road_off|buildings_off|cbp_off|all_three_off`)
+
+Each noise source was switched off in turn (σ_t → 0.01, σ_b → 0.001, σ_c → 0.001). Shares are of the floor's
+variance (0.0555² = 0.00308).
+
+| switched off | floor | variance removed | share |
+|---|---|---|---|
+| TIGER road length noise | 0.04698 | 0.00087 | 28 % |
+| business-establishment (CBP) noise | 0.05422 | 0.00014 | 4.5 % |
+| building-count noise | 0.05516 | 0.00003 | 1 % |
+| all three | 0.04515 | 0.00104 | 34 % |
+| **left: facility randomness and which components are defined** | – | 0.00204 | **66 %** |
+
+- Facilities (fire, EMS and school stations that Overture never shows, plus whether each component is
+  defined) hold two thirds of the unpredictable error. Roads hold most of the rest.
+- The building gap is almost fully predictable. That fits `building_coverage` carrying no signal (§5).
+- If the model overstates facility noise the way it overstated TIGER noise (§19), the queued facility
+  probes have reducible error to find: `ems_evidence`, `school_alt_share`, `school_unseen_share`,
+  `fire_weak_evidence`.
