@@ -239,3 +239,23 @@ formula ignores this.
 Clipping explains about a fifth to a third of r19's 0.00003–0.00005 pessimism in section 8, and almost none
 for r19b. Backward elimination pushes tracts less far below 0, so r19b's expected 0.062470 should be close
 to unbiased.
+
+## 18. Probe queue for the rest of the competition (`queue_plan.py` → `queue_plan.csv`, `queue_plan_ranked.csv`)
+
+34 candidate directions were built:
+- 14 physics mechanisms at 8 × 512 draws (clean re-builds of measured ones included)
+- 12 regional splits of the strongest hits
+- 8 features
+
+The scored files **and the 16 pending probes** were removed, and the candidates ranked by the absolute share
+of new variance each still adds.
+- 9 were dropped as already measured (< 20 % unexplained), for example clean county routes 0.0 %, clean
+  boundary leak 0.1 %, Maricopa unrouted 3 %, the latter already covered by pending p19_18.
+- The first run ranked by the normalised residual, which put exactly these near-duplicates first. The script
+  now ranks by absolute share.
+- The 22 kept are in `PROBE_QUEUE` right after the pending probes, with global directions interleaved with
+  region splits (section 5).
+- Top of the plan: heat (WBGT days, 86 % new), places per person in Northern CA (88 %), TIGER record
+  multiplicity by concurrent routes (59 %), places per person in Maricopa (75 %), boundary share (43 %).
+
+With the 16 pending probes, that is about 38 slots, roughly 8 days at 5 a day.
