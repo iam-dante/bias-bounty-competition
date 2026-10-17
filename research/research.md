@@ -213,3 +213,15 @@ selection rule and number of directions).
 r19b has the best expected private score as well as public. The final private score is the better of the 2
 selected files. A good pair is the newest pipeline output plus one confirmed, differently built file
 (for example a scored probe), rather than two near-copies.
+
+## 16. Reproducibility for code review
+
+The top 10 must hand in code that reproduces their score within 48 hours.
+
+- A fresh `git clone` of `main` (03ab13c), run with `BB_DATA` pointing at the downloaded data, reproduced
+  `submission.csv` **byte for byte** (md5 `86bf4cfa07444682996978599c22e5f5`) in 216 s. The working tree was
+  clean afterwards, so `validation.csv` was identical too.
+- On 2026-10-13 a full `--rebuild` of every feature from the raw files reproduced the scored r14 file
+  exactly (max |diff| 0).
+- Seeds are fixed (physics 3000–3007, probe directions 77–84) and the package versions are pinned in
+  `requirements.txt`.
