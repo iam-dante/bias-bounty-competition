@@ -1,3 +1,0 @@
-selection,n_below_0,n_above_1,most_negative,expected_no_clip,expected_with_min_clip_gain
-scoring,366,0,-0.0262915,0.0625015,0.0624924
-backward,398,0,-0.0133177,0.0624698,0.0624682

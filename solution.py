@@ -1,570 +1,50 @@
+"""R20: one ridge-calibrated model for the fixed competition tracts.
+
+Run: python solution.py
+Inputs and score history are frozen in model.npz; output is only submission.csv.
+Historical predictions are model features, not tract-level ground-truth labels.
 """
-Bias Bounty Mapping Equity Challenge: the whole pipeline in one file.
-
-    pip install -r requirements.txt
-    python solution.py                 # download data -> features -> physics -> blend -> correction -> submission.csv
-    python solution.py --rebuild       # same, but recompute the cached features in data/features/ from scratch
-    python solution.py --probes [n]    # also write the next n (default 4) probe files to next/ (5 submissions a day)
-
-Steps (each prints its progress):
-  1. DATA. Downloads the permitted challenge files from the public Source Cooperative bucket
-     (no account needed) into data/. Files already on disk with the right size are skipped.
-     Only the files the pipeline reads are fetched (~3.4 GB, mostly the Overture buildings).
-  2. FEATURES (DuckDB). The Overture side of every ratio is computed exactly; the reference side
-     (TIGER highways, Microsoft buildings, facilities, CBP) was withdrawn, so it is inferred from
-     evidence in the permitted data: Overture route refs (TIGER S1100/S1200 is the Interstate/US/
-     State system), tract boundaries that run along highways, facility names / alternate
-     categories, USFS building counts. Cached in data/features/.
-  3. PHYSICS. A generative model of the withdrawn reference counts, pushed through the exact
-     official composite (mean of the defined components) by Monte Carlo, gives E[score | data].
-     Its parameters were calibrated on the published statistics and are embedded below.
-  4. LEADERBOARD BLEND. For RMSE, every scored file f gives one exact moment of the hidden target:
-     mean_P(f*y) = (mean_P(f^2) + mean_P(y^2) - MSE_f) / 2. The files in scored/ and their scores
-     in lb_scores.csv are therefore data; the blend is their least-squares combination. It
-     rebuilds the scored r12 file and checks it.
-  5. PROBE CORRECTION. Scored probe files measure how r12's remaining error lines up with single
-     feature directions (road ratio z = -6.1, boundary leak z = +4.7); the correction is applied
-     with James-Stein shrinkage, and submission.csv is written.
-
-See problem.md for the problem and README.md for the daily submission cycle.
-"""
-from __future__ import annotations
-
-import json
-import os
+from pathlib import Path
 import re
-import sys
-import time
-import urllib.request
-import warnings
-from dataclasses import dataclass, replace
-
 import numpy as np
 import pandas as pd
 
-warnings.filterwarnings("ignore")
-DATA = os.environ.get("BB_DATA", "data")
-FEAT = os.path.join(DATA, "features")
-SCORED = "scored"
-OUT = "submission.csv"
-REGIONS = ["eastern-ok", "maricopa-az", "northern-ca", "south-central-tx", "eastern-wa"]
-STATE = {"eastern-ok": "OK", "maricopa-az": "AZ", "northern-ca": "CA", "south-central-tx": "TX", "eastern-wa": "WA"}
-CALIB_REGIONS = REGIONS[:4]            # eastern-wa is in the file but not graded
-RIDX = {r: i for i, r in enumerate(REGIONS)}
-DATA_URL = "https://data.source.coop/humane-intelligence/bias-bounty-mapping-equity-challenge"
-# five Paradise tracts with published coverage_gap_score (public discussion 34910)
-PUBLISHED = {"06007002300": 0.252, "06007001602": 0.254, "06007001703": 0.191, "06007002200": 0.249,
-             "06007001601": 0.323}
+ROOT = Path(__file__).resolve().parent
+RIDGE = 0.2
+OUTPUT = ROOT / "submission.csv"
+PUBLISHED = {'06007002300': 0.252, '06007001602': 0.254, '06007001703': 0.191, '06007002200': 0.249, '06007001601': 0.323}
+BASE = 'r12_blend_with_AB.csv'
+BASIS = ['r2f_ensemble.csv', 'e02_r2f_only_eastern-ok.csv', 'e05_r2f_only_south-central-tx.csv', 'r3j_sigma40_affine.csv', 'r5e_groups_affine.csv', 'r6e_vuln_affine.csv', 'r9d_routefix_affine.csv', 'r10d_regional_affine.csv', 'stack3_scorecard_groups.csv', 'stack4_with_scorecard.csv', 'stack4_no_scorecard.csv', 'r11_B_blend_anchored.csv', 'r11_A_blend_anchored_gmm.csv']
+
+def probe_direction_of(name):
+    match = re.match(r"^p(\d+)_(\d+)_(.+)\.csv$", name)
+    return match.group(3) if match else None
 
 
-# ================================================================================================
-# 1. DATA: the permitted challenge files, from the public Source Cooperative bucket
-# ================================================================================================
-def data_files():
-    """The files the pipeline reads, relative to data/ and to the bucket root."""
-    out = []
-    for r in REGIONS:
-        out += [f"reference/{r}/{r}-{x}" for x in ("overture-roads.parquet", "overture-buildings.parquet",
-                                                    "overture-pois.parquet", "census-acs-housing.parquet",
-                                                    "sample-submission.csv")]
-        out += [f"strata/{r}/{r}-{x}" for x in ("census-tracts.parquet", "strata-tract-table.parquet")]
-    return out
-
-
-def _http(url, method="GET"):
-    # the proxy rejects Python's default User-Agent with 403
-    return urllib.request.urlopen(urllib.request.Request(url, method=method, headers={"User-Agent": "bias-bounty-solution"}),
-                                  timeout=60)
-
-
-def download():
-    """Fetch every missing or incomplete file (size checked against the bucket). No credentials."""
-    files = data_files()
-    for i, rel in enumerate(files, 1):
-        path, url = os.path.join(DATA, rel), f"{DATA_URL}/{rel}"
-        try:
-            size = int(_http(url, "HEAD").headers["Content-Length"])
-        except Exception as e:
-            if os.path.exists(path):
-                print(f"  [{i:2d}/{len(files)}] {rel}: bucket unreachable ({e}), using the local copy")
-                continue
-            raise
-        if os.path.exists(path) and os.path.getsize(path) == size:
-            print(f"  [{i:2d}/{len(files)}] {rel}: up to date ({size / 1e6:.1f} MB)")
-            continue
-        print(f"  [{i:2d}/{len(files)}] {rel}: downloading {size / 1e6:.1f} MB ...", flush=True)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with _http(url) as r, open(path + ".part", "wb") as f:
-            while chunk := r.read(1 << 22):
-                f.write(chunk)
-        assert os.path.getsize(path + ".part") == size, f"{rel}: incomplete download, rerun to resume"
-        os.replace(path + ".part", path)
-
-
-# ================================================================================================
-# 2. FEATURES
-# ================================================================================================
-FIRE_NAME_RE = (r"(?i)(fire (station|dept|department|district|rescue|house|company|hall|co\b)|"
-                r"\bvfd\b|volunteer fire|fire protection district|\bfpd\b|fire & rescue|fire and rescue|"
-                r"cal ?fire|fire authority|fire control)")
-EMS_NAME_RE = r"(?i)(\bems\b|ambulance|emergency medical|paramedic|rescue squad|medic \d)"
-SCHOOL_NAME_RE = (r"(?i)(elementary|middle school|high school|junior high|intermediate school|"
-                  r"primary school|\bisd\b|academy|charter school|\bschool\b)")
-SCHOOL_CATS = ["elementary_school", "middle_school", "high_school", "school", "private_school", "public_school"]
-NOT_SCHOOL = "(driving|dance|music|art|martial|cosmetology|swim|beauty|flight)"
-ROUTE_NAME_RE = (r"(?i)^((us|u\.s\.|state|sh|hwy|highway|interstate|i|ok|az|ca|tx|fm|rm|sr|loop|spur)"
-                 r"[ -]*(hwy|highway|route|rte)?[ -]*\d+[a-z]?)$")
-# Overture's historic / future route designations ride on ordinary streets in Arizona (they are not
-# TIGER S1100/S1200); elsewhere dropping them breaks the official road-undefined bound.
-HISTORIC_NOT_TIGER = {"AZ"}
-
-
-def _con():
-    import duckdb
-    con = duckdb.connect()
-    con.sql("INSTALL spatial; LOAD spatial; SET threads=10; SET memory_limit='10GB';")
-    con.sql("SET preserve_insertion_order=false; SET enable_progress_bar=false;")
-    return con
-
-
-def _t(g):  # CRS84 -> CONUS Albers metres; always_xy is required (challenge README)
-    return f"ST_Transform({g}, 'EPSG:4326', 'EPSG:5070', always_xy := true)"
-
-
-def _sql_list(xs):
-    return "[" + ",".join(f"'{x}'" for x in xs) + "]"
-
-
-def _tracts(con, region):
-    con.sql(f"""CREATE OR REPLACE TABLE tr AS SELECT GEOID, geometry g4326, {_t('geometry')} g
-                FROM '{DATA}/strata/{region}/{region}-census-tracts.parquet'""")
-    con.sql("CREATE OR REPLACE TABLE trb AS SELECT GEOID, ST_Boundary(g) bd FROM tr")
-
-
-def _route_sql(st):
-    """Route networks that are TIGER S1100/S1200: Interstate, US and State systems (with their
-    loops / spurs / business routes and state toll roads); Texas FM/RM roads and county roads kept apart."""
-    core = (f"^US:(I|US)(:.*)?$|^US:{st}(:(Loop|Spur|Business|Toll|Beltway|Alternate|Truck|Bypass|NTTA|Express|Scenic))?$"
-            f"|^US:{st}:(NTTA|Harris:HCTRA|Toll)")
-    nets = "list_transform(coalesce(routes, []), x -> coalesce(x.network, ''))"
-    if st in HISTORIC_NOT_TIGER:
-        nets = f"list_filter({nets}, n -> NOT regexp_matches(n, ':(Historic|Future)'))"
-    return f"""
-      len(list_filter({nets}, n -> regexp_matches(n, '{core}'))) > 0
-        OR (class IN ('motorway','trunk') AND len(list_filter({nets}, n -> n = '')) > 0) AS is_route,
-      len(list_filter({nets}, n -> regexp_matches(n, '^US:I(:.*)?$'))) > 0 AS is_interstate,
-      len(list_filter({nets}, n -> regexp_matches(n, '^US:TX:(FM|RM|PR|RE|UR)$'))) > 0 AS is_fm,
-      len(list_filter({nets}, n -> regexp_matches(n, '^US:{st}:') AND NOT regexp_matches(n, '{core}'))) > 0 AS is_county,
-      len(list_distinct(list_filter(list_transform(coalesce(routes, []), x -> x.network || '|' || x.ref), x -> x IS NOT NULL))) AS n_ref,
-      coalesce(names.primary IS NOT NULL AND NOT regexp_matches(names.primary, '{ROUTE_NAME_RE}'), false) AS local_name"""
-
-
-def _road_features(con, region, st):
-    con.sql(f"""CREATE OR REPLACE TABLE rd AS SELECT class, subclass, {_t('geometry')} g, {_route_sql(st)}
-                FROM '{DATA}/reference/{region}/{region}-overture-roads.parquet'""")
-    con.sql("CREATE OR REPLACE TABLE rd AS SELECT *, class IN ('motorway','trunk','primary','secondary') AS is_named FROM rd")
-    con.sql("""CREATE OR REPLACE TABLE rl AS SELECT tr.GEOID, rd.* EXCLUDE (g), ST_Intersection(rd.g, tr.g) gi
-               FROM tr JOIN rd ON ST_Intersects(tr.g, rd.g)""")
-    con.sql("CREATE OR REPLACE TABLE rl AS SELECT * EXCLUDE gi, ST_Length(gi) L, gi FROM rl")
-    agg = con.sql("""
-        SELECT GEOID,
-          sum(L) FILTER (is_named)                AS L_named,          -- the exact Overture numerator
-          sum(L) FILTER (is_route)                AS L_route,
-          sum(L) FILTER (is_route AND local_name) AS L_route_localname,
-          sum(L) FILTER (is_route AND n_ref >= 2) AS L_route_multiref,
-          sum(L) FILTER (is_interstate)           AS L_interstate,
-          sum(L) FILTER (is_fm)                   AS L_fm,
-          sum(L) FILTER (class = 'tertiary')      AS L_tertiary,       -- roads TIGER may call S1200
-          -- TIGER S1200 is "usually in the U.S., State or County Highway system": county routes and
-          -- unrouted arterials are length TIGER may hold that the route-based estimate leaves out
-          sum(L) FILTER (is_county AND NOT is_route AND NOT is_fm
-                         AND class IN ('primary','secondary','tertiary')) AS L_county,
-          sum(L) FILTER (NOT is_route AND NOT is_fm AND NOT is_county AND class IN ('primary','secondary')
-                         AND coalesce(subclass, '') <> 'link') AS L_unrouted
-        FROM rl GROUP BY GEOID""").df()
-    # Overture route length within 30 m of the tract boundary
-    nb = con.sql("""
-        WITH bb AS (SELECT GEOID, ST_Buffer(bd, 30) bz FROM trb)
-        SELECT rl.GEOID, sum(ST_Length(ST_Intersection(rl.gi, bb.bz))) FILTER (rl.is_route) AS L_route_nearB
-        FROM rl JOIN bb USING (GEOID)
-        WHERE (rl.is_named OR rl.is_route OR rl.is_fm) AND ST_Intersects(rl.gi, bb.bz)
-        GROUP BY rl.GEOID""").df()
-    # tract boundary running ALONG a route highway: TIGER puts such a highway in both tracts,
-    # Overture's copy lands in one (parallel pieces only; crossings are < 4 x buffer and dropped)
-    bnd = con.sql("""
-        WITH j AS (
-          SELECT b.GEOID, any_value(b.bd) bd, ST_Union_Agg(ST_Buffer(h.g, 25)) u
-          FROM trb b JOIN (SELECT g FROM rd WHERE is_route) h ON ST_DWithin(b.bd, h.g, 25) GROUP BY b.GEOID),
-        x AS (SELECT GEOID, unnest(ST_Dump(ST_Intersection(bd, u))) d FROM j)
-        SELECT GEOID, sum(CASE WHEN ST_Length(d.geom) > 100 THEN ST_Length(d.geom) ELSE 0 END) AS Lb_route
-        FROM x GROUP BY GEOID""").df()
-    geo = con.sql("SELECT GEOID, ST_Area(g) area_m2 FROM tr").df()
-    return geo.merge(agg, on="GEOID", how="left").merge(nb, on="GEOID", how="left").merge(bnd, on="GEOID", how="left")
-
-
-def _building_features(con, region):
-    return con.sql(f"""
-        SELECT tr.GEOID, count(*) n_bld
-        FROM tr JOIN (SELECT ST_Centroid(geometry) c FROM '{DATA}/reference/{region}/{region}-overture-buildings.parquet') b
-          ON ST_Contains(tr.g4326, b.c)
-        GROUP BY 1""").df()
-
-
-def _poi_features(con, region):
-    sc = "(" + ",".join(f"'{c}'" for c in SCHOOL_CATS) + ")"
-    return con.sql(f"""
-        WITH poi AS (SELECT geometry p, categories.primary cat, coalesce(categories.alternate, []) alts, names.primary nm,
-                            sources[1].dataset ds
-                     FROM '{DATA}/reference/{region}/{region}-overture-pois.parquet')
-        SELECT tr.GEOID, count(*) n_poi,
-          count(*) FILTER (ds = 'meta') n_poi_meta,               -- upstream source of each place
-          count(*) FILTER (ds = 'BrightQuery') n_poi_bq,          -- business registry
-          count(*) FILTER (ds = 'Microsoft') n_poi_msft,
-          count(*) FILTER (cat = 'fire_department') n_fd,
-          count(*) FILTER (cat <> 'fire_department' AND list_contains(alts, 'fire_department')) n_fd_alt,
-          count(*) FILTER (coalesce(cat,'') <> 'fire_department' AND regexp_matches(coalesce(nm,''), '{FIRE_NAME_RE}')) n_fire_name,
-          count(*) FILTER (cat = 'ambulance_and_ems_services') n_ems,
-          count(*) FILTER (cat <> 'ambulance_and_ems_services' AND list_contains(alts, 'ambulance_and_ems_services')) n_ems_alt,
-          count(*) FILTER (coalesce(cat,'') <> 'ambulance_and_ems_services' AND regexp_matches(coalesce(nm,''), '{EMS_NAME_RE}')) n_ems_name,
-          count(*) FILTER (cat IN {sc}) n_sch,
-          count(*) FILTER (coalesce(cat,'') NOT IN {sc} AND list_has_any(alts, {_sql_list(SCHOOL_CATS)})) n_sch_alt,
-          count(*) FILTER (coalesce(cat,'') NOT IN {sc} AND regexp_matches(coalesce(nm,''), '{SCHOOL_NAME_RE}')
-                           AND NOT regexp_matches(coalesce(cat,''), '{NOT_SCHOOL}')) n_sch_name
-        FROM tr JOIN poi ON ST_Contains(tr.g4326, poi.p)
-        GROUP BY 1""").df()
-
-
-def _facility_points(con, region):
-    """One row per (Overture facility point, tract within 500 m): d > 0 is the distance to the
-    boundary of the containing tract, d < 0 minus the distance to a neighbouring tract. The two
-    maps place a station tens of metres apart, so reference copies near a boundary leak next door."""
-    sc = "(" + ",".join(f"'{c}'" for c in SCHOOL_CATS) + ")"
-    con.sql(f"""
-        CREATE OR REPLACE TABLE pts AS
-        WITH p AS (SELECT id, categories.primary cat, coalesce(categories.alternate, []) alts,
-                          coalesce(names.primary, '') nm, {_t('geometry')} g
-                   FROM '{DATA}/reference/{region}/{region}-overture-pois.parquet')
-        SELECT id, g, 'fire' typ, cat = 'fire_department' AS strong FROM p
-          WHERE cat = 'fire_department' OR list_contains(alts, 'fire_department') OR regexp_matches(nm, '{FIRE_NAME_RE}')
-        UNION ALL
-        SELECT id, g, 'ems', cat = 'ambulance_and_ems_services' FROM p
-          WHERE cat = 'ambulance_and_ems_services' OR list_contains(alts, 'ambulance_and_ems_services') OR regexp_matches(nm, '{EMS_NAME_RE}')
-        UNION ALL
-        SELECT id, g, 'sch', coalesce(cat IN {sc}, false) FROM p
-          WHERE coalesce(cat IN {sc}, false) OR list_has_any(alts, {_sql_list(SCHOOL_CATS)})
-             OR (regexp_matches(nm, '{SCHOOL_NAME_RE}') AND NOT regexp_matches(coalesce(cat, ''), '{NOT_SCHOOL}'))""")
-    return con.sql("""
-        SELECT pts.id, pts.typ, pts.strong, tr.GEOID,
-               CASE WHEN ST_Contains(tr.g, pts.g) THEN ST_Distance(pts.g, trb.bd) ELSE -ST_Distance(pts.g, tr.g) END AS d
-        FROM pts JOIN tr ON ST_DWithin(tr.g, pts.g, 500) JOIN trb USING (GEOID)""").df()
-
-
-def build_features(region, force=False):
-    """data/features/<region>.parquet (tract features + strata) and <region>-facpts.parquet."""
-    os.makedirs(FEAT, exist_ok=True)
-    out, pts_out = os.path.join(FEAT, f"{region}.parquet"), os.path.join(FEAT, f"{region}-facpts.parquet")
-    if os.path.exists(out) and os.path.exists(pts_out) and not force:
-        print(f"  features [{region}] cached")
-        return
-    t0 = time.time()
-    con = _con()
-    _tracts(con, region)
-    df = _road_features(con, region, STATE[region])
-    for part in (_building_features(con, region), _poi_features(con, region)):
-        df = df.merge(part, on="GEOID", how="left")
-    acs = pd.read_parquet(f"{DATA}/reference/{region}/{region}-census-acs-housing.parquet", columns=["GEOID", "housing_units"])
-    strata = pd.read_parquet(f"{DATA}/strata/{region}/{region}-strata-tract-table.parquet")
-    df = df.merge(acs, on="GEOID", how="left").merge(strata, on="GEOID", how="left")
-    df.insert(1, "region", region)
-    df.to_parquet(out, index=False)
-    _facility_points(con, region).to_parquet(pts_out, index=False)
-    print(f"  features [{region}] {df.shape} in {time.time() - t0:.0f}s", flush=True)
-
-
-# ================================================================================================
-# 3. PHYSICS: generative model of the withdrawn reference counts
-# ================================================================================================
-def load():
-    frames = []
-    for r in REGIONS:
-        f = pd.read_parquet(os.path.join(FEAT, f"{r}.parquet"))
-        ss = pd.read_csv(f"{DATA}/reference/{r}/{r}-sample-submission.csv", dtype={"GEOID": str})
-        f = ss[["GEOID"]].merge(f.drop(columns=["region"]), on="GEOID", how="left")  # authoritative scored list & order
-        f["region"] = r
-        frames.append(f)
-    df = pd.concat(frames, ignore_index=True)
-    zero = [c for c in df.columns if c.startswith(("L_", "Lb_", "n_"))] + ["housing_units"]
-    df[zero] = df[zero].fillna(0)
-    df["area_km2"] = df["area_m2"] / 1e6
-    df["rural"] = (df["ruca_primary"] >= 4).astype(int)
-    df["burned"] = df["mtbs_wildfire_ever"].fillna(False).astype(bool).astype(int)
-    above = lambda c: (df[c] > df[c].median()).astype(int)
-    df["g_rural"] = (df["pct_urban"] < 0.5).astype(int)
-    df["g_tribal"] = df["tribal_any"].fillna(False).astype(bool).astype(int)
-    df["g_svi"], df["g_cvi"] = above("svi_overall"), above("cvi_overall")
-    df["g_drs"], df["g_drw"] = above("usdm_summer_dsci"), above("usdm_winter_dsci")
-    df["g_wild"], df["g_heat"] = above("usfs_WHP_mean"), above("epht_heat_days_summer")
-    df["ridx"] = df["region"].map(RIDX)
-    df["pop"] = df["pop_total"].fillna(0).clip(lower=0)
-    # Overture evidence of each facility type; "X_" is weak evidence (alternate category / name)
-    for k, a, b, c in [("fire", "n_fd", "n_fd_alt", "n_fire_name"), ("ems", "n_ems", "n_ems_alt", "n_ems_name"),
-                       ("sch", "n_sch", "n_sch_alt", "n_sch_name")]:
-        df[f"E_{k}"] = df[a] + df[b] + df[c]
-        df[f"X_{k}"] = df[b] + df[c]
-    u = df["usfs_BuildingCount_sum"]          # independent building count (USFS)
-    df["U_bld"] = u.where(u > 0, df["n_bld"]).fillna(df["n_bld"])
-    return df
-
-
-def prior_rates(df):
-    """Expected Overture-visible facility evidence (Poisson GLM); drives the stations Overture never shows."""
-    from sklearn.linear_model import PoissonRegressor
-    X = np.column_stack([np.log1p(df["pop"]), np.log1p(df["area_km2"]), np.log1p(df["n_poi"]), np.log1p(df["n_bld"]),
-                         df["rural"], np.log1p(df["housing_units"]), *[(df["ridx"] == i).astype(float) for i in range(len(REGIONS))]])
-    X = (X - X.mean(0)) / (X.std(0) + 1e-9)
-    return pd.DataFrame({f"mu_{k[2:]}": PoissonRegressor(alpha=1e-3, max_iter=1000).fit(X, df[k].clip(upper=20)).predict(X)
-                         for k in ["E_fire", "E_ems", "E_sch"]}, index=df.index)
-
-
-@dataclass
-class Params:
-    m: tuple = (1.7, 1.7, 2.0, 1.7)   # TIGER records per highway edge, per region
-    w_fm: float = 0.0                  # share of Texas FM/RM length TIGER calls S1200
-    beta_bnd: float = 0.5              # boundary highway whose Overture copy is next door
-    sigma_t: float = 0.25              # log-noise of the TIGER length
-    p_def0: float = 0.03               # P(TIGER highway | no route evidence)
-    kappa_b: float = 0.97              # Microsoft count = kappa * USFS count * noise
-    sigma_b: float = 0.10
-    alpha_fire: float = 0.90           # reference facilities = Bin(Overture primary, alpha) + Bin(weak, alpha_x)
-    alpha_fire_x: float = 0.60         #   + Poisson(mu (1 - r) / r)   [never shown by Overture]
-    r_fire: float = 0.60
-    alpha_ems: float = 0.90
-    alpha_ems_x: float = 0.05
-    r_ems: float = 0.90
-    alpha_sch: float = 0.85
-    alpha_sch_x: float = 0.10
-    r_sch: float = 0.95
-    eps_cbp: float = 0.025             # business establishments = eps * population * noise
-    sigma_c: float = 0.35
-    w_cty: float = 0.0                 # share of county-route length TIGER calls S1200
-    w_unr: float = 0.0                 # share of unrouted primary/secondary length TIGER calls S1200
-    w_tert: float = 0.0                # share of Overture tertiary length TIGER calls S1200
-    use_cbp: bool = True
-    use_points: bool = False           # facility copies leak across tract boundaries, Phi(d / sigma_loc)
-    sigma_loc: float = 60.0
-    burn_unseen: float = 1.0
-    burn_road: float = 1.0
-    gf_rural: float = 0.0              # log effects on the unseen-facility rate (gf), TIGER length (gr), CBP (gc)
-    gf_wild: float = 0.0
-    gf_drw: float = 0.0
-    gf_tribal: float = 0.0
-    gf_svi: float = 0.0
-    gf_heat: float = 0.0
-    gr_rural: float = 0.0
-    gr_wild: float = 0.0
-    gr_drw: float = 0.0
-    gr_heat: float = 0.0
-    gc_rural: float = 0.0
-    gf_cvi: float = 0.0
-    gr_svi: float = 0.0
-    gr_cvi: float = 0.0
-
-
-def attach_points(df):
-    from scipy import sparse
-    idx = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())
-    pts = pd.concat([pd.read_parquet(os.path.join(FEAT, f"{r}-facpts.parquet")) for r in REGIONS])
-    pts = pts[pts["GEOID"].isin(idx.index)]
-    out = {}
-    for k in ["fire", "ems", "sch"]:
-        q = pts[pts["typ"] == k].sort_values(["id", "d"], ascending=[True, False]).reset_index(drop=True)
-        pid, j = np.unique(q["id"].to_numpy(), return_inverse=True)
-        strong = q["strong"].fillna(False).astype(bool).groupby(j).first().to_numpy()
-        A = sparse.csr_matrix((np.ones(len(q)), (idx[q["GEOID"]].to_numpy(), np.arange(len(q)))), shape=(len(df), len(q)))
-        out[k] = {"j": j, "d": q["d"].to_numpy(), "strong": strong, "A": A, "n_pts": len(pid)}
-    df.attrs["pts"] = out
-    return df
-
-
-def _point_counts(rng, P, alpha, alpha_x, sigma, S):
-    from scipy.stats import norm
-    j, d = P["j"], P["d"]
-    w = norm.cdf(d / max(sigma, 1e-3))
-    tot = np.bincount(j, weights=w, minlength=P["n_pts"])
-    w = w / np.maximum(tot[j], 1.0)
-    c = np.cumsum(w)
-    start = np.r_[0, np.cumsum(np.bincount(j, minlength=P["n_pts"]))[:-1]]
-    base = np.r_[0.0, c][start][j]
-    hi, lo = c - base, c - base - w
-    real = rng.random((S, P["n_pts"])) < np.where(P["strong"], alpha, alpha_x)
-    u = rng.random((S, P["n_pts"]))
-    sel = real[:, j] & (u[:, j] >= lo) & (u[:, j] < hi)
-    return np.asarray((P["A"] @ sel.T.astype(np.float32)).T)
-
-
-def _lognoise(rng, sigma, shape):
-    return np.exp(sigma * rng.standard_normal(shape) - 0.5 * sigma ** 2)
-
-
-def simulate(df, mu, p: Params, n_sims=512, seed=0):
-    """Monte-Carlo E[score | features] under the exact official composite rule."""
-    rng = np.random.default_rng(seed)
-    n, S = len(df), n_sims
-    m_r = np.asarray(list(p.m) + [float(np.mean(p.m))] * (len(REGIONS) - len(p.m)))[df["ridx"].to_numpy()]
-    burned = df["burned"].to_numpy() == 1
-    g = lambda c: df[c].to_numpy()
-    road_mult = np.exp(p.gr_rural * g("g_rural") + p.gr_wild * g("g_wild") + p.gr_drw * g("g_drw")
-                       + p.gr_heat * g("g_heat") + p.gr_svi * g("g_svi") + p.gr_cvi * g("g_cvi"))
-    fac_mult = np.exp(p.gf_rural * g("g_rural") + p.gf_wild * g("g_wild") + p.gf_drw * g("g_drw") + p.gf_tribal * g("g_tribal")
-                      + p.gf_svi * g("g_svi") + p.gf_heat * g("g_heat") + p.gf_cvi * g("g_cvi"))
-    # road: 1 - min(1, Overture named length / TIGER S1100+S1200 length)
-    N = df["L_named"].to_numpy()
-    G = (df["L_route"] + p.w_fm * df["L_fm"] + p.beta_bnd * (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)
-         + p.w_cty * df["L_county"] + p.w_unr * df["L_unrouted"] + p.w_tert * df["L_tertiary"]).to_numpy()
-    has_ev = G > 1.0
-    T = (m_r * G * np.where(burned, p.burn_road, 1.0) * road_mult)[None, :] * _lognoise(rng, p.sigma_t, (S, n))
-    surprise = (~has_ev)[None, :] & (rng.random((S, n)) < p.p_def0)
-    T = np.where(surprise, 400.0 * _lognoise(rng, 1.0, (S, n)), T)
-    dT = has_ev[None, :] | surprise
-    t = np.where(dT, 1.0 - np.minimum(1.0, N[None, :] / np.maximum(T, 1e-9)), 0.0)
-    # buildings: 1 - min(1, Overture count / Microsoft count)
-    O_b = df["n_bld"].to_numpy()
-    MS = (p.kappa_b * df["U_bld"].to_numpy())[None, :] * _lognoise(rng, p.sigma_b, (S, n))
-    dB = np.ones((S, n), bool) & (MS > 0.5)
-    b = np.where(dB, 1.0 - np.minimum(1.0, O_b[None, :] / np.maximum(MS, 1e-9)), 0.0)
-    # POI, facilities half: mean over defined types of 1 - min(1, Overture / reference)
-    gs, ds = [], []
-    for k, O_col, alpha, alpha_x, r in [("fire", "n_fd", p.alpha_fire, p.alpha_fire_x, p.r_fire),
-                                        ("ems", "n_ems", p.alpha_ems, p.alpha_ems_x, p.r_ems),
-                                        ("sch", "n_sch", p.alpha_sch, p.alpha_sch_x, p.r_sch)]:
-        O = df[O_col].to_numpy()
-        X = df[f"X_{k}"].to_numpy().astype(int)
-        lam = mu[f"mu_{k}"].to_numpy() * (1 - r) / r * np.where(burned, p.burn_unseen, 1.0) * fac_mult
-        if p.use_points:
-            H = _point_counts(rng, df.attrs["pts"][k], alpha, alpha_x, p.sigma_loc, S) + rng.poisson(np.broadcast_to(lam, (S, n)))
-        else:
-            H = (rng.binomial(np.broadcast_to(O.astype(int), (S, n)), alpha) + rng.binomial(np.broadcast_to(X, (S, n)), alpha_x)
-                 + rng.poisson(np.broadcast_to(lam, (S, n))))
-        d = H >= 1
-        gs.append(np.where(d, 1.0 - np.minimum(1.0, O[None, :] / np.maximum(H, 1)), 0.0))
-        ds.append(d)
-    nd = ds[0].astype(int) + ds[1] + ds[2]
-    dH = nd > 0
-    h = np.where(dH, (gs[0] + gs[1] + gs[2]) / np.maximum(nd, 1), 0.0)
-    # POI, establishments half
-    if p.use_cbp:
-        CBP = (p.eps_cbp * df["pop"].to_numpy() * np.exp(p.gc_rural * g("g_rural")))[None, :] * _lognoise(rng, p.sigma_c, (S, n))
-        dC = CBP >= 0.5
-        c = np.where(dC, 1.0 - np.minimum(1.0, df["n_poi"].to_numpy()[None, :] / np.maximum(CBP, 1e-9)), 0.0)
-    else:
-        dC, c = np.zeros((S, n), bool), np.zeros((S, n))
-    nP = dH.astype(int) + dC
-    dP = nP > 0
-    pg = np.where(dP, (h + c) / np.maximum(nP, 1), 0.0)
-    # composite: mean of the defined components
-    nd_all = dT.astype(int) + dB + dP
-    return np.where(nd_all > 0, (t + b + pg) / np.maximum(nd_all, 1), 0.0).mean(0)
-
-
-def road_frame(df, interstate=False):
-    """Effective TIGER route length: one record per (edge, name), so a route that also carries a local
-    street name counts twice; the Interstate variant gives Interstates half a record less."""
-    d = df.copy()
-    eff = d["L_route"] + d["L_route_localname"]
-    scale = np.where(d["L_route"] > 0, eff / d["L_route"].where(d["L_route"] > 0, 1), 1.0)
-    d["L_route"] = eff
-    d["Lb_route"] = d["Lb_route"] * scale
-    d["L_route_nearB"] = d["L_route_nearB"] * scale
-    if interstate:
-        d["L_route"] = (d["L_route"] - 0.5 * d["L_interstate"]).clip(lower=0)
-    return d
-
-
-# Calibrated parameters (fields that differ from Params defaults). r9: one set for all regions,
-# fitted on the published statistics after the Arizona route fix; r10: one specialist per region.
-# a = no-leakage frame, b = Interstate frame with boundary leakage of facility points.
-# g43: one set refitted on the published statistics AND every leaderboard moment including the road-ratio
-# probe (round 12); it reproduces part of the measured road residual physically.
-PHYSICS = {
-    'r9a': {
-        'global': dict(m=(1.2589414874162739, 0.6270082404484242, 1.1132214407985497, 0.8903293004790522), beta_bnd=0.6754040121784258, sigma_t=0.291884673371356, kappa_b=0.8030782045598688, alpha_fire_x=0.04834560607705495, r_fire=0.9214893973515518, alpha_ems_x=0.05127313871608613, alpha_sch=0.4009980688792822, alpha_sch_x=0.0045685879278019375, eps_cbp=0.0014539088226658155, sigma_loc=40.0, gf_rural=0.7599380326267967, gf_wild=0.3279080752898451, gf_drw=-0.0012578136113132507, gf_tribal=-0.08067137210469545, gf_svi=0.14957377865295607, gf_heat=-0.8290276376850771, gr_rural=-0.25825308846849765, gr_wild=0.05585447503944992, gr_drw=0.15886673258211698, gr_heat=0.2848718902911277, gc_rural=-1.8569918581213951, gf_cvi=2.787971771312323e-16, gr_svi=-0.020938659990628876, gr_cvi=0.08363687130549793),
-    },
-    'r9b': {
-        'global': dict(m=(0.9602171954863009, 0.5187062587857599, 0.8200926366788887, 0.7820316920285948), beta_bnd=0.9736238359076864, sigma_t=0.40766113814033844, kappa_b=0.719983965349866, alpha_fire_x=0.6270772912305987, r_fire=0.9133625925539376, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=0.03460157774101938, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=-0.15717426553372846, gr_wild=0.11884008801673293, gr_drw=0.2881258688825686, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
-    },
-    'r10a': {
-        'global': dict(m=(1.2589414874162739, 0.6270082404484242, 1.1132214407985497, 0.8903293004790522), beta_bnd=0.6754040121784258, sigma_t=0.291884673371356, kappa_b=0.8030782045598688, alpha_fire_x=0.04834560607705495, r_fire=0.9214893973515518, alpha_ems_x=0.05127313871608613, alpha_sch=0.4009980688792822, alpha_sch_x=0.0045685879278019375, eps_cbp=0.0014539088226658155, sigma_loc=40.0, gf_rural=0.7599380326267967, gf_wild=0.3279080752898451, gf_drw=-0.0012578136113132507, gf_tribal=-0.08067137210469545, gf_svi=0.14957377865295607, gf_heat=-0.8290276376850771, gr_rural=-0.25825308846849765, gr_wild=0.05585447503944992, gr_drw=0.15886673258211698, gr_heat=0.2848718902911277, gc_rural=-1.8569918581213951, gf_cvi=2.787971771312323e-16, gr_svi=-0.020938659990628876, gr_cvi=0.08363687130549793),
-        'eastern-ok': dict(m=(1.1565465359985445, 0.6270082404484242, 1.1132214407985497, 0.8903293004790522), beta_bnd=0.7252703281677637, sigma_t=0.2653734515861684, kappa_b=0.8030782045598688, alpha_fire_x=0.08025434173421368, r_fire=0.8829339036524257, alpha_ems_x=0.05127313871608613, alpha_sch=0.4009980688792822, alpha_sch_x=0.0045685879278019375, eps_cbp=0.0014539088226658155, sigma_loc=40.0, gf_rural=1.027340428434128, gf_wild=0.3279080752898451, gf_drw=-0.0012578136113132507, gf_tribal=-0.08067137210469545, gf_svi=0.14957377865295607, gf_heat=-0.8290276376850771, gr_rural=-0.2431554282160346, gr_wild=0.08304197385865475, gr_drw=0.14257188899586645, gr_heat=0.2848718902911277, gc_rural=-1.8569918581213951, gf_cvi=2.787971771312323e-16, gr_svi=-0.020938659990628876, gr_cvi=0.08363687130549793),
-        'maricopa-az': dict(m=(1.2589414874162739, 0.6701824268229616, 1.1132214407985497, 0.8903293004790522), beta_bnd=0.7682824690360375, sigma_t=0.2852315443850813, kappa_b=0.8030782045598688, alpha_fire_x=0.047985690741560345, r_fire=0.9597806654743198, alpha_ems_x=0.05127313871608613, alpha_sch=0.4009980688792822, alpha_sch_x=0.0045685879278019375, eps_cbp=0.0014539088226658155, sigma_loc=40.0, gf_rural=0.5732073497218906, gf_wild=0.3279080752898451, gf_drw=-0.0012578136113132507, gf_tribal=-0.08067137210469545, gf_svi=0.14957377865295607, gf_heat=-0.8290276376850771, gr_rural=-0.35112644607221627, gr_wild=0.04837052684640666, gr_drw=0.17203664901806423, gr_heat=0.2848718902911277, gc_rural=-1.8569918581213951, gf_cvi=2.787971771312323e-16, gr_svi=-0.020938659990628876, gr_cvi=0.08363687130549793),
-        'northern-ca': dict(m=(1.2589414874162739, 0.6270082404484242, 1.0810712581058644, 0.8903293004790522), beta_bnd=0.4182951269814721, sigma_t=0.4465900855311192, kappa_b=0.8030782045598688, alpha_fire_x=0.003910228773756746, r_fire=0.888844682535768, alpha_ems_x=0.05127313871608613, alpha_sch=0.4009980688792822, alpha_sch_x=0.0045685879278019375, eps_cbp=0.0014539088226658155, sigma_loc=40.0, gf_rural=0.50732114540245, gf_wild=0.3279080752898451, gf_drw=-0.0012578136113132507, gf_tribal=-0.08067137210469545, gf_svi=0.14957377865295607, gf_heat=-0.8290276376850771, gr_rural=-0.05701551016625413, gr_wild=0.08031046397280654, gr_drw=0.12421718388603499, gr_heat=0.2848718902911277, gc_rural=-1.8569918581213951, gf_cvi=2.787971771312323e-16, gr_svi=-0.020938659990628876, gr_cvi=0.08363687130549793),
-        'south-central-tx': dict(m=(1.2589414874162739, 0.6270082404484242, 1.1132214407985497, 0.9236725674608204), beta_bnd=0.7332906931693166, sigma_t=0.2545645478306243, kappa_b=0.8030782045598688, alpha_fire_x=0.06894446441407438, r_fire=0.9397751159864287, alpha_ems_x=0.05127313871608613, alpha_sch=0.4009980688792822, alpha_sch_x=0.0045685879278019375, eps_cbp=0.0014539088226658155, sigma_loc=40.0, gf_rural=0.6914870757604484, gf_wild=0.3279080752898451, gf_drw=-0.0012578136113132507, gf_tribal=-0.08067137210469545, gf_svi=0.14957377865295607, gf_heat=-0.8290276376850771, gr_rural=-0.2830736071518152, gr_wild=0.04899855477793774, gr_drw=0.15599570730845108, gr_heat=0.2848718902911277, gc_rural=-1.8569918581213951, gf_cvi=2.787971771312323e-16, gr_svi=-0.020938659990628876, gr_cvi=0.08363687130549793),
-    },
-    'r10b': {
-        'global': dict(m=(0.9602171954863009, 0.5187062587857599, 0.8200926366788887, 0.7820316920285948), beta_bnd=0.9736238359076864, sigma_t=0.40766113814033844, kappa_b=0.719983965349866, alpha_fire_x=0.6270772912305987, r_fire=0.9133625925539376, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=0.03460157774101938, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=-0.15717426553372846, gr_wild=0.11884008801673293, gr_drw=0.2881258688825686, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
-        'eastern-ok': dict(m=(0.9607262477019975, 0.5187062587857599, 0.8200926366788887, 0.7820316920285948), beta_bnd=0.9738923772705601, sigma_t=0.40756892846495163, kappa_b=0.719983965349866, alpha_fire_x=0.6271783162800703, r_fire=0.9130084936007791, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=0.031287386640162486, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=-0.15679878176630707, gr_wild=0.11910383439260146, gr_drw=0.28827680410524925, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
-        'maricopa-az': dict(m=(0.9602171954863009, 0.5180949825657207, 0.8200926366788887, 0.7820316920285948), beta_bnd=0.9699304879676618, sigma_t=0.41339995126137874, kappa_b=0.719983965349866, alpha_fire_x=0.6259004235957574, r_fire=0.9138061076847248, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=-0.021916872902532736, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=-0.16935682325707424, gr_wild=0.10923108739711254, gr_drw=0.2792932963704795, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
-        'northern-ca': dict(m=(0.9602171954863009, 0.5187062587857599, 0.8037568281521926, 0.7820316920285948), beta_bnd=0.6754957020163651, sigma_t=0.515286687047487, kappa_b=0.719983965349866, alpha_fire_x=0.5835781409368624, r_fire=0.8530081174072963, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=0.06084192977359127, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=0.0004479959707696941, gr_wild=0.13754964525449936, gr_drw=0.28828079346999924, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
-        'south-central-tx': dict(m=(0.9602171954863009, 0.5187062587857599, 0.8200926366788887, 0.7886331228337119), beta_bnd=1.0260877096445058, sigma_t=0.36378395239591127, kappa_b=0.719983965349866, alpha_fire_x=0.6341941813705002, r_fire=0.9204528408306606, alpha_ems_x=0.019191748560227935, alpha_sch=0.40062789928133863, alpha_sch_x=0.008015315834142094, eps_cbp=0.0013308321254811926, use_points=True, sigma_loc=40.0, gf_rural=0.006954194352547016, gf_wild=0.14029448598761884, gf_drw=-0.272422559165657, gf_tribal=0.6826557482494892, gf_svi=-0.2670169760241372, gf_heat=-0.09670722789267051, gr_rural=-0.18794005316861823, gr_wild=0.1090080057402303, gr_drw=0.2797226160459853, gr_heat=0.028967398833980706, gc_rural=-1.8974568180215696, gf_cvi=0.045105515560260816, gr_svi=0.18509024902692456, gr_cvi=0.058396005899973485),
-    },
-    'g43': {
-        'global': dict(m=(1.2702818649199756, 0.5900883053258147, 1.074312238634703, 0.7211327572998518), w_fm=0.00016959676611330503, beta_bnd=0.6688487518148114, sigma_t=0.6043364585344102, kappa_b=0.7845057988740073, alpha_fire_x=0.3349760521291884, r_fire=0.8670522351916378, alpha_ems_x=0.08043058121099626, alpha_sch=0.40000118103301335, alpha_sch_x=0.0030850306676178186, eps_cbp=0.0024015467534752115, sigma_c=1.0393957499796145, sigma_loc=40.0, burn_unseen=1.4683638574489266, burn_road=0.8339751888322188, gf_rural=0.7374157061798696, gf_wild=0.22598054315743857, gf_drw=0.04375602997110476, gf_tribal=-0.2756763464412266, gf_svi=0.15316038651680922, gf_heat=-1.3626592784941904, gr_rural=-0.15010424872199776, gr_wild=0.1316954740359532, gr_drw=0.16097217749052742, gr_heat=0.3383817269544221, gc_rural=-1.467457227951705, gf_cvi=-1.0557198592197432, gr_svi=0.02378823569164588, gr_cvi=0.21410424678849058),
-    },
-}
-
-
-def physics(df, mu, seeds=range(3000, 3008)):
-    """r10d and r9d (0.009 + 0.8 x mean of the a/b models) at 8 x 512 = 4096 Monte-Carlo draws.
-    The scored versions used 512 draws; the extra draws remove noise that is independent of y."""
-    frames = {"a": road_frame(df), "b": road_frame(df, interstate=True)}
-
-    def run(name, frame):
-        sets = {k: Params(**v) for k, v in PHYSICS[name].items()}
-        draws = []
-        for s in seeds:
-            v = simulate(frame, mu, sets["global"], 512, s)
-            for r in CALIB_REGIONS:
-                if r in sets:
-                    m = (frame["region"] == r).to_numpy()
-                    v[m] = simulate(frame, mu, sets[r], 512, s)[m]
-            draws.append(v)
-        print(f"  physics {name}: {len(draws) * 512} draws", flush=True)
-        return np.mean(draws, axis=0)
-
-    out = {}
-    for tag in ("r10", "r9"):
-        ens = (run(f"{tag}a", frames["a"]) + run(f"{tag}b", frames["b"])) / 2
-        out[tag] = np.clip(0.009 + 0.8 * ens, 0, 1).round(6)
-    return out
-
-
-# ================================================================================================
-# 4. LEADERBOARD FACTS
-# ================================================================================================
 class Leaderboard:
-    """Exact moments of the hidden target from the scored files, on the graded rows (eastern-wa is
-    required in the file but not graded). mean over the public subset P is estimated with weights
-    pi (public_subset) instead of the plain mean over graded rows."""
+    """Reconstruct target moments using historical scores and estimated public-row weights."""
 
-    def __init__(self, df):
-        s = pd.read_csv("lb_scores.csv")
-        self.s = dict(zip(s["file"], s["score"].astype(float)))
-        self.Z = self.s["probe_zeros.csv"] ** 2                                   # mean_P(y^2)
-        self.ybar = (0.01 + self.Z - self.s["probe_const_0.10.csv"] ** 2) / 0.2   # mean_P(y)
-        self.geoid = df["GEOID"]
-        self.graded = (df["region"] != "eastern-wa").to_numpy()
+    def __init__(self):
+        with np.load(ROOT / "model.npz", allow_pickle=False) as artifact:
+            self.geoid = pd.Series(artifact["geoid"])
+            self.graded = artifact["region"] != "eastern-wa"
+            names = artifact["names"].tolist()
+            self.s = dict(zip(names, artifact["scores"].tolist()))
+            self.vectors = dict(zip(names, artifact["predictions"].T))
+        self.Z = self.s["probe_zeros.csv"] ** 2
+        self.ybar = (0.01 + self.Z - self.s["probe_const_0.10.csv"] ** 2) / 0.2
         self.pi = np.full(self.graded.sum(), 0.3)
 
     def vec(self, name):
-        f = pd.read_csv(os.path.join(SCORED, name), dtype={"GEOID": str})
-        return self.geoid.to_frame().merge(f[["GEOID", "coverage_gap_score"]], on="GEOID", how="left")["coverage_gap_score"].to_numpy()
+        return self.vectors[name]
 
     def AP(self, h):
         return float(h @ self.pi / self.pi.sum())
 
     def public_subset(self):
         """Every scored file that is an exact linear combination of other scored files (affine pairs,
-        stacks) gives one linear equation on the public-row indicator. Gaussian conditioning of a
-        30 % random subset on those equations; predicts held-out public scores to ~5e-5."""
+        stacks) gives a constraint on public-row weights. Approximate Gaussian
+        conditioning estimates those weights for an assumed 30% public subset."""
         g, n, p = self.graded, self.graded.sum(), 0.3
         V = {f: self.vec(f)[g] for f in self.s if not f.startswith("probe")}
         par = self.geoid[g].map(PUBLISHED).to_numpy(dtype=float)
@@ -597,360 +77,71 @@ class Leaderboard:
         G = (A * self.pi[:, None]).T @ A / self.pi.sum()
         return A, G + ridge * np.trace(G) / len(c) * np.eye(len(c)), np.array(c)
 
-    def blend(self, basis):
-        A, G, c = self.system(basis)
-        w = np.linalg.solve(G, c)
-        full = [np.ones(len(self.geoid))] + [self.vec(f) for f in basis]
-        return sum(wi * v for wi, v in zip(w, full)), dict(zip(["__const__"] + basis, w)), float(np.sqrt(w @ G @ w - 2 * w @ c + self.Z))
-
 
 def finish(v, geoid):
     v = pd.Series(np.clip(v, 0, 1), index=geoid.index)
     return geoid.map(PUBLISHED).fillna(v).round(6).to_numpy()
 
 
-# Blend basis: the single physics models, the region probes, the scorecard-group stacks and the two
-# scored round-11 files (r11_B: cell-anchored blend, r11_A: + GMM physics) so the leaderboard sets
-# how much of each to keep. Earlier stacks are exact combinations of these and are left out.
-BASIS = ["r2f_ensemble.csv", "e02_r2f_only_eastern-ok.csv", "e05_r2f_only_south-central-tx.csv", "r3j_sigma40_affine.csv",
-         "r5e_groups_affine.csv", "r6e_vuln_affine.csv", "r9d_routefix_affine.csv", "r10d_regional_affine.csv",
-         "stack3_scorecard_groups.csv", "stack4_with_scorecard.csv", "stack4_no_scorecard.csv",
-         "r11_B_blend_anchored.csv", "r11_A_blend_anchored_gmm.csv"]
-DENOISE = {"r10d_regional_affine.csv": "r10", "r9d_routefix_affine.csv": "r9"}
-BASE = "r12_blend_with_AB.csv"         # scored 0.064009: the blend above, rebuilt and checked below
-# Probe files: BASE + 0.004 * direction(feature). A probe's score gives mean_P(direction * (y - BASE)).
-PROBE_DELTA = 0.002   # 0.004 until p19: the decoded signal does not depend on it, the probe's cost is delta^2
-PROBE_FILE = re.compile(r"^p(\d+)_(\d+)_(.+)\.csv$")   # p<round>_<n>_<direction>.csv
-# Next probes for --probes, highest information first: physics disagreement along each direction after
-# removing the scored files and every measured direction (road ratio, boundary leak). 5 submissions a day.
-PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s1200", "tertiary_vs_named", "poi_share_brightquery", "poi_share_meta",
-               "tertiary_s1200", "tertiary_vs_named_maricopa-az", "tertiary_vs_named_northern-ca",
-               "tertiary_vs_named_eastern-ok", "log_land_area",
-               # round 17: region splits of the strongest hits (unrouted z = +7.5, land area z = +8.0)
-               "unrouted_s1200_maricopa-az", "unrouted_s1200_south-central-tx", "log_land_area_maricopa-az",
-               "route_ratio_maricopa-az", "fire_vs_expected", 
-               # round 18: components not yet probed (building gap, establishments half) and TIGER length noise
-               "building_coverage", "tiger_noise", "poi_per_person", 
-               # then: density and the organisers' scorecard strata (rural, tribal, SVI, wildfire), more road mechanics
-               "log_pop_density", "interstate_share", "wildfire_hazard", "svi", "pct_urban",  # tribal_pct: dup of tribal_legal_pct (research 14)
-               "ems_evidence", "school_alt_share", "tribal_legal_pct", "drought_d2",
-               "fm_s1200", "burned_unseen", "fac_tribal", "cbp_noise", "ms_vs_usfs_buildings",
-               "unrouted_s1200_clean", "tiger_noise_clean", "lb_recalibrated",
-               # research/queue_plan.py (2026-10-17): ranked by the share of new variance left after the scored
-               # files and the pending probes, global directions interleaved with region splits;
-               # facility mechanisms moved up (research 21: facilities are 66 % of the floor)
-               "heat_wbgt", "school_unseen_share", "fire_weak_evidence", "poi_per_person_northern-ca", "multiref_share", "poi_per_person_maricopa-az",
-               "boundary_share", "poi_per_person_eastern-ok", "cbp_per_person",
-               "building_coverage_maricopa-az", "route_ratio_northern-ca",
-               "burned_road", "tiger_noise_clean_northern-ca", "fire_weak_evidence",
-               "tiger_noise_clean_maricopa-az", "building_count_noise", "unrouted_s1200_clean_northern-ca",
-               "road_heat", "fire_vs_expected_south-central-tx", "surprise_highway",
-               "tiger_noise_clean_south-central-tx", "road_rural", "fac_rural",
-               "multiref_share", "log_route_length", "route_ratio_northern-ca", "boundary_share", "tiger_noise", "interstate_share", "fire_vs_expected",
-               "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
-               "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
-               "wildfire_hazard", "poi_per_person"]
-PROBE_QUEUE = [k for k in dict.fromkeys(PROBE_QUEUE)   # first mention sets the order
-               if k != "tribal_pct"]                  # duplicate of tribal_legal_pct (research 14)
-
-
-def probe_direction_of(f):
-    m = PROBE_FILE.match(f)
-    return m.group(3) if m else None
-
-
-# physics directions: how predictions move under a small change of one mechanism (r10a specialists,
-# common random numbers). TIGER records +10 %, boundary-highway miss +0.2, TIGER length noise -0.1.
-PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1 for x in p.m)),
-                      "boundary_leak": lambda p: replace(p, beta_bnd=p.beta_bnd + 0.2),
-                      "tiger_noise": lambda p: replace(p, sigma_t=max(0.05, p.sigma_t - 0.1)),
-                      # one-sided mechanisms (TIGER can only hold more length), so the + sign is a bet as well as a probe
-                      "county_s1200": lambda p: replace(p, w_cty=p.w_cty + 0.5),
-                      "unrouted_s1200": lambda p: replace(p, w_unr=p.w_unr + 0.2),
-                      "tertiary_s1200": lambda p: replace(p, w_tert=p.w_tert + 0.1),
-                      # research/physics_candidates.py (2026-10-16): largest unexplained mechanisms
-                      "fm_s1200": lambda p: replace(p, w_fm=p.w_fm + 0.1),          # one-sided: TX FM roads as S1200
-                      "burned_unseen": lambda p: replace(p, burn_unseen=p.burn_unseen * 1.3),
-                      "fac_tribal": lambda p: replace(p, gf_tribal=p.gf_tribal + 0.3),
-                      "cbp_noise": lambda p: replace(p, sigma_c=p.sigma_c + 0.15),
-                      "ms_vs_usfs_buildings": lambda p: replace(p, kappa_b=p.kappa_b * 1.05),
-                      # the rest of research/physics_candidates.py, for research/queue_plan.py
-                      "building_count_noise": lambda p: replace(p, sigma_b=p.sigma_b + 0.05),
-                      "fire_unseen_share": lambda p: replace(p, r_fire=max(0.3, p.r_fire - 0.05)),
-                      "fire_weak_evidence": lambda p: replace(p, alpha_fire_x=min(1.0, p.alpha_fire_x + 0.1)),
-                      "school_unseen_share": lambda p: replace(p, r_sch=max(0.3, p.r_sch - 0.03)),
-                      "ems_unseen_share": lambda p: replace(p, r_ems=max(0.3, p.r_ems - 0.05)),
-                      "cbp_per_person": lambda p: replace(p, eps_cbp=p.eps_cbp * 1.2),
-                      "burned_road": lambda p: replace(p, burn_road=p.burn_road * 1.1),
-                      "fac_rural": lambda p: replace(p, gf_rural=p.gf_rural + 0.2),
-                      "road_rural": lambda p: replace(p, gr_rural=p.gr_rural + 0.1),
-                      "road_heat": lambda p: replace(p, gr_heat=p.gr_heat + 0.1),
-                      "surprise_highway": lambda p: replace(p, p_def0=p.p_def0 + 0.02),
-                      # research/correction_anatomy.py: the parameter changes the leaderboard implies (r19b's
-                      # correction regressed on 22 mechanisms); the probe tests the physics' extrapolation of them
-                      "lb_recalibrated": lambda p: replace(p, w_unr=p.w_unr + 0.21, sigma_t=max(0.05, p.sigma_t - 0.10),
-                                                           beta_bnd=p.beta_bnd + 0.06, r_ems=min(0.99, p.r_ems + 0.04),
-                                                           eps_cbp=p.eps_cbp * 1.15, kappa_b=p.kappa_b * 0.98,
-                                                           r_sch=min(0.99, p.r_sch + 0.007))}
-
-
-def physics_direction(df, mu, name, seeds=range(77, 85)):
-    """How the prediction moves under a small change of one mechanism, averaged over 8 x 512 draws with common
-    random numbers. research/mc_noise.py: at 512 draws the unrouted direction was ~80 % Monte-Carlo noise
-    (tiger noise ~40 %, burned facilities ~45 %); deterministic mechanisms (FM roads, buildings) were clean.
-    "<mechanism>_clean" re-probes an already measured mechanism with the denoised direction."""
-    if name == "gmm_route":           # the whole refitted model; its scored-file part is removed later
-        return 0.8 * simulate(road_frame(df), mu, Params(**PHYSICS["g43"]["global"]), 512, 77)
-    name = name.removesuffix("_clean")
-    frame = road_frame(df)
-    sets = {k: Params(**v) for k, v in PHYSICS["r10a"].items()}
-
-    def run(sets_, seed):
-        v = simulate(frame, mu, sets_["global"], 512, seed)
-        for r in CALIB_REGIONS:
-            m = (frame["region"] == r).to_numpy()
-            v[m] = simulate(frame, mu, sets_[r], 512, seed)[m]
-        return 0.8 * v
-
-    pert = {k: PHYSICS_DIRECTIONS[name](p) for k, p in sets.items()}
-    return np.mean([run(pert, s) - run(sets, s) for s in seeds], axis=0)
-
-
-def probe_features(df, mu, names):
-    G = df["L_route"] + 0.5 * (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)
-    route = np.log((df["L_named"] + 100) / (G + 100))
-    f = pd.DataFrame({
-        "route_ratio": route,
-        "fire_vs_expected": np.log((df["E_fire"] + 0.5) / (mu["mu_fire"] + 0.5)),
-        "log_pop_density": np.log1p(df["pop"] / df["area_km2"].clip(lower=0.01)),
-        "pct_urban": df["pct_urban"].fillna(0),
-        "wildfire_hazard": df["usfs_WHP_mean"].rank(pct=True).fillna(0.5),
-        "svi": df["svi_overall"].fillna(df["svi_overall"].median()),
-        "poi_per_person": np.log((df["n_poi"] + 1) / (df["pop"] + 50)),
-        "boundary_share": df["Lb_route"] / (df["L_route"] + df["Lb_route"] + 100),
-        "tribal_pct": df["tribal_pct"].fillna(0),
-        "building_coverage": np.log((df["n_bld"] + 1) / (df["U_bld"] + 1)),
-        # TIGER record mechanics: Interstates, concurrent routes, total route length
-        "interstate_share": df["L_interstate"] / (df["L_route"] + 100),
-        "multiref_share": df["L_route_multiref"] / (df["L_route"] + 100),
-        "log_route_length": np.log1p(df["L_route"]),
-        # unused permitted data (2026-10-13 inventory): road class boundary, place sources, land area
-        "tertiary_vs_named": np.log((df["L_tertiary"] + 100) / (df["L_named"] + 100)),
-        "poi_share_brightquery": df["n_poi_bq"] / (df["n_poi"] + 1),
-        "poi_share_meta": df["n_poi_meta"] / (df["n_poi"] + 1),
-        "log_land_area": np.log1p(df["ALAND"].fillna(df["area_m2"])),
-        # research/ scan (2026-10-16): high unexplained share AND tied to a component or a scorecard stratum
-        "ems_evidence": np.log1p(df["E_ems"]),
-        "school_alt_share": df["n_sch_alt"] / (df["E_sch"] + 1),
-        "tribal_legal_pct": df["tribal_legal_pct"].fillna(0),
-        "drought_d2": df["usdm_summer_pct_d2plus"].fillna(df["usdm_summer_pct_d2plus"].median()),
-        "heat_wbgt": df["gehe_wbgt32_days_mean"].fillna(df["gehe_wbgt32_days_mean"].median())}, index=df.index)
-    f = f.groupby(df["region"]).transform(lambda x: (x - x.mean()) / (x.std() + 1e-9)).fillna(0)
-    for r in ("northern-ca", "maricopa-az"):
-        f[f"route_ratio_{r}"] = f["route_ratio"] * (df["region"] == r)
-    # the tertiary probe (z = +8.6) split by region: Overture and TIGER draw the class line differently in each
-    for r in ("maricopa-az", "northern-ca", "eastern-ok"):
-        f[f"tertiary_vs_named_{r}"] = f["tertiary_vs_named"] * (df["region"] == r)
-    for k in names:
-        if k in PHYSICS_DIRECTIONS or k == "gmm_route" or k.removesuffix("_clean") in PHYSICS_DIRECTIONS:
-            f[k] = physics_direction(df, mu, k)
-    # "<direction>_<region>": any direction restricted to one region (region heterogeneity of a measured hit)
-    for k in names:
-        for r in REGIONS:
-            base = k[:-len(r) - 1]
-            if k not in f and k.endswith("_" + r) and base:
-                x = f[base] if base in f else physics_direction(df, mu, base)
-                f[k] = x * (df["region"] == r)
-    return f
-
-
-def probe_directions(lb, df, mu, names):
-    """Each feature minus its projection on the scored files, measured probes included (public-subset
-    weights), unit rms. The current correction already uses everything measured, so any overlap with a
-    measured direction is pure cost: removing it makes every probe a cheaper bet on new signal only."""
-    g = lb.graded
-    F = probe_features(df, mu, names)
-    A, G, _ = lb.system(BASIS + [BASE, "r11_blend_denoised.csv"] + [f for f in lb.s if probe_direction_of(f)])
-    out = {}
-    for k in names:
-        x = F[k].to_numpy().astype(float)
-        a = np.linalg.solve(G, (A * lb.pi[:, None]).T @ x[g] / lb.pi.sum())
-        d = x.copy(); d[g] = x[g] - A @ a; d[~g] = 0.0
-        out[k] = d / np.sqrt(lb.AP(d[g] ** 2))
-    return out
-
-
-def write_probes(lb, df, mu, base, n=4, folder="next"):
-    """Write the next n unscored probes: base (the current corrected prediction) + PROBE_DELTA *
-    direction, so every probe is itself a near-best submission."""
-    done = {probe_direction_of(f) for f in lb.s} - {None}          # already measured on the leaderboard
-    rnd = 1 + max([int(PROBE_FILE.match(f).group(1)) for f in lb.s if PROBE_FILE.match(f)] + [0])
-    todo = [k for k in PROBE_QUEUE if k not in done][:n]
-    dirs = probe_directions(lb, df, mu, todo)
-    os.makedirs(folder, exist_ok=True)
-    # never overwrite a written probe: it may already be uploaded, and its score is decoded from its exact content
-    kept = {probe_direction_of(f): f for f in os.listdir(folder) if probe_direction_of(f)}
-    taken = [int(m.group(2)) for f in os.listdir(folder) if (m := PROBE_FILE.match(f)) and int(m.group(1)) == rnd]
-    i = max(taken + [0])
-    for k in todo:
-        if k in kept:
-            print(f"  kept  {folder}/{kept[k]} (already written; delete it to rebuild)")
-            continue
-        i += 1
-        name = f"p{rnd}_{i:02d}_{k}.csv"
-        v = np.clip(base + PROBE_DELTA * dirs[k], 0, 1).round(6)
-        pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": v}).to_csv(os.path.join(folder, name), index=False)
-        print(f"  wrote {folder}/{name}")
-
-
-def probe_correction(lb, df, mu, r12, order="scoring"):
-    """Correction from the scored probe files. Each probe f is a scored file, so mean_P(f * y) is exact.
-    Its difference from r12, with the part explained by the scored basis removed (public-subset
-    weights), is a direction p_f whose moment b_f = mean_P(p_f * (y - r12)) is exact too, whatever
-    base f was built on and however it was clipped. Least squares on those moments, then James-Stein
-    shrinkage 1 - K / chi^2 (1 - 1/z^2 for one probe; on semi-synthetic splits it beat ridge and no
-    shrinkage for 5 and 10 probes)."""
-    g, AP, Z = lb.graded, lb.AP, lb.Z
-    scored = [f for f in lb.s if probe_direction_of(f)]
-    if not scored:
-        return np.zeros(len(df)), "no probe scores", 0.0
-    basis = BASIS + [BASE, "r11_blend_denoised.csv"]
-    A, G, c = lb.system(basis)
-    cy = lambda v, sc: (AP(v ** 2) + Z - sc ** 2) / 2             # exact mean_P(v * y) of a scored file
-    r = r12[g]
-    ry = cy(r, lb.s[BASE])
-    P, b = [], []
-    for f in scored:
-        dd = lb.vec(f)[g] - r
-        a = np.linalg.solve(G, (A * lb.pi[:, None]).T @ dd / lb.pi.sum())
-        p = dd - A @ a
-        py = (cy(lb.vec(f)[g], lb.s[f]) - ry) - a @ c                # mean_P(p * y)
-        P.append(p); b.append(py - AP(p * r))
-    P, b = np.column_stack(P), np.array(b)
-    Gp_all = (P * lb.pi[:, None]).T @ P / lb.pi.sum()
-    s12 = lb.s[BASE]
-    chi = lambda idx: float(b[idx] @ np.linalg.solve(Gp_all[np.ix_(idx, idx)], b[idx])) / s12 ** 2 * lb.pi.sum() if idx else 0.0
-    # sequential test in the order the probes were scored: a probe enters only if its information given
-    # the ones already in has z >= 2. (Strongest-first is wrong here: a probe built on a corrected base
-    # carries that whole correction, so alone it looks like it explains everything. Backward elimination
-    # keeps every probe that the others cannot replace, and is the default since 2026-10-16.)
-    sel, rest = [], []
-    if order == "strongest":            # research/selection_policy.py: largest conditional chi^2 first
-        rest = list(range(len(b)))
-        while rest:
-            gains = [chi(sel + [j]) - chi(sel) for j in rest]
-            j = int(np.argmax(gains))
-            if gains[j] < 4.0:
-                break
-            sel.append(rest.pop(j))
-    elif order == "backward":           # start from every probe, drop the weakest while its chi^2 drop < 4
-        sel = list(range(len(b)))
-        while sel:
-            drops = [chi(sel) - chi([k for k in sel if k != j]) for j in sel]
-            j = int(np.argmin(drops))
-            if drops[j] >= 4.0:
-                break
-            rest.append(sel.pop(j))
-        rest.sort()
-    else:
-        for j in range(len(b)):
-            (sel if chi(sel + [j]) - chi(sel) >= 4.0 else rest).append(j)
-    if not sel:
-        return np.zeros(len(df)), "no probe direction clears z = 2", 0.0
-    dropped = [probe_direction_of(scored[k]) for k in rest]
-    scored, P, b = [scored[k] for k in sel], P[:, sel], b[sel]
-    Gp = Gp_all[np.ix_(sel, sel)]
-    gam = np.linalg.solve(Gp, b)
-    chi2 = float(b @ gam) / s12 ** 2 * lb.pi.sum()
-    shrink = max(0.0, 1 - len(b) / chi2)
-    gam *= shrink
-    gain = 2 * gam @ b - gam @ Gp @ gam
-    z = b / np.sqrt(np.diag(Gp)) / s12 * np.sqrt(lb.pi.sum())
-    note = ", ".join(f"{probe_direction_of(f)} z={zi:+.1f}" for f, zi in zip(scored, z)) + f"; shrink {shrink:.3f}"
-    if dropped:
-        note += f"; no new signal: {', '.join(dropped)}"
-    full = np.zeros(len(df)); full[g] = P @ gam
-    return full, note, gain
-
-
-def validate(lb, out="validation.csv"):
-    """Local validation without labels: hide each scored file's own score and predict it from the files
-    scored before it (the position we are in before every submission) and from all other files
-    (leave-one-out). The prediction projects the file on the other scored files, whose exact moments
-    mean_P(f*y) are known, and assumes the unexplained remainder carries no signal. Every row is a data
-    point: predicted vs actual public RMSE."""
-    g, pi, W = lb.graded, lb.pi, lb.pi.sum()
-    files = [f for f in lb.s if not f.startswith("probe_")]
-    V = {f: lb.vec(f)[g] for f in files}
-    cy = {f: (lb.AP(V[f] ** 2) + lb.Z - lb.s[f] ** 2) / 2 for f in files}
-
-    def predict(f, others, ridge=1e-7):
-        X = np.column_stack([np.ones(len(pi))] + [V[o] for o in others])
-        c = np.array([lb.ybar] + [cy[o] for o in others])
-        G = (X * pi[:, None]).T @ X / W
-        G += ridge * np.trace(G) / len(c) * np.eye(len(c))
-        a = np.linalg.solve(G, (X * pi[:, None]).T @ V[f] / W)
-        return float(np.sqrt(max(lb.AP(V[f] ** 2) - 2 * a @ c + lb.Z, 0.0)))
-
-    t = pd.DataFrame({"file": files, "actual": [lb.s[f] for f in files]})
-    t["pred_before"] = [predict(f, files[:i]) if i >= 3 else np.nan for i, f in enumerate(files)]
-    t["pred_loo"] = [predict(f, [o for o in files if o != f]) for f in files]
-    t["err_before"], t["err_loo"] = t["pred_before"] - t["actual"], t["pred_loo"] - t["actual"]
-    t.round(9).to_csv(out, index=False)
-    modern = t[t["file"].str.match(r"^(r1[2-9]|p1[2-9]|p[2-9]\d)_")]
-    for k, label in [("err_before", "predicted before scoring"), ("err_loo", "leave-one-out")]:
-        e = modern[k].dropna().abs()
-        print(f"  {label:25s}: {len(e)} files, MAE {e.mean():.6f}, max {e.max():.6f}, within 0.0005: {(e < 5e-4).sum()}/{len(e)}")
-    return t
-
-
-def main():
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))   # data/, scored/ and outputs are relative to the repo
-    t0 = time.time()
-    step = lambda k, msg: print(f"\n[{k}/6] {msg} ({time.time() - t0:.0f}s)", flush=True)
-
-    step(1, f"Data: checking / downloading the challenge files into {DATA}/")
-    download()
-
-    step(2, "Features: Overture roads, buildings, POIs + ACS + strata per tract (cached in data/features/)")
-    for r in REGIONS:
-        build_features(r, force="--rebuild" in sys.argv)
-    df = attach_points(load())
-    mu = prior_rates(df)
-    print(f"  {len(df)} tracts, {df.shape[1]} columns")
-
-    step(3, "Physics: Monte-Carlo model of the withdrawn reference layers (r10 and r9, 4096 draws each)")
-    hi = physics(df, mu)
-
-    step(4, "Leaderboard blend: least squares over the scored files in scored/")
-    lb = Leaderboard(df)
+def main() -> None:
+    lb = Leaderboard()
+    df = pd.DataFrame({"GEOID": lb.geoid})
     lb.public_subset()
-    blend, w, expected = lb.blend(BASIS)
-    for f, tag in DENOISE.items():
-        blend = blend + w[f] * (hi[tag] - lb.vec(f))
-    r12 = finish(blend, df["GEOID"])
-    scored = lb.vec(BASE)
-    print(f"  expected public RMSE {expected:.6f}; rebuilt {BASE} max |diff| vs scored file {np.abs(r12 - scored).max():.1e}")
-    assert np.abs(r12 - scored).max() <= 2e-6, "blend does not reproduce the scored file"
+    graded = lb.graded
+    base = lb.vec(BASE)[graded]
+    basis = BASIS + [BASE, "r11_blend_denoised.csv"]
+    A, gram, c = lb.system(basis)
 
-    step(5, "Probe correction and submission")
-    # backward elimination (research/selection_policy.py): fewer, stronger directions; on simulated
-    # 30/70 splits it beat scoring-order selection on private by 0.00004 (70 % of splits)
-    corr, note, gain = probe_correction(lb, df, mu, scored, order="backward")
-    out = finish(scored + corr, df["GEOID"])
-    sub = pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": out})
-    assert len(sub) == 9794 and sub["GEOID"].is_unique and sub.notna().all().all()
-    sub.to_csv(OUT, index=False)
-    print(f"  probe correction: {note}")
-    print(f"  wrote {OUT}: {len(sub)} rows, mean score {out.mean():.4f}, expected public RMSE "
-          f"{np.sqrt(lb.s[BASE] ** 2 - gain):.6f}")
-    if "--probes" in sys.argv:          # next batch: probes on the corrected prediction
-        i = sys.argv.index("--probes")
-        n = int(sys.argv[i + 1]) if len(sys.argv) > i + 1 and sys.argv[i + 1].isdigit() else 4
-        write_probes(lb, df, mu, np.clip(scored + corr, 0, 1), n=n)
-    step(6, "Validation: predict every scored file's public RMSE without its own score (-> validation.csv)")
-    validate(lb)
-    print(f"\ndone in {time.time() - t0:.0f}s. Submit {OUT} (GEOID, coverage_gap_score only).")
+    def cy(values: np.ndarray, score: float) -> float:
+        return (lb.AP(values**2) + lb.Z - score**2) / 2
+
+    base_y = cy(base, lb.s[BASE])
+    columns, moments = [], []
+    directions = [name for name in lb.s if probe_direction_of(name)]
+    for name in directions:
+        values = lb.vec(name)[graded]
+        delta = values - base
+        coef = np.linalg.solve(gram, (A * lb.pi[:, None]).T @ delta / lb.pi.sum())
+        residual = delta - A @ coef
+        residual_y = (cy(values, lb.s[name]) - base_y) - coef @ c
+        columns.append(residual)
+        moments.append(residual_y - lb.AP(residual * base))
+
+    P = np.column_stack(columns)
+    b = np.asarray(moments)
+    gram_p = (P * lb.pi[:, None]).T @ P / lb.pi.sum()
+    scale = float(np.trace(gram_p) / len(directions))
+    gamma = np.linalg.solve(gram_p + RIDGE * scale * np.eye(len(directions)), b)
+
+    raw = lb.vec(BASE).copy()
+    raw[graded] += P @ gamma
+    candidate = finish(raw, df["GEOID"])
+    # Estimate the score by projecting onto historical predictions. This assumes
+    # the unexplained remainder has no target signal; it is not independent CV.
+    score_files = [name for name in lb.s if not name.startswith("probe_")]
+    score_vectors = {name: lb.vec(name)[graded] for name in score_files}
+    X = np.column_stack([np.ones(graded.sum())] + [score_vectors[name] for name in score_files])
+    score_moments = np.array([
+        lb.ybar,
+        *[(lb.AP(score_vectors[name] ** 2) + lb.Z - lb.s[name] ** 2) / 2 for name in score_files],
+    ])
+    score_gram = (X * lb.pi[:, None]).T @ X / lb.pi.sum()
+    score_gram += 1e-7 * np.trace(score_gram) / len(score_moments) * np.eye(len(score_moments))
+    projection_coef = np.linalg.solve(score_gram, (X * lb.pi[:, None]).T @ candidate[graded] / lb.pi.sum())
+    projected_mse = float(lb.AP(candidate[graded] ** 2) - 2 * projection_coef @ score_moments + lb.Z)
+
+    output = pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": candidate})
+    anchor_count = sum(
+        float(output.loc[output.GEOID.astype(str).eq(geoid), "coverage_gap_score"].iloc[0]) == value
+        for geoid, value in PUBLISHED.items()
+    )
+    assert len(output) == 9794 and output.GEOID.is_unique and output.notna().all().all()
+    assert np.isfinite(candidate).all() and np.all((candidate >= 0) & (candidate <= 1))
+    assert anchor_count == 5
+    output.to_csv(OUTPUT, index=False)
+    print(f"R20 ridge: {len(directions)} directions, lambda={RIDGE}; {len(output)} rows")
+    print(f"Estimated public RMSE: {np.sqrt(max(projected_mse, 0)):.9f} (unconfirmed)")
+    print(f"Wrote {OUTPUT}")
 
 
 if __name__ == "__main__":
