@@ -632,10 +632,10 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                # round 18: components not yet probed (building gap, establishments half) and TIGER length noise
                "building_coverage", "tiger_noise", "poi_per_person", 
                # then: density and the organisers' scorecard strata (rural, tribal, SVI, wildfire), more road mechanics
-               "log_pop_density", "interstate_share", "wildfire_hazard", "tribal_pct", "svi", "pct_urban",
+               "log_pop_density", "interstate_share", "wildfire_hazard", "svi", "pct_urban",  # tribal_pct: dup of tribal_legal_pct (research 14)
                "ems_evidence", "school_alt_share", "tribal_legal_pct", "drought_d2",
                "fm_s1200", "burned_unseen", "fac_tribal", "cbp_noise", "ms_vs_usfs_buildings",
-               "unrouted_s1200_clean", "tiger_noise_clean",
+               "unrouted_s1200_clean", "tiger_noise_clean", "lb_recalibrated",
                # research/queue_plan.py (2026-10-17): ranked by the share of new variance left after the scored
                # files and the pending probes, global directions interleaved with region splits;
                # facility mechanisms moved up (research 21: facilities are 66 % of the floor)
@@ -684,7 +684,13 @@ PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1
                       "fac_rural": lambda p: replace(p, gf_rural=p.gf_rural + 0.2),
                       "road_rural": lambda p: replace(p, gr_rural=p.gr_rural + 0.1),
                       "road_heat": lambda p: replace(p, gr_heat=p.gr_heat + 0.1),
-                      "surprise_highway": lambda p: replace(p, p_def0=p.p_def0 + 0.02)}
+                      "surprise_highway": lambda p: replace(p, p_def0=p.p_def0 + 0.02),
+                      # research/correction_anatomy.py: the parameter changes the leaderboard implies (r19b's
+                      # correction regressed on 22 mechanisms); the probe tests the physics' extrapolation of them
+                      "lb_recalibrated": lambda p: replace(p, w_unr=p.w_unr + 0.21, sigma_t=max(0.05, p.sigma_t - 0.10),
+                                                           beta_bnd=p.beta_bnd + 0.06, r_ems=min(0.99, p.r_ems + 0.04),
+                                                           eps_cbp=p.eps_cbp * 1.15, kappa_b=p.kappa_b * 0.98,
+                                                           r_sch=min(0.99, p.r_sch + 0.007))}
 
 
 def physics_direction(df, mu, name, seeds=range(77, 85)):
