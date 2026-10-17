@@ -635,7 +635,16 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                "log_pop_density", "interstate_share", "wildfire_hazard", "tribal_pct", "svi", "pct_urban",
                "ems_evidence", "school_alt_share", "tribal_legal_pct", "drought_d2",
                "fm_s1200", "burned_unseen", "fac_tribal", "cbp_noise", "ms_vs_usfs_buildings",
-               "unrouted_s1200_clean", "tiger_noise_clean", "heat_wbgt",
+               "unrouted_s1200_clean", "tiger_noise_clean",
+               # research/queue_plan.py (2026-10-17): ranked by the share of new variance left after the scored
+               # files and the pending probes, global directions interleaved with region splits
+               "heat_wbgt", "poi_per_person_northern-ca", "multiref_share", "poi_per_person_maricopa-az",
+               "boundary_share", "poi_per_person_eastern-ok", "cbp_per_person",
+               "building_coverage_maricopa-az", "school_unseen_share", "route_ratio_northern-ca",
+               "burned_road", "tiger_noise_clean_northern-ca", "fire_weak_evidence",
+               "tiger_noise_clean_maricopa-az", "building_count_noise", "unrouted_s1200_clean_northern-ca",
+               "road_heat", "fire_vs_expected_south-central-tx", "surprise_highway",
+               "tiger_noise_clean_south-central-tx", "road_rural", "fac_rural",
                "multiref_share", "log_route_length", "route_ratio_northern-ca", "boundary_share", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
@@ -662,7 +671,19 @@ PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1
                       "burned_unseen": lambda p: replace(p, burn_unseen=p.burn_unseen * 1.3),
                       "fac_tribal": lambda p: replace(p, gf_tribal=p.gf_tribal + 0.3),
                       "cbp_noise": lambda p: replace(p, sigma_c=p.sigma_c + 0.15),
-                      "ms_vs_usfs_buildings": lambda p: replace(p, kappa_b=p.kappa_b * 1.05)}
+                      "ms_vs_usfs_buildings": lambda p: replace(p, kappa_b=p.kappa_b * 1.05),
+                      # the rest of research/physics_candidates.py, for research/queue_plan.py
+                      "building_count_noise": lambda p: replace(p, sigma_b=p.sigma_b + 0.05),
+                      "fire_unseen_share": lambda p: replace(p, r_fire=max(0.3, p.r_fire - 0.05)),
+                      "fire_weak_evidence": lambda p: replace(p, alpha_fire_x=min(1.0, p.alpha_fire_x + 0.1)),
+                      "school_unseen_share": lambda p: replace(p, r_sch=max(0.3, p.r_sch - 0.03)),
+                      "ems_unseen_share": lambda p: replace(p, r_ems=max(0.3, p.r_ems - 0.05)),
+                      "cbp_per_person": lambda p: replace(p, eps_cbp=p.eps_cbp * 1.2),
+                      "burned_road": lambda p: replace(p, burn_road=p.burn_road * 1.1),
+                      "fac_rural": lambda p: replace(p, gf_rural=p.gf_rural + 0.2),
+                      "road_rural": lambda p: replace(p, gr_rural=p.gr_rural + 0.1),
+                      "road_heat": lambda p: replace(p, gr_heat=p.gr_heat + 0.1),
+                      "surprise_highway": lambda p: replace(p, p_def0=p.p_def0 + 0.02)}
 
 
 def physics_direction(df, mu, name, seeds=range(77, 85)):
