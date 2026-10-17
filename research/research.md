@@ -225,3 +225,17 @@ The top 10 must hand in code that reproduces their score within 48 hours.
   exactly (max |diff| 0).
 - Seeds are fixed (physics 3000–3007, probe directions 77–84) and the package versions are pinned in
   `requirements.txt`.
+
+## 17. Clipping and the pessimism of the expected score (`clipping.py` → `clipping.csv`)
+
+y is in [0, 1], so clipping a corrected prediction below 0 can only lower the error. The expected-score
+formula ignores this.
+
+| selection | tracts < 0 | most negative | expected (formula) | with the minimum clipping gain |
+|---|---|---|---|---|
+| scoring order (r19) | 366 | −0.026 | 0.062502 | 0.062492 |
+| backward (r19b) | 398 | −0.013 | 0.062470 | 0.062468 |
+
+Clipping explains about a fifth to a third of r19's 0.00003–0.00005 pessimism in section 8, and almost none
+for r19b. Backward elimination pushes tracts less far below 0, so r19b's expected 0.062470 should be close
+to unbiased.
