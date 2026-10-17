@@ -127,3 +127,45 @@ scored files and measured probes removed. Leaders by unexplained share:
 
 The CBP-per-person and CBP-rural directions are near duplicates (corr 0.94). The five leaders are probes
 p19_11–15 (δ = 0.002).
+
+## 11. Monte-Carlo noise in physics probe directions (`mc_noise.py` → `mc_noise.csv`)
+
+Each direction was built with two different seeds (512 draws each) and with 4096 draws, after removing the
+scored files.
+
+| direction | seed-vs-seed corr | 512 vs 4096 corr |
+|---|---|---|
+| fm_s1200 | 0.999 | 1.000 |
+| ms_vs_usfs_buildings | 0.995 | 0.997 |
+| cbp_noise | 0.948 | 0.969 |
+| tiger_noise | 0.515 | 0.623 |
+| burned_unseen | 0.406 | 0.574 |
+| **unrouted_s1200** | **0.154** | **0.209** |
+
+Deterministic mechanisms (FM roads, the building ratio) are clean at 512 draws. Stochastic ones are not: the
+scored `unrouted_s1200` probe was about 80 % simulation noise and still found signal (z ≈ 2.4).
+
+Changes made:
+- `physics_direction` now averages 8 × 512 draws.
+- The noisy pending probes (`burned_unseen`, `fac_tribal`) were rebuilt under new names. The 512-draw files
+  are kept in `next/superseded/`.
+- `unrouted_s1200_clean` and `tiger_noise_clean` re-probe the two noisy hits with denoised directions.
+
+## 12. Selection order for the correction (`selection_policy.py`)
+
+The same semi-synthetic splits as section 3, 150 per noise model; paired differences in private RMSE are
+relative to scoring order.
+
+| order | private (Gaussian) | gap | private (t4) | gap | paired vs scoring order |
+|---|---|---|---|---|---|
+| scoring order (old default) | 0.062731 | +0.000239 | 0.062841 | +0.000561 | – |
+| strongest first | 0.062683 | +0.000106 | 0.062804 | +0.000433 | −0.000049 ± 0.000007, better in 70 % |
+| **backward elimination (new default)** | 0.062689 | +0.000174 | 0.062820 | +0.000515 | −0.000042 ± 0.000006, better in 71 % |
+
+On the real scores:
+- **Strongest-first degenerates.** It keeps only `tiger_noise`, a probe built on r18 that already carries
+  the whole earlier correction (expected 0.062561).
+- **Backward elimination keeps 3 directions** (Maricopa land area, TIGER noise, places per person). These are
+  the latest probes and contain the earlier corrections, so expected public improves from 0.062502 to
+  **0.062470**: lighter shrinkage (0.978 vs 0.918) and 3 fitted numbers instead of 11.
+- It is the default in `solution.py` since 2026-10-16.
