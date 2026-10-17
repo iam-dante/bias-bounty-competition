@@ -86,3 +86,44 @@ the queue; the forecast includes JS shrinkage and the public-to-private loss.
 | all 22 probes (includes the large early hits) | 0.06057 (0.05990–0.06114) | 0.06153 |
 
 0.0615 public is the realistic ceiling, and only if every slot goes to a probe. 0.05 is out of reach.
+
+## 8. Track record of the pipeline's expected score for each corrected base
+
+| base | predicted | actual | error |
+|---|---|---|---|
+| r12 | 0.064012 | 0.064009 (scored) | +0.000003 |
+| r14 | 0.063448 | 0.063433 (scored) | +0.000015 |
+| r16 | 0.062992 | ≈0.06296 (decoded from 2 probes with no signal) | ≈+0.00004 |
+| r18 | 0.062653 | ≈0.06260 (decoded from 1 probe) | ≈+0.00005 |
+
+The predictions are slightly pessimistic. Decoding a base from a single probe carries about ±0.0001 noise:
+r14 decoded from its p15_05 probe gives 0.063323, against its real 0.063433.
+
+## 9. End-to-end test on a planted truth (`synthetic_e2e.py` → `synthetic_e2e.csv`)
+
+The planted truth is y = clip(r19 + τ · (an unprobed direction) + noise). Every scored file's public score
+is regenerated from y on a random 30 % public set, then the real `public_subset`, `probe_correction` and
+`validate` run on those scores. 12 replicates:
+
+| check | result |
+|---|---|
+| predicted public vs true public | MAE **0.000067**, max 0.00023 |
+| correction on the true private rows (vs r12) | **−0.0015** (it transfers) |
+| step-6 backtest on the synthetic scores | mean MAE 0.00017, worst 0.00059 |
+
+Caveat: the planted truth lies in the span the correction can represent, so private transfer here is
+optimistic. The real public-to-private loss is about 0.0004–0.0005 (section 3).
+
+## 10. Unprobed physics mechanisms (`physics_candidates.py` → `physics_candidates.csv`)
+
+Each of 17 parameters was moved one step under the r10a specialists (common random numbers), with the
+scored files and measured probes removed. Leaders by unexplained share:
+- `fm_as_s1200`: TX Farm-to-Market roads as TIGER S1200. Size 0.010, 75 % unexplained, max correlation
+  with any other candidate 0.11. One-sided.
+- `burned_unseen`: facilities missing from Overture in burned areas. 78 % unexplained.
+- `fac_tribal`: facilities on tribal land. 64 %.
+- `cbp_noise`: noise in the establishment count. 64 %.
+- `ms_vs_usfs_buildings`: Microsoft-to-USFS building ratio, the first physics probe of the building gap. 51 %.
+
+The CBP-per-person and CBP-rural directions are near duplicates (corr 0.94). The five leaders are probes
+p19_11–15 (δ = 0.002).
