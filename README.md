@@ -3,8 +3,8 @@
 Predict the Overture Maps coverage gap of every Census tract. The problem, the data and the rules are in
 [problem.md](problem.md).
 
-**Current submission:** `submission.csv` (r18), expected public RMSE **0.062653**. Best scored so far:
-`p17_03_log_land_area_maricopa-az` at **0.062675** (r17 itself decodes to about 0.06272).
+**Current submission:** `submission.csv` (r19), expected public RMSE **0.062502**. Best scored so far:
+`p18_02_tiger_noise` at **0.062562** (r18 itself decodes to about 0.06260).
 
 ## Run
 
@@ -71,7 +71,9 @@ cost about 0.08 RMSE.
 | **p16_03_tertiary_vs_named_northern-ca** | **0.063072** | r16 + probe (no new signal: it confirms r16) |
 | r17 | 0.062703 expected, ≈0.06272 decoded | + tertiary physics (z = +7.8), Maricopa tertiary (z = +7.8), land area (z = +8.0) |
 | **p17_03_log_land_area_maricopa-az** | **0.062675** | r17 + probe |
-| r18 (submission.csv) | 0.062653 expected | + unrouted arterials in Maricopa (z = +10.8) |
+| r18 | 0.062653 expected, ≈0.06260 decoded | + unrouted arterials in Maricopa (z = +10.8) |
+| **p18_02_tiger_noise** | **0.062562** | r18 + probe: TIGER length noise |
+| r19 (submission.csv) | 0.062502 expected | + TIGER length noise (z = +11.3), places per person (z = +9.7) |
 
 Tested and dropped: full anchoring to the published cell means (0.064221), physics calibrated on
 leaderboard moments (0.064317), the refitted-physics probe (0.063802, conditional z 0.4) and TIGER record
