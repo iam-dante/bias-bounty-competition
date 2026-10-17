@@ -3,7 +3,7 @@
 Predict the Overture Maps coverage gap of every Census tract. The problem, the data and the rules are in
 [problem.md](problem.md).
 
-**Current submission:** `submission.csv` (r19), expected public RMSE **0.062502**. Best scored so far:
+**Current submission:** `submission.csv` (r19b), expected public RMSE **0.062470**. Best scored so far:
 `p18_02_tiger_noise` at **0.062562** (r18 itself decodes to about 0.06260).
 
 ## Run
@@ -97,7 +97,8 @@ score to be about public + 0.0004. More experiments, with their data and scripts
 | **p17_03_log_land_area_maricopa-az** | **0.062675** | r17 + probe |
 | r18 | 0.062653 expected, ≈0.06260 decoded | + unrouted arterials in Maricopa (z = +10.8) |
 | **p18_02_tiger_noise** | **0.062562** | r18 + probe: TIGER length noise |
-| r19 (submission.csv) | 0.062502 expected | + TIGER length noise (z = +11.3), places per person (z = +9.7) |
+| r19 | 0.062502 expected | + TIGER length noise (z = +11.3), places per person (z = +9.7) |
+| r19b (submission.csv) | 0.062470 expected | same scores, backward-elimination selection: 3 directions instead of 11 (research §12) |
 
 Tested and dropped: full anchoring to the published cell means (0.064221), physics calibrated on
 leaderboard moments (0.064317), the refitted-physics probe (0.063802, conditional z 0.4) and TIGER record

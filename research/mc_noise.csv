@@ -1,0 +1,7 @@
+direction,corr_seed77_vs_78,corr_512_vs_4096,signal_share_est
+fm_s1200,0.9993,0.9997,0.9997
+tiger_noise,0.5151,0.6232,0.6799
+unrouted_s1200,0.1539,0.2093,0.2667
+burned_unseen,0.4062,0.5743,0.5777
+cbp_noise,0.9476,0.9689,0.9731
+ms_vs_usfs_buildings,0.9954,0.9974,0.9977

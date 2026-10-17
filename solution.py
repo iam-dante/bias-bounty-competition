@@ -634,7 +634,8 @@ PROBE_QUEUE = ["gmm_route", "tiger_multiplicity", "county_s1200", "unrouted_s120
                # then: density and the organisers' scorecard strata (rural, tribal, SVI, wildfire), more road mechanics
                "log_pop_density", "interstate_share", "wildfire_hazard", "tribal_pct", "svi", "pct_urban",
                "ems_evidence", "school_alt_share", "tribal_legal_pct", "drought_d2",
-               "fm_s1200", "burned_unseen", "fac_tribal", "cbp_noise", "ms_vs_usfs_buildings", "heat_wbgt",
+               "fm_s1200", "burned_unseen", "fac_tribal", "cbp_noise", "ms_vs_usfs_buildings",
+               "unrouted_s1200_clean", "tiger_noise_clean", "heat_wbgt",
                "multiref_share", "log_route_length", "route_ratio_northern-ca", "boundary_share", "tiger_noise", "interstate_share", "fire_vs_expected",
                "log_route_length", "route_ratio_maricopa-az", "multiref_share", "route_ratio_northern-ca",
                "building_coverage", "pct_urban", "log_pop_density", "tribal_pct", "boundary_share", "svi",
@@ -664,20 +665,26 @@ PHYSICS_DIRECTIONS = {"tiger_multiplicity": lambda p: replace(p, m=tuple(x * 1.1
                       "ms_vs_usfs_buildings": lambda p: replace(p, kappa_b=p.kappa_b * 1.05)}
 
 
-def physics_direction(df, mu, name):
+def physics_direction(df, mu, name, seeds=range(77, 85)):
+    """How the prediction moves under a small change of one mechanism, averaged over 8 x 512 draws with common
+    random numbers. research/mc_noise.py: at 512 draws the unrouted direction was ~80 % Monte-Carlo noise
+    (tiger noise ~40 %, burned facilities ~45 %); deterministic mechanisms (FM roads, buildings) were clean.
+    "<mechanism>_clean" re-probes an already measured mechanism with the denoised direction."""
     if name == "gmm_route":           # the whole refitted model; its scored-file part is removed later
         return 0.8 * simulate(road_frame(df), mu, Params(**PHYSICS["g43"]["global"]), 512, 77)
+    name = name.removesuffix("_clean")
     frame = road_frame(df)
     sets = {k: Params(**v) for k, v in PHYSICS["r10a"].items()}
 
-    def run(sets_):
-        v = simulate(frame, mu, sets_["global"], 512, 77)
+    def run(sets_, seed):
+        v = simulate(frame, mu, sets_["global"], 512, seed)
         for r in CALIB_REGIONS:
             m = (frame["region"] == r).to_numpy()
-            v[m] = simulate(frame, mu, sets_[r], 512, 77)[m]
+            v[m] = simulate(frame, mu, sets_[r], 512, seed)[m]
         return 0.8 * v
 
-    return run({k: PHYSICS_DIRECTIONS[name](p) for k, p in sets.items()}) - run(sets)
+    pert = {k: PHYSICS_DIRECTIONS[name](p) for k, p in sets.items()}
+    return np.mean([run(pert, s) - run(sets, s) for s in seeds], axis=0)
 
 
 def probe_features(df, mu, names):
@@ -716,7 +723,7 @@ def probe_features(df, mu, names):
     for r in ("maricopa-az", "northern-ca", "eastern-ok"):
         f[f"tertiary_vs_named_{r}"] = f["tertiary_vs_named"] * (df["region"] == r)
     for k in names:
-        if k in PHYSICS_DIRECTIONS or k == "gmm_route":
+        if k in PHYSICS_DIRECTIONS or k == "gmm_route" or k.removesuffix("_clean") in PHYSICS_DIRECTIONS:
             f[k] = physics_direction(df, mu, k)
     # "<direction>_<region>": any direction restricted to one region (region heterogeneity of a measured hit)
     for k in names:
@@ -767,7 +774,7 @@ def write_probes(lb, df, mu, base, n=4, folder="next"):
         print(f"  wrote {folder}/{name}")
 
 
-def probe_correction(lb, df, mu, r12):
+def probe_correction(lb, df, mu, r12, order="scoring"):
     """Correction from the scored probe files. Each probe f is a scored file, so mean_P(f * y) is exact.
     Its difference from r12, with the part explained by the scored basis removed (public-subset
     weights), is a direction p_f whose moment b_f = mean_P(p_f * (y - r12)) is exact too, whatever
@@ -795,11 +802,30 @@ def probe_correction(lb, df, mu, r12):
     s12 = lb.s[BASE]
     chi = lambda idx: float(b[idx] @ np.linalg.solve(Gp_all[np.ix_(idx, idx)], b[idx])) / s12 ** 2 * lb.pi.sum() if idx else 0.0
     # sequential test in the order the probes were scored: a probe enters only if its information given
-    # the ones already in has z >= 2. (Greedy selection is wrong here: a probe built on a corrected base
-    # carries that whole correction, so alone it looks like it explains everything.)
+    # the ones already in has z >= 2. (Strongest-first is wrong here: a probe built on a corrected base
+    # carries that whole correction, so alone it looks like it explains everything. Backward elimination
+    # keeps every probe that the others cannot replace, and is the default since 2026-10-16.)
     sel, rest = [], []
-    for j in range(len(b)):
-        (sel if chi(sel + [j]) - chi(sel) >= 4.0 else rest).append(j)
+    if order == "strongest":            # research/selection_policy.py: largest conditional chi^2 first
+        rest = list(range(len(b)))
+        while rest:
+            gains = [chi(sel + [j]) - chi(sel) for j in rest]
+            j = int(np.argmax(gains))
+            if gains[j] < 4.0:
+                break
+            sel.append(rest.pop(j))
+    elif order == "backward":           # start from every probe, drop the weakest while its chi^2 drop < 4
+        sel = list(range(len(b)))
+        while sel:
+            drops = [chi(sel) - chi([k for k in sel if k != j]) for j in sel]
+            j = int(np.argmin(drops))
+            if drops[j] >= 4.0:
+                break
+            rest.append(sel.pop(j))
+        rest.sort()
+    else:
+        for j in range(len(b)):
+            (sel if chi(sel + [j]) - chi(sel) >= 4.0 else rest).append(j)
     if not sel:
         return np.zeros(len(df)), "no probe direction clears z = 2", 0.0
     dropped = [probe_direction_of(scored[k]) for k in rest]
@@ -879,7 +905,9 @@ def main():
     assert np.abs(r12 - scored).max() <= 2e-6, "blend does not reproduce the scored file"
 
     step(5, "Probe correction and submission")
-    corr, note, gain = probe_correction(lb, df, mu, scored)
+    # backward elimination (research/selection_policy.py): fewer, stronger directions; on simulated
+    # 30/70 splits it beat scoring-order selection on private by 0.00004 (70 % of splits)
+    corr, note, gain = probe_correction(lb, df, mu, scored, order="backward")
     out = finish(scored + corr, df["GEOID"])
     sub = pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": out})
     assert len(sub) == 9794 and sub["GEOID"].is_unique and sub.notna().all().all()
