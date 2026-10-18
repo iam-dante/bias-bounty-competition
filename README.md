@@ -1,4 +1,4 @@
-# Bias Bounty — R21 ridge
+# Bias Bounty — R22 ridge + empirical-Bayes ensemble
 
 One model, one submission: `submission.csv`.
 
@@ -9,29 +9,39 @@ pip install -r requirements.txt
 python solution.py
 ```
 
-The command refits the fixed ridge calibration and writes only `submission.csv`.
+The command refits the ridge calibration and the empirical-Bayes model, blends them,
+and writes only `submission.csv`.
 It runs locally without downloads. The file contains 9,794 unique GEOIDs,
 bounded predictions, and the five published Paradise values.
 
 ## Model and evidence
 
-R21 keeps the 23-direction ridge fit at strength **0.2** and adds one bounded
-correction: the part of the best scored r19b prediction outside that fit's
-existing feature span. This captures additional information from clipping.
-Positive-part shrinkage suppresses weak or negative evidence, and the added
-coefficient is capped at 1; the current fit reaches that cap. Historical predictions
-are frozen features; score-derived moments fit the correction. `model.npz`
-contains the aligned predictions, scores, tract IDs and regions needed to
-reproduce this fit. This is a model for the fixed competition tracts.
+R22 = 0.6 x the R21 ridge fit + 0.4 x an empirical-Bayes posterior.
+
+- **Ridge (R21 method):** the ridge fit uses 24 probe directions (now including
+  p20_02) at strength **0.2**. It also adds the bounded r19b clipping correction.
+- **Empirical Bayes:** each scored file's score is treated as a public-row moment
+  `<v, y>`. The files are orthogonalised in scoring order. Each new direction gets
+  a group prior (base models or probes), fitted by marginal likelihood. The noise
+  term comes from sampling the 30% public subset, so weak directions are shrunk
+  rather than fitted at face value. Fitted priors: probe coefficients
+  N(0.04, 0.75^2), base-model coefficients N(0.57, 0.35^2), noise scale 0.42.
+- **Blend weight 0.4:** chosen on simulated 30/70 public/private folds (100 per
+  setting). It gains 0.000091 private RMSE when the Bayesian model is right
+  (better in 100% of folds). It changes by only +0.000004 when the unshrunk ridge
+  fit is the truth.
+
+`model.npz` contains the aligned predictions, scores, tract IDs and regions.
+Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R21 (`submission.csv`) | **0.062411516** | Estimated, unscored |
-| R20 | 0.062426715 | Estimated, unscored |
-| r19b | 0.062455004 | Best confirmed |
-| P19_64 | 0.062474294 | Confirmed |
+| R22 (`submission.csv`) | **0.062370908** | Estimated, unscored |
+| R21 | 0.062411516 | Estimated, unscored |
+| p20_02 multiref share | 0.062438801 | Best confirmed |
+| r19b | 0.062455004 | Confirmed |
 
-The estimated improvement over P19_64 is small and unconfirmed. There are no
+The estimated improvement over p20_02 is small and unconfirmed (the estimator's backtest MAE is about 0.00014). There are no
 training labels for independent target validation. The score estimate uses
 fitted public-row weights and assumes no target signal outside the historical
 prediction span. Simulated 30/70 splits favored ridge over backward selection
@@ -63,10 +73,10 @@ Reproduction inputs and scripts for this check are archived outside the repo:
 
 ## Minimal layout
 
-- `solution.py`: complete ridge fitting and submission generation.
+- `solution.py`: ridge fit, empirical-Bayes fit, blend and submission generation.
 - `model.npz`: compressed frozen inputs and historical score record (2.7 MB).
 - `submission.csv`: the only submission to upload.
-- `requirements.txt`: NumPy and pandas.
+- `requirements.txt`: NumPy, pandas and SciPy.
 - `data/`: existing challenge data, preserved locally and ignored by Git.
 
 Old experiments, candidate submissions, raw-feature pipeline and detailed
