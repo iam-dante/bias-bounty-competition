@@ -36,12 +36,12 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R22 (`submission.csv`) | **0.062370908** | Estimated, unscored |
-| R21 | 0.062411516 | Estimated, unscored |
-| p20_02 multiref share | 0.062438801 | Best confirmed |
+| R22 (`submission.csv`) | **0.062343029** | **Best confirmed** (predicted 0.062370908) |
+| R21 | 0.062411516 | Estimated, never submitted |
+| p20_02 multiref share | 0.062438801 | Confirmed |
 | r19b | 0.062455004 | Confirmed |
 
-The estimated improvement over p20_02 is small and unconfirmed (the estimator's backtest MAE is about 0.00014). There are no
+R22 scored 0.000028 better than its predicted score, which is inside the estimator's backtest error (MAE about 0.00014). There are no
 training labels for independent target validation. The score estimate uses
 fitted public-row weights and assumes no target signal outside the historical
 prediction span. Simulated 30/70 splits favored ridge over backward selection
