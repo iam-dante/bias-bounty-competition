@@ -1,4 +1,0 @@
-file,public is,public,private estimate
-r19b = submission.csv,expected,0.06247,0.063086
-r19,expected,0.062502,0.063173
-p18_02_tiger_noise (scored best),scored,0.062562,0.063161
