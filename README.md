@@ -1,4 +1,4 @@
-# Bias Bounty — R22 ridge + empirical-Bayes ensemble
+# Bias Bounty — R23 ridge + empirical-Bayes ensemble
 
 One model, one submission: `submission.csv`.
 
@@ -16,7 +16,7 @@ bounded predictions, and the five published Paradise values.
 
 ## Model and evidence
 
-R22 = 0.6 x the R21 ridge fit + 0.4 x an empirical-Bayes posterior.
+R23 = 0.4 x the R21 ridge fit + 0.6 x an empirical-Bayes posterior (R22 used 0.6 / 0.4).
 
 - **Ridge (R21 method):** the ridge fit uses 24 probe directions (now including
   p20_02) at strength **0.2**. It also adds the bounded r19b clipping correction.
@@ -26,22 +26,27 @@ R22 = 0.6 x the R21 ridge fit + 0.4 x an empirical-Bayes posterior.
   term comes from sampling the 30% public subset, so weak directions are shrunk
   rather than fitted at face value. Fitted priors: probe coefficients
   N(0.04, 0.75^2), base-model coefficients N(0.57, 0.35^2), noise scale 0.42.
-- **Blend weight 0.4:** chosen on simulated 30/70 public/private folds (100 per
-  setting). It gains 0.000091 private RMSE when the Bayesian model is right
-  (better in 100% of folds). It changes by only +0.000004 when the unshrunk ridge
-  fit is the truth.
+- **Blend weight 0.6:** R22 (weight 0.4) scored 0.000028 better than predicted,
+  and its score now enters the fit. Re-run on simulated 30/70 public/private folds
+  (100 per setting), weight 0.6 gains 0.000105 private RMSE when the Bayesian
+  model is right (better in 100% of folds), and loses 0.000026 if the unshrunk
+  ridge fit were the truth. It also lowers the public estimate by 0.00001 vs 0.4.
+- **Tested and rejected:** a hybrid global/local shrinkage prior (no likelihood
+  gain), and feature-kernel extrapolation from 205 permitted tract features
+  (did not predict held-out probe scores).
 
 `model.npz` contains the aligned predictions, scores, tract IDs and regions.
 Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R22 (`submission.csv`) | **0.062343029** | **Best confirmed** (predicted 0.062370908) |
+| R23 (`submission.csv`) | **0.062327384** | **Best confirmed** (predicted 0.062330919) |
+| R22 | 0.062343029 | Confirmed (predicted 0.062370908) |
 | R21 | 0.062411516 | Estimated, never submitted |
 | p20_02 multiref share | 0.062438801 | Confirmed |
 | r19b | 0.062455004 | Confirmed |
 
-R22 scored 0.000028 better than its predicted score, which is inside the estimator's backtest error (MAE about 0.00014). There are no
+R23 scored within 0.000004 of its prediction and R22 within 0.000028, both inside the estimator's backtest error (MAE about 0.00014). There are no
 training labels for independent target validation. The score estimate uses
 fitted public-row weights and assumes no target signal outside the historical
 prediction span. Simulated 30/70 splits favored ridge over backward selection
