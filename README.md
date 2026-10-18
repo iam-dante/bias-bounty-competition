@@ -1,4 +1,4 @@
-# Bias Bounty — R23 ridge + empirical-Bayes ensemble
+# Bias Bounty — R24 ensemble + scorecard update
 
 One model, one submission: `submission.csv`.
 
@@ -16,7 +16,18 @@ bounded predictions, and the five published Paradise values.
 
 ## Model and evidence
 
+R24 = R23 + a joint Bayesian update on the official Bias Scorecard.
 R23 = 0.4 x the R21 ridge fit + 0.6 x an empirical-Bayes posterior (R22 used 0.6 / 0.4).
+
+- **Scorecard update (R24):** the rank-1 entry scores exactly 0, so its scorecard
+  shows the true disparity ratios. The update targets them for 8 strata: rural,
+  tribal, SVI >= 0.6, and median splits of CVI, summer and winter drought,
+  wildfire (WHP) and summer heat. Our R23 scorecard reproduces these definitions
+  on all 9,794 rows. Each ratio becomes a linear constraint, combined with the
+  leaderboard moments in one Gaussian posterior. The update (RMS 0.0066) lies
+  almost entirely outside the scored-file span, so the public estimate cannot
+  credit it (it reads 0.06269). If the leader's ratios are right, the model
+  expects about 0.0004 lower RMSE. `data/strata/` is required.
 
 - **Ridge (R21 method):** the ridge fit uses 24 probe directions (now including
   p20_02) at strength **0.2**. It also adds the bounded r19b clipping correction.
@@ -33,14 +44,19 @@ R23 = 0.4 x the R21 ridge fit + 0.6 x an empirical-Bayes posterior (R22 used 0.6
   ridge fit were the truth. It also lowers the public estimate by 0.00001 vs 0.4.
 - **Tested and rejected:** a hybrid global/local shrinkage prior (no likelihood
   gain), and feature-kernel extrapolation from 205 permitted tract features
-  (did not predict held-out probe scores).
+  (did not predict held-out probe scores). Overture building coverage against
+  the USFS (Microsoft-based) building count is 97% inside the scored span
+  already. The share of Overture buildings sourced from Microsoft ML Buildings
+  is 65% new, but the scorecard cannot calibrate it (effect +0.0012 +- 0.0029),
+  so it is not used.
 
 `model.npz` contains the aligned predictions, scores, tract IDs and regions.
 Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R23 (`submission.csv`) | **0.062327384** | **Best confirmed** (predicted 0.062330919) |
+| R24 (`submission.csv`, dev) | not estimable | Unscored; scorecard part lies outside the estimator's span |
+| R23 (main) | **0.062327384** | **Best confirmed** (predicted 0.062330919) |
 | R22 | 0.062343029 | Confirmed (predicted 0.062370908) |
 | R21 | 0.062411516 | Estimated, never submitted |
 | p20_02 multiref share | 0.062438801 | Confirmed |

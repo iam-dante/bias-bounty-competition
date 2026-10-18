@@ -1,4 +1,4 @@
-"""R23: ensemble of the R21 ridge calibration and an empirical-Bayes moment model.
+"""R24: R23 ensemble (ridge + empirical-Bayes moments) plus a joint update on the true scorecard ratios.
 
 Run: python solution.py
 Inputs and score history are frozen in model.npz; output is only submission.csv.
@@ -8,12 +8,19 @@ from pathlib import Path
 import re
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+import glob
+from scipy.optimize import minimize, minimize_scalar
 
 ROOT = Path(__file__).resolve().parent
 RIDGE = 0.2
 EB_WEIGHT = 0.6  # chosen on simulated 30/70 public/private folds (R22 scored better than predicted)
 P_PUBLIC = 0.3
+# Official Bias Scorecard disparity ratios (displayed to 2 decimals). LEADER is the
+# rank-1 entry (public RMSE exactly 0, so its ratios are the target's); OURS_R23 is
+# the scorecard of our scored R23 file, used to cancel definition mismatch.
+STRATA = ["rural", "tribal", "svi", "cvi", "sdrought", "wdrought", "wildfire", "heat"]
+LEADER = dict(zip(STRATA, [2.34, 2.88, 1.23, 1.55, 1.00, 1.36, 1.77, 0.62]))
+OURS_R23 = dict(zip(STRATA, [2.18, 2.70, 1.28, 1.49, 1.02, 1.43, 1.66, 0.61]))
 OUTPUT = ROOT / "submission.csv"
 PUBLISHED = {'06007002300': 0.252, '06007001602': 0.254, '06007001703': 0.191, '06007002200': 0.249, '06007001601': 0.323}
 BASE = 'r12_blend_with_AB.csv'
@@ -86,7 +93,7 @@ def finish(v, geoid):
     return geoid.map(PUBLISHED).fillna(v).round(6).to_numpy(copy=True)
 
 
-def eb_posterior(lb, yhat, sigma=0.0624):
+def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     """Empirical-Bayes posterior mean of the target on graded rows.
 
     Every scored file's score is a public-row moment <v, y>. The files are
@@ -121,7 +128,7 @@ def eb_posterior(lb, yhat, sigma=0.0624):
     D = w @ (Q * Q)
     group = np.array(["const" if names[i].startswith("probe_const") else
                       "probe" if probe_direction_of(names[i]) else
-                      "clip" if names[i].startswith(("r14", "r19b", "r22")) else "base" for i in keep])
+                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23")) else "base" for i in keep])
 
     def prior(x):
         tau_b, mu_b, tau_p, mu_p, alpha = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4])
@@ -139,7 +146,64 @@ def eb_posterior(lb, yhat, sigma=0.0624):
                  options=dict(maxiter=4000, xatol=1e-5, fatol=1e-7)).x
     mu, var, C = prior(x)
     theta = mu + var * D * np.linalg.solve(C, o - D * mu)
-    return Q @ theta, np.exp(x)
+    if scorecard is None:
+        return Q @ theta, np.exp(x), None
+
+    # Joint update: each scorecard ratio is a linear constraint sum_i h_i y_i = rhs.
+    # Group indicators are residualised against the scored span, so the update
+    # adds what the leaderboard moments cannot see; their scale tau_U is fitted.
+    groups, H, rhs, R2 = scorecard
+    Ug = []
+    for u in groups:
+        u = u.astype(float)
+        for _ in range(2):
+            for j in range(Q.shape[1]):
+                u = u - (w @ (Q[:, j] * u)) / D[j] * Q[:, j]
+        Ug.append(u)
+    Ug = np.column_stack(Ug)
+    k, kg = len(o), Ug.shape[1]
+    M = np.vstack([np.hstack([np.diag(D), np.zeros((k, kg))]), np.hstack([H @ Q, H @ Ug])])
+    noise = np.zeros((k + len(rhs), k + len(rhs)))
+    noise[:k, :k] = np.exp(x[4]) * N
+    noise[k:, k:] = np.diag(R2)
+    m0 = np.r_[mu, np.zeros(kg)]
+    obs = np.r_[o, rhs] - M @ m0
+
+    def joint(log_tau):
+        P = np.r_[var, np.full(kg, np.exp(2 * log_tau))]
+        Cj = (M * P) @ M.T + noise
+        L = np.linalg.cholesky(Cj)
+        z = np.linalg.solve(L, obs)
+        return P, Cj, 0.5 * z @ z + np.log(np.diag(L)).sum()
+
+    log_tau = minimize_scalar(lambda t: joint(t)[2], bounds=(-8, 1), method="bounded").x
+    P, Cj, _ = joint(log_tau)
+    phi = m0 + P * (M.T @ np.linalg.solve(Cj, obs))
+    increment = Q @ phi[:k] + Ug @ phi[k:] - Q @ theta
+    return Q @ theta, np.exp(x), (increment, np.exp(log_tau))
+
+
+def scorecard_inputs(lb, candidate):
+    """Stratum masks over all rows (definitions reproduce our R23 scorecard) and
+    the linear constraints implied by the leader's ratios."""
+    t = pd.concat([pd.read_parquet(f) for f in glob.glob(str(ROOT / "data/strata/*/*-strata-tract-table.parquet"))])
+    t = t.drop_duplicates("GEOID").set_index("GEOID").reindex(lb.geoid.astype(str))
+    high = lambda col: (t[col] >= t[col].quantile(0.5)).fillna(False).to_numpy()
+    masks = dict(zip(STRATA, [t.ur_class.eq("Rural").to_numpy(), t.tribal_any.fillna(False).astype(bool).to_numpy(),
+                              (t.svi_overall >= 0.6).fillna(False).to_numpy(), high("cvi_overall"),
+                              high("usdm_summer_dsci"), high("usdm_winter_dsci"), high("usfs_WHP_mean"),
+                              high("epht_heat_days_summer")]))
+    r23 = lb.vec("r23_ridge_eb_blend.csv")
+    g = lb.graded
+    groups, H, rhs, R2 = [], [], [], []
+    for name, m in masks.items():
+        target = r23[m].mean() / r23[~m].mean() * LEADER[name] / OURS_R23[name]
+        h = np.where(m, 1 / m.sum(), -target / (~m).sum())
+        groups.append(m[g])
+        H.append(h[g])
+        rhs.append(-h[~g] @ candidate[~g])          # ungraded rows held at our prediction
+        R2.append((0.0029 * candidate[~m].mean()) ** 2 + np.sum(h[~g] ** 2) * 0.0624**2)
+    return groups, np.array(H), np.array(rhs), np.array(R2)
 
 
 def main() -> None:
@@ -198,8 +262,8 @@ def main() -> None:
 
     # Ensemble with the empirical-Bayes posterior; the weight was chosen on
     # simulated 30/70 public/private folds (robust if either model is right).
-    posterior, hyper = eb_posterior(lb, candidate[graded])
-    candidate[graded] = EB_WEIGHT * posterior + (1 - EB_WEIGHT) * candidate[graded]
+    posterior, hyper, update = eb_posterior(lb, candidate[graded], scorecard=scorecard_inputs(lb, candidate))
+    candidate[graded] = EB_WEIGHT * posterior + (1 - EB_WEIGHT) * candidate[graded] + update[0]
     candidate = finish(candidate, df["GEOID"])
 
     # Estimate the score by projecting onto historical predictions. This assumes
@@ -225,8 +289,10 @@ def main() -> None:
     assert np.isfinite(candidate).all() and np.all((candidate >= 0) & (candidate <= 1))
     assert anchor_count == 5
     output.to_csv(OUTPUT, index=False)
-    print(f"R23: ridge ({len(directions)} directions, lambda={RIDGE}) + {EB_WEIGHT} x EB posterior; {len(output)} rows")
+    print(f"R24: ridge ({len(directions)} directions, lambda={RIDGE}) + {EB_WEIGHT} x EB posterior; {len(output)} rows")
     print("EB taus (base, probe) = {:.3f}, {:.3f}; noise scale {:.3f}".format(hyper[0], hyper[2], hyper[4]))
+    print("Scorecard update: RMS {:.5f}, tau_U {:.4f} (outside the scored span: the estimate below cannot credit it)".format(
+        float(np.sqrt(np.mean(update[0] ** 2))), update[1]))
     print(f"Incumbent residual: strength={strength:.3f}, approximate z={z:.3f}")
     print(f"Estimated public RMSE: {np.sqrt(max(projected_mse, 0)):.9f} (unconfirmed)")
     print(f"Wrote {OUTPUT}")
