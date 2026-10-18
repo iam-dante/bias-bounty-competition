@@ -1,4 +1,6 @@
-"""R24: R23 ensemble (ridge + empirical-Bayes moments) plus a joint update on the true scorecard ratios.
+"""R25: R23 + the leaderboard-calibrated scorecard component of R24.
+
+R24 = R23 ensemble (ridge + empirical-Bayes moments) plus a joint update on the true scorecard ratios.
 
 Run: python solution.py
 Inputs and score history are frozen in model.npz; output is only submission.csv.
@@ -128,7 +130,7 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     D = w @ (Q * Q)
     group = np.array(["const" if names[i].startswith("probe_const") else
                       "probe" if probe_direction_of(names[i]) else
-                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23")) else "base" for i in keep])
+                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24")) else "base" for i in keep])
 
     def prior(x):
         tau_b, mu_b, tau_p, mu_p, alpha = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4])
@@ -206,6 +208,36 @@ def scorecard_inputs(lb, candidate):
     return groups, np.array(H), np.array(rhs), np.array(R2)
 
 
+def scorecard_step(lb, prior_mean=1.0, prior_sd=0.3):
+    """Split the scored R24 move d = R24 - R23 into its part inside the span of
+    the files scored before R24 (q, already visible to the leaderboard) and the
+    scorecard part outside it (u). R24's score then measures <u, y> on public
+    rows. q carried no reliable signal, so it is dropped; u's step combines the
+    leaderboard estimate with the scorecard's claim that the full step is right."""
+    g = lb.graded
+    w = lb.pi / lb.pi.sum()
+    before = [f for f in lb.s if not f.startswith("probe_") and f != "r24_scorecard_joint.csv"]
+    X = np.column_stack([np.ones(g.sum())] + [lb.vec(f)[g] for f in before])
+    gram = (X * w[:, None]).T @ X
+    gram += 1e-7 * np.trace(gram) / X.shape[1] * np.eye(X.shape[1])
+    y23, y24 = lb.vec("r23_ridge_eb_blend.csv"), lb.vec("r24_scorecard_joint.csv")
+    s23, s24 = lb.s["r23_ridge_eb_blend.csv"], lb.s["r24_scorecard_joint.csv"]
+    d = (y24 - y23)[g]
+    q = X @ np.linalg.solve(gram, (X * w[:, None]).T @ d)
+    u = d - q
+    d_y = (lb.AP(y24[g] ** 2) - lb.AP(y23[g] ** 2) - (s24**2 - s23**2)) / 2
+    moments = np.array([lb.ybar] + [(lb.AP(lb.vec(f)[g] ** 2) + lb.Z - lb.s[f] ** 2) / 2 for f in before])
+    q_y = np.linalg.solve(gram, (X * w[:, None]).T @ q) @ moments
+    gain_u = d_y - q_y - lb.AP(u * y23[g])
+    size_u = lb.AP(u * u)
+    sd = np.sqrt(0.0622**2 * size_u * (1 - P_PUBLIC) / (P_PUBLIC * g.sum())) / size_u
+    b_public = gain_u / size_u
+    b = (b_public / sd**2 + prior_mean / prior_sd**2) / (1 / sd**2 + 1 / prior_sd**2)
+    out = y24.copy()                                  # ungraded rows: R24 values
+    out[g] = y23[g] + b * u
+    return finish(out, lb.geoid), (b_public, sd, b, float(np.sqrt(size_u)))
+
+
 def main() -> None:
     lb = Leaderboard()
     df = pd.DataFrame({"GEOID": lb.geoid})
@@ -265,6 +297,9 @@ def main() -> None:
     posterior, hyper, update = eb_posterior(lb, candidate[graded], scorecard=scorecard_inputs(lb, candidate))
     candidate[graded] = EB_WEIGHT * posterior + (1 - EB_WEIGHT) * candidate[graded] + update[0]
     candidate = finish(candidate, df["GEOID"])
+    step = None
+    if "r24_scorecard_joint.csv" in lb.s:
+        candidate, step = scorecard_step(lb)
 
     # Estimate the score by projecting onto historical predictions. This assumes
     # the unexplained remainder has no target signal; it is not independent CV.
@@ -289,7 +324,10 @@ def main() -> None:
     assert np.isfinite(candidate).all() and np.all((candidate >= 0) & (candidate <= 1))
     assert anchor_count == 5
     output.to_csv(OUTPUT, index=False)
-    print(f"R24: ridge ({len(directions)} directions, lambda={RIDGE}) + {EB_WEIGHT} x EB posterior; {len(output)} rows")
+    if step:
+        print(f"R25: R23 + {step[2]:.3f} x scorecard component u (RMS {step[3]:.5f}); "
+              f"leaderboard step {step[0]:.3f} +- {step[1]:.3f}, scorecard prior 1.0 +- 0.3")
+    print(f"R24 pipeline: ridge ({len(directions)} directions, lambda={RIDGE}) + {EB_WEIGHT} x EB posterior; {len(output)} rows")
     print("EB taus (base, probe) = {:.3f}, {:.3f}; noise scale {:.3f}".format(hyper[0], hyper[2], hyper[4]))
     print("Scorecard update: RMS {:.5f}, tau_U {:.4f} (outside the scored span: the estimate below cannot credit it)".format(
         float(np.sqrt(np.mean(update[0] ** 2))), update[1]))

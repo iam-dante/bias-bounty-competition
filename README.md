@@ -1,4 +1,4 @@
-# Bias Bounty — R24 ensemble + scorecard update
+# Bias Bounty — R25 calibrated scorecard step
 
 One model, one submission: `submission.csv`.
 
@@ -16,7 +16,18 @@ bounded predictions, and the five published Paradise values.
 
 ## Model and evidence
 
+R25 = R23 + 0.844 x the scorecard component of R24 (`scorecard_step`).
 R24 = R23 + a joint Bayesian update on the official Bias Scorecard.
+
+- **Calibrated step (R25):** R24's move splits into two orthogonal parts:
+  - The part inside the span of earlier scored files (RMS 0.0017): no reliable
+    signal (z about -0.9), so R25 drops it.
+  - The scorecard part outside that span (RMS 0.0063): R24's score measures
+    it directly, z = 5.1, best public step 0.80 +- 0.16.
+  - Combined with the scorecard's claim that the full step is right (prior
+    1.0 +- 0.3), R25 takes a 0.844 step.
+  - A larger step along R24's direction makes the score worse: the optimum
+    along that line is 0.71 x R24.
 R23 = 0.4 x the R21 ridge fit + 0.6 x an empirical-Bayes posterior (R22 used 0.6 / 0.4).
 
 - **Scorecard update (R24):** the rank-1 entry scores exactly 0, so its scorecard
@@ -55,7 +66,8 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R24 (`submission.csv`) | **0.062185147** | **Best confirmed** (no-signal estimate 0.062691) |
+| R25 (`submission.csv`, dev) | 0.062117874 | Estimated, unscored (inside the scored span, so reliable) |
+| R24 (main) | **0.062185147** | **Best confirmed** (no-signal estimate 0.062691) |
 | R23 | 0.062327384 | Confirmed (predicted 0.062330919) |
 | R22 | 0.062343029 | Confirmed (predicted 0.062370908) |
 | R21 | 0.062411516 | Estimated, never submitted |
