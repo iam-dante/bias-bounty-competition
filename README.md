@@ -55,8 +55,8 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R24 (`submission.csv`, dev) | not estimable | Unscored; scorecard part lies outside the estimator's span |
-| R23 (main) | **0.062327384** | **Best confirmed** (predicted 0.062330919) |
+| R24 (`submission.csv`) | **0.062185147** | **Best confirmed** (no-signal estimate 0.062691) |
+| R23 | 0.062327384 | Confirmed (predicted 0.062330919) |
 | R22 | 0.062343029 | Confirmed (predicted 0.062370908) |
 | R21 | 0.062411516 | Estimated, never submitted |
 | p20_02 multiref share | 0.062438801 | Confirmed |
