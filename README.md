@@ -40,13 +40,13 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R23 (`submission.csv`, dev) | 0.062330919 | Estimated, unscored |
-| R22 (main) | **0.062343029** | **Best confirmed** (predicted 0.062370908) |
+| R23 (`submission.csv`) | **0.062327384** | **Best confirmed** (predicted 0.062330919) |
+| R22 | 0.062343029 | Confirmed (predicted 0.062370908) |
 | R21 | 0.062411516 | Estimated, never submitted |
 | p20_02 multiref share | 0.062438801 | Confirmed |
 | r19b | 0.062455004 | Confirmed |
 
-R22 scored 0.000028 better than its predicted score, which is inside the estimator's backtest error (MAE about 0.00014). There are no
+R23 scored within 0.000004 of its prediction and R22 within 0.000028, both inside the estimator's backtest error (MAE about 0.00014). There are no
 training labels for independent target validation. The score estimate uses
 fitted public-row weights and assumes no target signal outside the historical
 prediction span. Simulated 30/70 splits favored ridge over backward selection
