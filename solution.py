@@ -24,6 +24,7 @@ STRATA = ["rural", "tribal", "svi", "cvi", "sdrought", "wdrought", "wildfire", "
 LEADER = dict(zip(STRATA, [2.34, 2.88, 1.23, 1.55, 1.00, 1.36, 1.77, 0.62]))
 OURS_R23 = dict(zip(STRATA, [2.18, 2.70, 1.28, 1.49, 1.02, 1.43, 1.66, 0.61]))
 OUTPUT = ROOT / "submission.csv"
+VALIDATION = ROOT / "validation.csv"
 PUBLISHED = {'06007002300': 0.252, '06007001602': 0.254, '06007001703': 0.191, '06007002200': 0.249, '06007001601': 0.323}
 BASE = 'r12_blend_with_AB.csv'
 BASIS = ['r2f_ensemble.csv', 'e02_r2f_only_eastern-ok.csv', 'e05_r2f_only_south-central-tx.csv', 'r3j_sigma40_affine.csv', 'r5e_groups_affine.csv', 'r6e_vuln_affine.csv', 'r9d_routefix_affine.csv', 'r10d_regional_affine.csv', 'stack3_scorecard_groups.csv', 'stack4_with_scorecard.csv', 'stack4_no_scorecard.csv', 'r11_B_blend_anchored.csv', 'r11_A_blend_anchored_gmm.csv']
@@ -239,6 +240,37 @@ def scorecard_step(lb, prior_mean=1.0, prior_sd=0.3):
     return finish(out, lb.geoid), (b_public, sd, b, float(np.sqrt(size_u)))
 
 
+def validation_log(lb, first="p12_01_route_ratio.csv"):
+    """Validation set = the scored submissions themselves (there are no tract labels).
+    For every file scored from `first` on, predict its public RMSE by projecting
+    it on other scored files' exact moments, and compare with the real score:
+    forward = only files scored before it (honest look-ahead test);
+    leave-one-out = all other files. Writes validation.csv."""
+    g = lb.graded
+    w = lb.pi / lb.pi.sum()
+    files = [f for f in lb.s if not f.startswith(("probe_", "e06"))]
+    vec = {f: lb.vec(f)[g] for f in files}
+    mom = {f: (lb.AP(vec[f] ** 2) + lb.Z - lb.s[f] ** 2) / 2 for f in files}
+
+    def predict(target, use):
+        X = np.column_stack([np.ones(g.sum())] + [vec[f] for f in use])
+        m = np.array([lb.ybar] + [mom[f] for f in use])
+        gram = (X * w[:, None]).T @ X
+        gram += 1e-7 * np.trace(gram) / len(m) * np.eye(len(m))
+        coef = np.linalg.solve(gram, (X * w[:, None]).T @ vec[target])
+        return float(np.sqrt(max(lb.AP(vec[target] ** 2) - 2 * coef @ m + lb.Z, 0)))
+
+    rows = []
+    for i, f in enumerate(files[files.index(first):], start=files.index(first)):
+        before = predict(f, files[:i])
+        loo = predict(f, [x for x in files if x != f])
+        rows.append(dict(file=f, actual=lb.s[f], pred_forward=before, err_forward=before - lb.s[f],
+                         pred_loo=loo, err_loo=loo - lb.s[f]))
+    log = pd.DataFrame(rows)
+    log.round(9).to_csv(VALIDATION, index=False)
+    return log
+
+
 def main() -> None:
     lb = Leaderboard()
     df = pd.DataFrame({"GEOID": lb.geoid})
@@ -335,6 +367,13 @@ def main() -> None:
     print(f"Incumbent residual: strength={strength:.3f}, approximate z={z:.3f}")
     print(f"Estimated public RMSE: {np.sqrt(max(projected_mse, 0)):.9f} (unconfirmed)")
     print(f"Wrote {OUTPUT}")
+
+    log = validation_log(lb)
+    last = log.iloc[-1]
+    print(f"Validation ({len(log)} scored files): forward MAE {log.err_forward.abs().mean():.6f}, "
+          f"leave-one-out MAE {log.err_loo.abs().mean():.6f}; "
+          f"latest {last.file}: actual {last.actual:.6f}, forward {last.pred_forward:.6f}")
+    print(f"Wrote {VALIDATION}")
 
 
 if __name__ == "__main__":
