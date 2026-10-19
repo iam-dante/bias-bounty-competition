@@ -110,8 +110,8 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R27 (`submission.csv`, dev) | 0.062140156 | Estimated, unscored |
-| R25 (main) | **0.062147723** | **Best confirmed** (predicted 0.062117874) |
+| R27 (`submission.csv`) | **0.062113403** | **Best confirmed** (estimated 0.062140156) |
+| R25 | 0.062147723 | Confirmed (predicted 0.062117874) |
 | R26 (neural-network add-on) | 0.062236918 | Confirmed worse; removed |
 | R24 | 0.062185147 | Confirmed (no-signal estimate 0.062691) |
 | R23 | 0.062327384 | Confirmed (predicted 0.062330919) |
