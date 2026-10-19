@@ -1,4 +1,4 @@
-# Bias Bounty — R25 calibrated scorecard step
+# Bias Bounty — R26 scorecard step + neural-network ensemble
 
 One model, one submission: `submission.csv`.
 
@@ -16,7 +16,23 @@ bounded predictions, and the five published Paradise values.
 
 ## Model and evidence
 
+R26 = R25 + 0.5 x a neural-network extrapolation (`nn_correction`).
 R25 = R23 + 0.844 x the scorecard component of R24 (`scorecard_step`).
+
+- **Neural-network ensemble (R26):** 10 seeds of a 205-64-32-1 MLP on permitted
+  tract features. There are no labels, so each network is trained to explain
+  the scored files' whitened signals and the 8 true scorecard ratios (moment
+  matching).
+  - **Validation:** chronological hold-out over the 30 files scored since
+    round 12 (train on earlier files only). Error vs no-model baseline -9.2%,
+    correlation +0.31 (sign-flip p = 0.034; p = 0.06 excluding the
+    scorecard-derived R24/R25).
+  - **What is used:** only the part outside the scored span, made neutral to
+    every scorecard constraint, at half strength (validated shrink about
+    1.1-1.25).
+  - **Expected score:** no-signal estimate 0.062251. If the network performs
+    as in hold-out, about 0.06203-0.06205.
+  - **Dropped:** LightGBM with the same custom loss diverged.
 R24 = R23 + a joint Bayesian update on the official Bias Scorecard.
 
 - **Calibrated step (R25):** R24's move splits into two orthogonal parts:
@@ -66,7 +82,8 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R25 (`submission.csv`) | **0.062147723** | **Best confirmed** (predicted 0.062117874) |
+| R26 (`submission.csv`, dev) | 0.062251 no-signal / ~0.06204 if the NN holds | Unscored |
+| R25 (main) | **0.062147723** | **Best confirmed** (predicted 0.062117874) |
 | R24 | 0.062185147 | Confirmed (no-signal estimate 0.062691) |
 | R23 | 0.062327384 | Confirmed (predicted 0.062330919) |
 | R22 | 0.062343029 | Confirmed (predicted 0.062370908) |
@@ -109,7 +126,7 @@ Reproduction inputs and scripts for this check are archived outside the repo:
 - `solution.py`: ridge fit, empirical-Bayes fit, blend and submission generation.
 - `model.npz`: compressed frozen inputs and historical score record (2.7 MB).
 - `submission.csv`: the only submission to upload.
-- `requirements.txt`: NumPy, pandas and SciPy.
+- `requirements.txt`: NumPy, pandas, SciPy and PyTorch (CPU is enough; about 20 s).
 - `data/`: existing challenge data, preserved locally and ignored by Git.
 
 Old experiments, candidate submissions, raw-feature pipeline and detailed
