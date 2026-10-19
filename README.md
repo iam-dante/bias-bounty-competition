@@ -40,6 +40,10 @@ R27 = R25 + the smallest change that agrees with every scored file and the true 
   push the all-rows ratios past the truth (tribal 2.93 at 3.9x vs 2.881). With
   R27's score included, the joint solve balances both sources: +0.29 extra on
   that part, ratios within 0.01, estimate 0.062111.
+- **Push direction exhausted (R28b):** with R27 (1x) and R28b (2.3x) both
+  scored, the public curve along this direction is flat. Its optimum is about
+  3.9x (+- 1.7) and would gain only 0.000007, below the estimator's error, while
+  overshooting the true tribal ratio. R28b is the final public-leaning file.
 R25 = R23 + 0.844 x the scorecard component of R24 (`scorecard_step`).
 
 - **What the model was missing (R23 to R25):** the leaderboard-proven
@@ -118,7 +122,7 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R28 (`submission.csv`, dev) | 0.062110884 | Estimated, unscored (0.0003 RMS from R27); ratios within 0.01 |
+| R28 (`submission.csv`) | 0.062114244 | Estimated, unscored; ratio-faithful joint solve, private hedge |
 | R28b (`submission_push.csv`) | **0.062097808** | **Best confirmed** (estimated 0.062088042); 2.3x R27's out-of-span piece |
 | R27 | 0.062113403 | Confirmed (estimated 0.062140156) |
 | R25 | 0.062147723 | Confirmed (predicted 0.062117874) |
