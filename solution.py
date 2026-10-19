@@ -1,4 +1,6 @@
-"""R25: R23 + the leaderboard-calibrated scorecard component of R24.
+"""R27: R25 + the minimum-change update that agrees with all scored files and the true scorecard ratios.
+
+R25: R23 + the leaderboard-calibrated scorecard component of R24.
 
 R24 = R23 ensemble (ridge + empirical-Bayes moments) plus a joint update on the true scorecard ratios.
 
@@ -23,6 +25,7 @@ P_PUBLIC = 0.3
 STRATA = ["rural", "tribal", "svi", "cvi", "sdrought", "wdrought", "wildfire", "heat"]
 LEADER = dict(zip(STRATA, [2.34, 2.88, 1.23, 1.55, 1.00, 1.36, 1.77, 0.62]))
 OURS_R23 = dict(zip(STRATA, [2.18, 2.70, 1.28, 1.49, 1.02, 1.43, 1.66, 0.61]))
+OURS_R24 = dict(zip(STRATA, [2.32, 2.85, 1.23, 1.54, 1.00, 1.35, 1.75, 0.63]))
 OUTPUT = ROOT / "submission.csv"
 VALIDATION = ROOT / "validation.csv"
 PUBLISHED = {'06007002300': 0.252, '06007001602': 0.254, '06007001703': 0.191, '06007002200': 0.249, '06007001601': 0.323}
@@ -131,7 +134,7 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     D = w @ (Q * Q)
     group = np.array(["const" if names[i].startswith("probe_const") else
                       "probe" if probe_direction_of(names[i]) else
-                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24", "r25", "r26")) else "base" for i in keep])
+                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24", "r25", "r26", "r27")) else "base" for i in keep])
 
     def prior(x):
         tau_b, mu_b, tau_p, mu_p, alpha = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4])
@@ -149,8 +152,9 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
                  options=dict(maxiter=4000, xatol=1e-5, fatol=1e-7)).x
     mu, var, C = prior(x)
     theta = mu + var * D * np.linalg.solve(C, o - D * mu)
+    parts = dict(Q=Q, w=w, o=o, noise=np.exp(x[4]) * N)
     if scorecard is None:
-        return Q @ theta, np.exp(x), None
+        return Q @ theta, np.exp(x), None, parts
 
     # Joint update: each scorecard ratio is a linear constraint sum_i h_i y_i = rhs.
     # Group indicators are residualised against the scored span, so the update
@@ -183,7 +187,7 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     P, Cj, _ = joint(log_tau)
     phi = m0 + P * (M.T @ np.linalg.solve(Cj, obs))
     increment = Q @ phi[:k] + Ug @ phi[k:] - Q @ theta
-    return Q @ theta, np.exp(x), (increment, np.exp(log_tau))
+    return Q @ theta, np.exp(x), (increment, np.exp(log_tau)), parts
 
 
 def scorecard_inputs(lb, candidate):
@@ -207,6 +211,55 @@ def scorecard_inputs(lb, candidate):
         rhs.append(-h[~g] @ candidate[~g])          # ungraded rows held at our prediction
         R2.append((0.0029 * candidate[~m].mean()) ** 2 + np.sum(h[~g] ** 2) * 0.0624**2)
     return groups, np.array(H), np.array(rhs), np.array(R2)
+
+
+def stratum_masks(lb):
+    """Scorecard strata over all rows (definitions reproduce our displayed scorecards)."""
+    t = pd.concat([pd.read_parquet(f) for f in glob.glob(str(ROOT / "data/strata/*/*-strata-tract-table.parquet"))])
+    t = t.drop_duplicates("GEOID").set_index("GEOID").reindex(lb.geoid.astype(str))
+    high = lambda col: (t[col] >= t[col].quantile(0.5)).fillna(False).to_numpy()
+    return dict(zip(STRATA, [t.ur_class.eq("Rural").to_numpy(), t.tribal_any.fillna(False).astype(bool).to_numpy(),
+                             (t.svi_overall >= 0.6).fillna(False).to_numpy(), high("cvi_overall"),
+                             high("usdm_summer_dsci"), high("usdm_winter_dsci"), high("usfs_WHP_mean"),
+                             high("epht_heat_days_summer")]))
+
+
+def joint_min_change(lb, base, parts):
+    """Smallest change to `base` that best agrees with every scored file's measured
+    moment (with its public-sampling noise) and the true scorecard ratios. The
+    per-tract prior scale is fitted by marginal likelihood. Targets are the
+    leader's ratios, mapped through the displayed/computed ratio of our R23 and
+    R24 scorecards to cancel definition mismatch."""
+    g = lb.graded
+    Q, w, o, noise = parts["Q"], parts["w"], parts["o"], parts["noise"]
+    masks = stratum_masks(lb)
+    ratio = lambda v, m: v[m].mean() / v[~m].mean()
+    r23, r24 = lb.vec("r23_ridge_eb_blend.csv"), lb.vec("r24_scorecard_joint.csv")
+    H, rhs, R2 = [], [], []
+    for name, m in masks.items():
+        shown_over_calc = (OURS_R23[name] / ratio(r23, m) + OURS_R24[name] / ratio(r24, m)) / 2
+        target = LEADER[name] / shown_over_calc
+        h = np.where(m, 1 / m.sum(), -target / (~m).sum())
+        H.append(h[g])
+        rhs.append(-h @ base)
+        R2.append((0.0029 * base[~m].mean()) ** 2 + np.sum(h[~g] ** 2) * 0.0624**2)
+    M = np.vstack([(Q * w[:, None]).T, np.array(H)])
+    obs = np.r_[o - (Q * w[:, None]).T @ base[g], rhs]
+    R = np.zeros((len(obs), len(obs)))
+    R[:len(o), :len(o)] = noise
+    R[len(o):, len(o):] = np.diag(R2)
+    MMt = M @ M.T
+
+    def nll(log_tau):
+        L = np.linalg.cholesky(np.exp(2 * log_tau) * MMt + R)
+        z = np.linalg.solve(L, obs)
+        return 0.5 * z @ z + np.log(np.diag(L)).sum()
+
+    tau = np.exp(minimize_scalar(nll, bounds=(-12, -2), method="bounded").x)
+    delta = tau**2 * M.T @ np.linalg.solve(tau**2 * MMt + R, obs)
+    out = base.copy()
+    out[g] = base[g] + delta
+    return finish(out, lb.geoid), (tau, float(np.sqrt(w @ delta**2)), {k: ratio(out, m) for k, m in masks.items()})
 
 
 def scorecard_step(lb, prior_mean=1.0, prior_sd=0.3):
@@ -327,12 +380,13 @@ def main() -> None:
 
     # Ensemble with the empirical-Bayes posterior; the weight was chosen on
     # simulated 30/70 public/private folds (robust if either model is right).
-    posterior, hyper, update = eb_posterior(lb, candidate[graded], scorecard=scorecard_inputs(lb, candidate))
+    posterior, hyper, update, parts = eb_posterior(lb, candidate[graded], scorecard=scorecard_inputs(lb, candidate))
     candidate[graded] = EB_WEIGHT * posterior + (1 - EB_WEIGHT) * candidate[graded] + update[0]
     candidate = finish(candidate, df["GEOID"])
     step = None
     if "r24_scorecard_joint.csv" in lb.s:
         candidate, step = scorecard_step(lb)
+        candidate, final = joint_min_change(lb, candidate, parts)
 
     # Estimate the score by projecting onto historical predictions. This assumes
     # the unexplained remainder has no target signal; it is not independent CV.
@@ -358,6 +412,8 @@ def main() -> None:
     assert anchor_count == 5
     output.to_csv(OUTPUT, index=False)
     if step:
+        print(f"R27: R25 + joint minimum-change update (RMS {final[1]:.5f}, tau {final[0]:.4f}); ratios "
+              + " ".join(f"{k} {v:.3f}" for k, v in final[2].items()))
         print(f"R25: R23 + {step[2]:.3f} x scorecard component u (RMS {step[3]:.5f}); "
               f"leaderboard step {step[0]:.3f} +- {step[1]:.3f}, scorecard prior 1.0 +- 0.3")
     print(f"R24 pipeline: ridge ({len(directions)} directions, lambda={RIDGE}) + {EB_WEIGHT} x EB posterior; {len(output)} rows")

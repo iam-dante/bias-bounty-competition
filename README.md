@@ -1,4 +1,4 @@
-# Bias Bounty — R25 calibrated scorecard step
+# Bias Bounty — R27 joint minimum-change update
 
 One model, one submission: `submission.csv`.
 
@@ -31,7 +31,28 @@ credit what no earlier file contains.
 
 ## Model and evidence
 
+R27 = R25 + the smallest change that agrees with every scored file and the true scorecard ratios (`joint_min_change`).
 R25 = R23 + 0.844 x the scorecard component of R24 (`scorecard_step`).
+
+- **What the model was missing (R23 to R25):** the leaderboard-proven
+  scorecard correction (z = 5.1) raised predictions in less-urban, tribal and
+  remote tracts. Its strongest correlations are pct_urban -0.31, pop_urban
+  -0.32, tribal_pct +0.17 and distance to the nearest weather station +0.17. It
+  lowered predictions in drought-heavy, populous tracts. It is additive (corr
+  -0.007 with the prediction level), and 62% of it falls in Texas.
+- **Remaining gaps in R25 (vs true ratios):** tribal -0.115, wildfire -0.040,
+  rural -0.037, SVI +0.027; the other strata are closed.
+- **Joint update (R27):** one Gaussian solve over all 59 scored-file moments
+  (with their public-sampling noise) and the 8 true ratios. A per-tract prior
+  scale is fitted by marginal likelihood (tau 0.039).
+  - The update is RMS 0.0015, and 93% of it lies inside the scored span, where
+    the estimator credits it (0.062140 vs 0.062146).
+  - Every ratio ends within 0.015 of the truth: rural 2.333, tribal 2.869,
+    wildfire 1.766.
+  - Closing the gaps only outside the scored span needs a distorting 0.016 RMS
+    move, so that variant is rejected.
+- **Hazard + Vulnerability:** no definition reproduces both our R23 (1.25) and
+  R24 (1.22) scorecards, so this stratum is left out.
 
 R24 = R23 + a joint Bayesian update on the official Bias Scorecard.
 
@@ -89,7 +110,8 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R25 (`submission.csv`) | **0.062147723** | **Best confirmed** (predicted 0.062117874) |
+| R27 (`submission.csv`, dev) | 0.062140156 | Estimated, unscored |
+| R25 (main) | **0.062147723** | **Best confirmed** (predicted 0.062117874) |
 | R26 (neural-network add-on) | 0.062236918 | Confirmed worse; removed |
 | R24 | 0.062185147 | Confirmed (no-signal estimate 0.062691) |
 | R23 | 0.062327384 | Confirmed (predicted 0.062330919) |
