@@ -14,6 +14,21 @@ and writes only `submission.csv`.
 It runs locally without downloads. The file contains 9,794 unique GEOIDs,
 bounded predictions, and the five published Paradise values.
 
+## Validation
+
+There are no tract-level labels, so the validation set is the scored
+submissions themselves. Each run writes `validation.csv`: for every file scored
+since round 12 it predicts the public RMSE from the other scored files and
+compares it with the real score.
+
+- **Forward:** only files scored earlier, an honest look-ahead test.
+  MAE 0.000130 over 31 files.
+- **Leave-one-out:** all other files. MAE 0.000056.
+
+The metric is the competition's RMSE. Forward errors are large for files that
+add genuinely new information (R24: +0.000505), because the projection cannot
+credit what no earlier file contains.
+
 ## Model and evidence
 
 R25 = R23 + 0.844 x the scorecard component of R24 (`scorecard_step`).
@@ -118,6 +133,7 @@ Reproduction inputs and scripts for this check are archived outside the repo:
 - `solution.py`: ridge fit, empirical-Bayes fit, blend and submission generation.
 - `model.npz`: compressed frozen inputs and historical score record (2.7 MB).
 - `submission.csv`: the only submission to upload.
+- `validation.csv`: predicted vs actual score for every scored file (rewritten each run).
 - `requirements.txt`: NumPy, pandas and SciPy.
 - `data/`: existing challenge data, preserved locally and ignored by Git.
 
