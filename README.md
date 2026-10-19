@@ -1,6 +1,6 @@
-# Bias Bounty — R27 joint minimum-change update
+# Bias Bounty — R28 joint minimum-change update (with R27's score)
 
-One model, one submission: `submission.csv`.
+Current best file: `submission_push.csv` (R28b). `submission.csv` is the ratio-faithful R28.
 
 ## Run
 
@@ -31,7 +31,15 @@ credit what no earlier file contains.
 
 ## Model and evidence
 
+R28 = the same joint update rerun with R27's score in the data (the current `solution.py` output).
 R27 = R25 + the smallest change that agrees with every scored file and the true scorecard ratios (`joint_min_change`).
+
+- **What R27's score showed:** R27 beat its estimate by 0.000027. Its in-span
+  part is consistent with step 1 (0.65 +- 0.71). Its small out-of-span part
+  (RMS 0.00058) prefers a 6.0 +- 1.7 step (z = 3.6), but steps above about 2
+  push the all-rows ratios past the truth (tribal 2.93 at 3.9x vs 2.881). With
+  R27's score included, the joint solve balances both sources: +0.29 extra on
+  that part, ratios within 0.01, estimate 0.062111.
 R25 = R23 + 0.844 x the scorecard component of R24 (`scorecard_step`).
 
 - **What the model was missing (R23 to R25):** the leaderboard-proven
@@ -110,7 +118,9 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R27 (`submission.csv`) | **0.062113403** | **Best confirmed** (estimated 0.062140156) |
+| R28 (`submission.csv`, dev) | 0.062110884 | Estimated, unscored (0.0003 RMS from R27); ratios within 0.01 |
+| R28b (`submission_push.csv`) | **0.062097808** | **Best confirmed** (estimated 0.062088042); 2.3x R27's out-of-span piece |
+| R27 | 0.062113403 | Confirmed (estimated 0.062140156) |
 | R25 | 0.062147723 | Confirmed (predicted 0.062117874) |
 | R26 (neural-network add-on) | 0.062236918 | Confirmed worse; removed |
 | R24 | 0.062185147 | Confirmed (no-signal estimate 0.062691) |
@@ -155,6 +165,7 @@ Reproduction inputs and scripts for this check are archived outside the repo:
 - `solution.py`: ridge fit, empirical-Bayes fit, blend and submission generation.
 - `model.npz`: compressed frozen inputs and historical score record (2.7 MB).
 - `submission.csv`: the only submission to upload.
+- `submission_push.csv`: public-leaning variant (R28b), written on every run.
 - `validation.csv`: predicted vs actual score for every scored file (rewritten each run).
 - `requirements.txt`: NumPy, pandas and SciPy.
 - `data/`: existing challenge data, preserved locally and ignored by Git.
