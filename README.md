@@ -1,6 +1,6 @@
 # Bias Bounty — R28 joint minimum-change update (with R27's score)
 
-One model, one submission: `submission.csv`.
+Current best file: `submission_push.csv` (R28b). `submission.csv` is the ratio-faithful R28.
 
 ## Run
 
@@ -119,8 +119,8 @@ Historical predictions are frozen features, not tract-level labels.
 | Result | Public RMSE | Status |
 |---|---:|---|
 | R28 (`submission.csv`, dev) | 0.062110884 | Estimated, unscored (0.0003 RMS from R27); ratios within 0.01 |
-| R28b (`submission_push.csv`, dev) | 0.062088042 | Estimated, unscored; 2.3x R27's out-of-span piece, tribal ratio 0.014 past truth |
-| R27 (main) | **0.062113403** | **Best confirmed** (estimated 0.062140156) |
+| R28b (`submission_push.csv`) | **0.062097808** | **Best confirmed** (estimated 0.062088042); 2.3x R27's out-of-span piece |
+| R27 | 0.062113403 | Confirmed (estimated 0.062140156) |
 | R25 | 0.062147723 | Confirmed (predicted 0.062117874) |
 | R26 (neural-network add-on) | 0.062236918 | Confirmed worse; removed |
 | R24 | 0.062185147 | Confirmed (no-signal estimate 0.062691) |
