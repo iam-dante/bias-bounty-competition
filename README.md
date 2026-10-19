@@ -1,6 +1,8 @@
 # Bias Bounty — R28 joint minimum-change update (with R27's score)
 
 Current best file: `submission_push.csv` (R28b). `submission.csv` is the ratio-faithful R28.
+`submission_data_only.csv` comes from `data_only.py`, a standalone physics model that uses
+no leaderboard feedback. See [METHOD.md](METHOD.md) for both approaches.
 
 ## Run
 
@@ -166,12 +168,14 @@ Reproduction inputs and scripts for this check are archived outside the repo:
 
 ## Minimal layout
 
-- `solution.py`: ridge fit, empirical-Bayes fit, blend and submission generation.
+- `solution.py`: calibrated model (ridge, empirical Bayes, scorecard updates) and submissions.
+- `data_only.py`: data-only physics model (data -> DuckDB features -> Monte-Carlo simulator); `--rebuild` recomputes features.
+- `METHOD.md`: technical write-up of both approaches.
 - `model.npz`: compressed frozen inputs and historical score record (2.7 MB).
 - `submission.csv`: the only submission to upload.
 - `submission_push.csv`: public-leaning variant (R28b), written on every run.
 - `validation.csv`: predicted vs actual score for every scored file (rewritten each run).
-- `requirements.txt`: NumPy, pandas and SciPy.
+- `requirements.txt`: NumPy, pandas, SciPy (+ DuckDB and scikit-learn for `data_only.py`).
 - `data/`: existing challenge data, preserved locally and ignored by Git.
 
 Old experiments, candidate submissions, raw-feature pipeline and detailed
