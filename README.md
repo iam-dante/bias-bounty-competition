@@ -17,6 +17,21 @@ bounded predictions, and the five published Paradise values.
 ## Model and evidence
 
 R25 = R23 + 0.844 x the scorecard component of R24 (`scorecard_step`).
+
+- **Neural-network ensemble (R26):** 10 seeds of a 205-64-32-1 MLP on permitted
+  tract features. There are no labels, so each network is trained to explain
+  the scored files' whitened signals and the 8 true scorecard ratios (moment
+  matching).
+  - **Validation:** chronological hold-out over the 30 files scored since
+    round 12 (train on earlier files only). Error vs no-model baseline -9.2%,
+    correlation +0.31 (sign-flip p = 0.034; p = 0.06 excluding the
+    scorecard-derived R24/R25).
+  - **What is used:** only the part outside the scored span, made neutral to
+    every scorecard constraint, at half strength (validated shrink about
+    1.1-1.25).
+  - **Expected score:** no-signal estimate 0.062251. If the network performs
+    as in hold-out, about 0.06203-0.06205.
+  - **Dropped:** LightGBM with the same custom loss diverged.
 R24 = R23 + a joint Bayesian update on the official Bias Scorecard.
 
 - **Calibrated step (R25):** R24's move splits into two orthogonal parts:
@@ -53,6 +68,13 @@ R23 = 0.4 x the R21 ridge fit + 0.6 x an empirical-Bayes posterior (R22 used 0.6
   (100 per setting), weight 0.6 gains 0.000105 private RMSE when the Bayesian
   model is right (better in 100% of folds), and loses 0.000026 if the unshrunk
   ridge fit were the truth. It also lowers the public estimate by 0.00001 vs 0.4.
+- **Tested and rejected, neural networks (R26):** a 10-seed MLP ensemble
+  trained by moment matching on 205 permitted features, the scored files'
+  signals and the true scorecard ratios. It passed a chronological hold-out
+  (-9% error, p = 0.03-0.06), but R26 (R25 + half of its out-of-span
+  correction) scored 0.062236918, matching its no-signal estimate (0.062251).
+  Along that direction the best step is 0.07 (z = 0.25), so there is no signal.
+  LightGBM with the same loss diverged.
 - **Tested and rejected:** a hybrid global/local shrinkage prior (no likelihood
   gain), and feature-kernel extrapolation from 205 permitted tract features
   (did not predict held-out probe scores). Overture building coverage against
@@ -67,6 +89,7 @@ Historical predictions are frozen features, not tract-level labels.
 | Result | Public RMSE | Status |
 |---|---:|---|
 | R25 (`submission.csv`) | **0.062147723** | **Best confirmed** (predicted 0.062117874) |
+| R26 (neural-network add-on) | 0.062236918 | Confirmed worse; removed |
 | R24 | 0.062185147 | Confirmed (no-signal estimate 0.062691) |
 | R23 | 0.062327384 | Confirmed (predicted 0.062330919) |
 | R22 | 0.062343029 | Confirmed (predicted 0.062370908) |

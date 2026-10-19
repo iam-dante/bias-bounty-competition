@@ -130,7 +130,7 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     D = w @ (Q * Q)
     group = np.array(["const" if names[i].startswith("probe_const") else
                       "probe" if probe_direction_of(names[i]) else
-                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24")) else "base" for i in keep])
+                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24", "r25", "r26")) else "base" for i in keep])
 
     def prior(x):
         tau_b, mu_b, tau_p, mu_p, alpha = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4])
@@ -216,7 +216,8 @@ def scorecard_step(lb, prior_mean=1.0, prior_sd=0.3):
     leaderboard estimate with the scorecard's claim that the full step is right."""
     g = lb.graded
     w = lb.pi / lb.pi.sum()
-    before = [f for f in lb.s if not f.startswith("probe_") and f != "r24_scorecard_joint.csv"]
+    order = list(lb.s)
+    before = [f for f in order[:order.index("r24_scorecard_joint.csv")] if not f.startswith("probe_")]
     X = np.column_stack([np.ones(g.sum())] + [lb.vec(f)[g] for f in before])
     gram = (X * w[:, None]).T @ X
     gram += 1e-7 * np.trace(gram) / X.shape[1] * np.eye(X.shape[1])
