@@ -1,6 +1,4 @@
-"""R26: R25 + a half-strength neural-network extrapolation (scorecard-neutral).
-
-R25: R23 + the leaderboard-calibrated scorecard component of R24.
+"""R25: R23 + the leaderboard-calibrated scorecard component of R24.
 
 R24 = R23 ensemble (ridge + empirical-Bayes moments) plus a joint update on the true scorecard ratios.
 
@@ -17,8 +15,6 @@ from scipy.optimize import minimize, minimize_scalar
 
 ROOT = Path(__file__).resolve().parent
 RIDGE = 0.2
-NN_WEIGHT = 0.5  # half the validated shrink (held-out evidence p ~ 0.06)
-NN_SEEDS = 10
 EB_WEIGHT = 0.6  # chosen on simulated 30/70 public/private folds (R22 scored better than predicted)
 P_PUBLIC = 0.3
 # Official Bias Scorecard disparity ratios (displayed to 2 decimals). LEADER is the
@@ -134,7 +130,7 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     D = w @ (Q * Q)
     group = np.array(["const" if names[i].startswith("probe_const") else
                       "probe" if probe_direction_of(names[i]) else
-                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24", "r25")) else "base" for i in keep])
+                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24", "r25", "r26")) else "base" for i in keep])
 
     def prior(x):
         tau_b, mu_b, tau_p, mu_p, alpha = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4])
@@ -152,9 +148,8 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
                  options=dict(maxiter=4000, xatol=1e-5, fatol=1e-7)).x
     mu, var, C = prior(x)
     theta = mu + var * D * np.linalg.solve(C, o - D * mu)
-    parts = dict(Q=Q, D=D, w=w, resid=o - D * mu, sd=np.sqrt(D**2 * var + np.exp(x[4]) * np.diag(N)), mu=mu, var=var)
     if scorecard is None:
-        return Q @ theta, np.exp(x), None, parts
+        return Q @ theta, np.exp(x), None
 
     # Joint update: each scorecard ratio is a linear constraint sum_i h_i y_i = rhs.
     # Group indicators are residualised against the scored span, so the update
@@ -187,7 +182,7 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     P, Cj, _ = joint(log_tau)
     phi = m0 + P * (M.T @ np.linalg.solve(Cj, obs))
     increment = Q @ phi[:k] + Ug @ phi[k:] - Q @ theta
-    return Q @ theta, np.exp(x), (increment, np.exp(log_tau)), parts
+    return Q @ theta, np.exp(x), (increment, np.exp(log_tau))
 
 
 def scorecard_inputs(lb, candidate):
@@ -211,78 +206,6 @@ def scorecard_inputs(lb, candidate):
         rhs.append(-h[~g] @ candidate[~g])          # ungraded rows held at our prediction
         R2.append((0.0029 * candidate[~m].mean()) ** 2 + np.sum(h[~g] ** 2) * 0.0624**2)
     return groups, np.array(H), np.array(rhs), np.array(R2)
-
-
-def tract_features(geoid):
-    """Standardised permitted tract features (Overture-derived counts and lengths,
-    ACS housing, strata) with per-area and per-housing-unit densities."""
-    F = pd.concat([pd.read_parquet(f) for f in sorted((ROOT / "data/features").glob("*.parquet")) if "facpts" not in f.name])
-    F = F.drop_duplicates("GEOID").set_index("GEOID").reindex(pd.Index(geoid.astype(str)))
-    region = F["region"].astype(str)
-    num = F.select_dtypes(include=[np.number]).copy()
-    num = num.drop(columns=[c for c in num.columns if re.search(
-        r"(_year|year_|_covered$|record_|window_|edition|vintage|STATEFP|COUNTYFP|frac_inside)", c)])
-    area = (F["area_m2"].astype(float) / 1e6).clip(lower=1e-3)
-    hu = F["housing_units"].astype(float).clip(lower=1)
-    for col in [c for c in num.columns if c.startswith(("L_", "Lb_", "n_"))]:
-        num[col + "_per_km2"] = num[col] / area
-        num[col + "_per_hu"] = num[col] / hu
-    num["hu_per_km2"] = hu / area
-    out = {}
-    for col in num.columns:
-        x = num[col].astype(float)
-        if x.notna().mean() < 0.5 or x.nunique() < 3:
-            continue
-        if x.min() >= 0 and x.skew() > 2:
-            x = np.log1p(x)
-        out[col] = ((x - x.mean()) / (x.std() + 1e-12)).fillna(0).clip(-5, 5)
-    X = pd.DataFrame(out)
-    for r in sorted(region.unique()):
-        X["reg_" + r] = (region == r).astype(float)
-    return X.to_numpy(dtype=np.float32)
-
-
-def nn_correction(lb, parts, scorecard, base, lam=0.03, seeds=NN_SEEDS, steps=300):
-    """Moment-matching MLP ensemble. Each network learns g(features) so that the
-    scored files' whitened signals and the true scorecard ratios are explained.
-    Chronological held-out validation (30 files): error -9 %, corr +0.31.
-    Only the part outside the scored span and neutral to every scorecard
-    constraint is returned, so R25's measured fit and ratios are unchanged."""
-    import torch
-    torch.set_num_threads(8)
-    g = lb.graded
-    Q, D, w, sd = parts["Q"], parts["D"], parts["w"], parts["sd"]
-    X = torch.from_numpy(tract_features(lb.geoid[g].to_numpy()))
-    A = torch.from_numpy(((Q * w[:, None]).T / sd[:, None]).astype(np.float32))
-    z = torch.from_numpy((parts["resid"] / sd).astype(np.float32))
-    groups, H, rhs, R2 = scorecard
-    Hs = torch.from_numpy((H / np.sqrt(R2)[:, None]).astype(np.float32))
-    rhs_s = torch.from_numpy((rhs / np.sqrt(R2)).astype(np.float32))
-    ref = torch.from_numpy((Q @ (parts["mu"] + parts["var"] * D * parts["resid"] / sd**2)).astype(np.float32))
-    nets = []
-    for seed in range(seeds):
-        torch.manual_seed(seed)
-        net = torch.nn.Sequential(torch.nn.Linear(X.shape[1], 64), torch.nn.Tanh(),
-                                  torch.nn.Linear(64, 32), torch.nn.Tanh(), torch.nn.Linear(32, 1))
-        with torch.no_grad():
-            net[-1].weight.mul_(0.01)
-            net[-1].bias.zero_()
-        opt = torch.optim.Adam(net.parameters(), lr=3e-3)
-        for _ in range(steps):
-            opt.zero_grad()
-            out = net(X).squeeze(1) * 0.01
-            loss = ((z - A @ out) ** 2).sum() + lam * (out**2).sum() / 0.01**2 / len(out) * 100
-            loss = loss + ((rhs_s - Hs @ (ref + out)) ** 2).sum()
-            loss.backward()
-            opt.step()
-        with torch.no_grad():
-            nets.append((net(X).squeeze(1) * 0.01).numpy().astype(float))
-    corr = np.mean(nets, axis=0)
-    for _ in range(2):                                   # outside the scored span
-        for j in range(Q.shape[1]):
-            corr -= (w @ (Q[:, j] * corr)) / D[j] * Q[:, j]
-    _, H_now, _, _ = scorecard_inputs(lb, base)          # neutral to every scorecard constraint
-    return corr - H_now.T @ np.linalg.solve(H_now @ H_now.T, H_now @ corr)
 
 
 def scorecard_step(lb, prior_mean=1.0, prior_sd=0.3):
@@ -372,15 +295,12 @@ def main() -> None:
 
     # Ensemble with the empirical-Bayes posterior; the weight was chosen on
     # simulated 30/70 public/private folds (robust if either model is right).
-    posterior, hyper, update, parts = eb_posterior(lb, candidate[graded], scorecard=scorecard_inputs(lb, candidate))
+    posterior, hyper, update = eb_posterior(lb, candidate[graded], scorecard=scorecard_inputs(lb, candidate))
     candidate[graded] = EB_WEIGHT * posterior + (1 - EB_WEIGHT) * candidate[graded] + update[0]
     candidate = finish(candidate, df["GEOID"])
     step = None
     if "r24_scorecard_joint.csv" in lb.s:
         candidate, step = scorecard_step(lb)
-        nn = nn_correction(lb, parts, scorecard_inputs(lb, candidate), candidate)
-        candidate[graded] += NN_WEIGHT * nn
-        candidate = finish(candidate, df["GEOID"])
 
     # Estimate the score by projecting onto historical predictions. This assumes
     # the unexplained remainder has no target signal; it is not independent CV.
@@ -406,7 +326,6 @@ def main() -> None:
     assert anchor_count == 5
     output.to_csv(OUTPUT, index=False)
     if step:
-        print(f"R26: R25 + {NN_WEIGHT} x neural-network extrapolation (RMS {NN_WEIGHT * np.sqrt(np.mean(nn**2)):.5f}, {NN_SEEDS} seeds)")
         print(f"R25: R23 + {step[2]:.3f} x scorecard component u (RMS {step[3]:.5f}); "
               f"leaderboard step {step[0]:.3f} +- {step[1]:.3f}, scorecard prior 1.0 +- 0.3")
     print(f"R24 pipeline: ridge ({len(directions)} directions, lambda={RIDGE}) + {EB_WEIGHT} x EB posterior; {len(output)} rows")
