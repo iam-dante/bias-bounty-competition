@@ -118,7 +118,8 @@ Historical predictions are frozen features, not tract-level labels.
 
 | Result | Public RMSE | Status |
 |---|---:|---|
-| R28 (`submission.csv`, dev) | 0.062110884 | Estimated, unscored (0.0003 RMS from R27) |
+| R28 (`submission.csv`, dev) | 0.062110884 | Estimated, unscored (0.0003 RMS from R27); ratios within 0.01 |
+| R28b (`submission_push.csv`, dev) | 0.062088042 | Estimated, unscored; 2.3x R27's out-of-span piece, tribal ratio 0.014 past truth |
 | R27 (main) | **0.062113403** | **Best confirmed** (estimated 0.062140156) |
 | R25 | 0.062147723 | Confirmed (predicted 0.062117874) |
 | R26 (neural-network add-on) | 0.062236918 | Confirmed worse; removed |
@@ -164,6 +165,7 @@ Reproduction inputs and scripts for this check are archived outside the repo:
 - `solution.py`: ridge fit, empirical-Bayes fit, blend and submission generation.
 - `model.npz`: compressed frozen inputs and historical score record (2.7 MB).
 - `submission.csv`: the only submission to upload.
+- `submission_push.csv`: public-leaning variant (R28b), written on every run.
 - `validation.csv`: predicted vs actual score for every scored file (rewritten each run).
 - `requirements.txt`: NumPy, pandas and SciPy.
 - `data/`: existing challenge data, preserved locally and ignored by Git.

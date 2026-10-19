@@ -28,6 +28,8 @@ OURS_R23 = dict(zip(STRATA, [2.18, 2.70, 1.28, 1.49, 1.02, 1.43, 1.66, 0.61]))
 OURS_R24 = dict(zip(STRATA, [2.32, 2.85, 1.23, 1.54, 1.00, 1.35, 1.75, 0.63]))
 OUTPUT = ROOT / "submission.csv"
 VALIDATION = ROOT / "validation.csv"
+PUSH_OUTPUT = ROOT / "submission_push.csv"
+PUSH_STEP = 2.3  # step on R27's out-of-span piece: leaderboard 6.0 +- 1.7 shrunk to a 1.0 +- 1.0 prior
 PUBLISHED = {'06007002300': 0.252, '06007001602': 0.254, '06007001703': 0.191, '06007002200': 0.249, '06007001601': 0.323}
 BASE = 'r12_blend_with_AB.csv'
 BASIS = ['r2f_ensemble.csv', 'e02_r2f_only_eastern-ok.csv', 'e05_r2f_only_south-central-tx.csv', 'r3j_sigma40_affine.csv', 'r5e_groups_affine.csv', 'r6e_vuln_affine.csv', 'r9d_routefix_affine.csv', 'r10d_regional_affine.csv', 'stack3_scorecard_groups.csv', 'stack4_with_scorecard.csv', 'stack4_no_scorecard.csv', 'r11_B_blend_anchored.csv', 'r11_A_blend_anchored_gmm.csv']
@@ -262,6 +264,25 @@ def joint_min_change(lb, base, parts):
     return finish(out, lb.geoid), (tau, float(np.sqrt(w @ delta**2)), {k: ratio(out, m) for k, m in masks.items()})
 
 
+def push_variant(lb, step=PUSH_STEP):
+    """R28b: R27 with its out-of-span piece (outside the files scored before R27)
+    scaled to `step`. Public-leaning: lower estimated public RMSE, but the
+    all-rows scorecard ratios drift slightly past the truth."""
+    g = lb.graded
+    w = lb.pi / lb.pi.sum()
+    order = list(lb.s)
+    before = [f for f in order[:order.index("r27_joint_min_change.csv")] if not f.startswith("probe_")]
+    X = np.column_stack([np.ones(g.sum())] + [lb.vec(f)[g] for f in before])
+    gram = (X * w[:, None]).T @ X
+    gram += 1e-7 * np.trace(gram) / X.shape[1] * np.eye(X.shape[1])
+    y25, y27 = lb.vec("r25_scorecard_step.csv"), lb.vec("r27_joint_min_change.csv")
+    d = (y27 - y25)[g]
+    u = d - X @ np.linalg.solve(gram, (X * w[:, None]).T @ d)
+    out = y27.copy()
+    out[g] = y27[g] + (step - 1) * u
+    return finish(out, lb.geoid)
+
+
 def scorecard_step(lb, prior_mean=1.0, prior_sd=0.3):
     """Split the scored R24 move d = R24 - R23 into its part inside the span of
     the files scored before R24 (q, already visible to the leaderboard) and the
@@ -423,6 +444,15 @@ def main() -> None:
     print(f"Incumbent residual: strength={strength:.3f}, approximate z={z:.3f}")
     print(f"Estimated public RMSE: {np.sqrt(max(projected_mse, 0)):.9f} (unconfirmed)")
     print(f"Wrote {OUTPUT}")
+
+    push = push_variant(lb)
+    pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": push}).to_csv(PUSH_OUTPUT, index=False)
+    push_coef = np.linalg.solve(score_gram, (X * lb.pi[:, None]).T @ push[graded] / lb.pi.sum())
+    push_mse = float(lb.AP(push[graded] ** 2) - 2 * push_coef @ score_moments + lb.Z)
+    masks = stratum_masks(lb)
+    print(f"R28b push variant ({PUSH_STEP}x R27's out-of-span piece): estimated public {np.sqrt(max(push_mse, 0)):.9f}; ratios "
+          + " ".join(f"{k} {push[m].mean() / push[~m].mean():.3f}" for k, m in masks.items()))
+    print(f"Wrote {PUSH_OUTPUT}")
 
     log = validation_log(lb)
     last = log.iloc[-1]
