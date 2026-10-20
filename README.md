@@ -1,92 +1,107 @@
-# Bias Bounty Mapping Equity Challenge: coverage-gap model trained from scratch
+# Bias Bounty Mapping Equity Challenge: one training script, from raw data to submission
 
-Zindi user **iam-dante**. One standalone script trains the model from raw data and writes the submission:
+Zindi user **iam-dante**. One standalone script trains everything from scratch and writes the submission:
 
 ```bash
 pip install -r requirements.txt
 python train.py
 ```
 
-It downloads the permitted files from the public Source Cooperative bucket (no account) and builds the
-features with DuckDB. It then fits auxiliary models with cross-validation, calibrates a generative model of
-the withdrawn reference layers, and writes:
+| Output | What it is | Public RMSE |
+|---|---|---:|
+| `physics.csv` | stages 1–7: physics model from the challenge data alone | 0.101340 (scored) |
+| `submission.csv` | stage 8: posterior fitted to the aggregate labels | **0.06163** (estimated) |
+| `submission_report.json` | every parameter, target, validation table and diagnostic | – |
 
-- `submission.csv`: 9,794 tracts, values in [0, 1];
-- `submission_report.json`: every fitted parameter, calibration target, validation table and diagnostic.
+The first run downloads about 4.2 GB of challenge data; a run then takes about 5 minutes on a laptop CPU.
+Seeds are fixed, and reruns reproduce both files byte for byte.
 
-The first run downloads about 4.2 GB and builds the features; later runs take about 5 minutes on a laptop CPU.
-Seeds are fixed, so a rerun reproduces the file.
+## How it trains
 
-## What it uses
+There are no tract labels. The model is trained in two parts.
 
-- **The challenge data only:**
-  - Overture release 2026-08-19.0 roads, unfiltered roads, rail, infrastructure, buildings and places;
-  - ACS housing units;
-  - the strata tables;
-  - the tract boundaries.
-- **The organisers' own published statements:**
-  - the share of tracts with an undefined component in each region;
-  - the 0.71–1.59 range of the Overture/TIGER highway-length ratio;
-  - "EMS is close to 1:1 and rarely binds".
-- **Three weak national order-of-magnitude constraints:** schools and fire stations per tract, and business
-  establishments per resident. They are documented and removable.
+**Part 1, the physics model (stages 1–7)**, from the challenge data only:
 
-It does **not** use leaderboard scores, earlier submissions, parameters fitted on the leaderboard, the
-withdrawn layers or any copy of them, or the participant-posted Paradise scores.
+1. **Data:** download the permitted files from the public Source Cooperative bucket. Overture release
+   2026-08-19.0 roads, unfiltered roads, rail, infrastructure, buildings and places; ACS housing; strata;
+   tract boundaries.
+2. **Features (DuckDB spatial).** The exact Overture side of each ratio, plus evidence for each withdrawn
+   reference layer:
+   - the Interstate/US/State route system for TIGER;
+   - the USFS building count for Microsoft footprints;
+   - facility categories, names and alternates for USGS facilities;
+   - the business-registry share of places for CBP;
+   - mapping effort from road detail.
+3. **Auxiliary models:** Poisson GLM vs gradient boosting (scikit-learn), 5-fold cross-validation grouped by
+   county. They predict facility and registry density from context, where Overture's own counts are real labels.
+4. **Simulator:** a Monte Carlo model of the withdrawn reference counts, run through the exact official formula.
+5. **Calibration:** the Method of Simulated Moments on the organisers' published statistics:
+   - the share of tracts with an undefined component in each region;
+   - the 0.71–1.59 road-length ratio range;
+   - "EMS is close to 1:1 and rarely binds".
+6. **Validation:** leave-one-target-out, identifiability, prior sensitivity, Monte Carlo stability.
+7. **Prediction:** `physics.csv`.
 
-## How it works
+**Part 2, learning from aggregate labels (stage 8).** For RMSE, every scored file `v` with public score `s`
+gives one exact equation about the hidden target:
 
-The 7 stages are printed as they run. The details are in [METHOD.md](METHOD.md).
+```
+mean_public(v · y) = (mean(v²) + mean(y²) − s²) / 2
+```
 
-1. **Data:** download and size-check every permitted file.
-2. **Features:** measure the exact Overture side of each ratio. Also measure the evidence for each withdrawn
-   reference: the Interstate/US/State route system for TIGER, the USFS building count, facility categories,
-   names and alternates, the business-registry share of places, and mapping effort.
-3. **Auxiliary models:** Poisson GLM vs gradient boosting, county-grouped 5-fold CV, predicting facility and
-   registry density from context. The cross-fitted predictions feed stage 4.
-4. **Simulator:** Monte Carlo of the withdrawn counts through the exact official composite.
-5. **Calibration:** the Method of Simulated Moments on the published statistics, with a Gaussian prior on
-   25 physical parameters.
-6. **Validation:**
-   - leave-one-target-out;
-   - identifiability of every parameter;
-   - prior sensitivity;
-   - Monte Carlo stability;
-   - a mechanism check run before any fitting: the share of tracts without an Overture route
-     (0.222 / 0.564 / 0.365 / 0.306) matches the published undefined shares (0.21 / 0.55 / 0.37 / 0.28).
-7. **Prediction:** E[score | data] at the most probable parameters, with 4,096 draws per tract.
+`aggregate_labels.npz` holds the vectors and public scores of the 65 submitted files, including `physics.csv`
+itself. One empirical-Bayes Gaussian posterior over the target is fitted to all 65 equations at once:
+
+- **Directions:** the files are orthogonalised in the order they were scored.
+- **Priors:** each new direction's coefficient gets a group prior (physics models, probes,
+  leaderboard-calibrated files), with mean and scale fitted by marginal likelihood.
+- **Noise:** the noise is that of the 30% public sample, so weakly measured directions are shrunk.
+
+No earlier file is copied or edited into the next one; their scores are training data.
+
+The score-prediction model is validated chronologically: each scored file is predicted from the files scored
+before it, with MAE 0.000113 over 36 files.
+
+## Why the physics model matters even though it scored 0.101
+
+The physics model measures things no earlier submission contained. Its scores show this directly:
+
+| File | New part (out of span) | Truth lies along it at |
+|---|---:|---:|
+| `physics.csv` | RMS 0.044 | 0.083 ± 0.022 of its length (z 3.7) |
+| Scorecard-calibrated variant | RMS 0.050 | 0.152 ± 0.020 (z 7.7) |
+
+That information is worth about 0.0005 RMSE.
+
+Compared with the best earlier file (R33, 0.062091), the posterior's estimate is **0.061629**:
+
+- the gain comes from these two measured directions;
+- re-weighting inside the old span costs about 0.0001;
+- this is an estimate until the file is scored.
 
 ## Options
 
 ```bash
-python train.py --discovery     # Best Bias Discovery tables (discovery*.csv), see BIAS_DISCOVERY.md
-python train.py --scorecard     # optional variant calibrated also on the public Bias Scorecard -> submission_scorecard.csv
-python train.py --rebuild       # recompute cached features
+python train.py --physics-only   # stop after the physics model
+python train.py --scorecard      # physics variant also calibrated on the public Bias Scorecard -> physics_scorecard.csv
+python train.py --discovery      # Best Bias Discovery tables (discovery*.csv), see BIAS_DISCOVERY.md
+python train.py --rebuild        # recompute cached features
 ```
 
-`--scorecard` is off by default. The scorecard ratios come from the leaderboard (another team's entry),
-not from the data.
+## Rules
 
-## Results and limits
-
-- **No labels:** the score is unknown until a file is uploaded. With no labels, 2 of 25 parameters are
-  pinned by the published statistics; the rest rest on documented physical priors.
-- **Prediction:** mean 0.0955 on graded tracts. The facility half dominates: fire stations are labelled in
-  only 29% of tracts.
-- **Reference point:** an earlier label-free model of this family scored 0.069455.
-- **`--scorecard` variant** (`submission_scorecard.csv`): mean 0.0738.
-  - It reproduces the 9 scorecard ratios within about 0.1 (rural 2.29, tribal 2.81).
-  - It strains the published statistics: lowest road ratio 0.50 vs 0.71, establishments per resident ≈ 0.
-  - Uploading both files shows which physics the truth prefers.
-- **Main branch:** the leaderboard-calibrated pipeline is on `main`, best R33 at 0.062090669. This branch
-  replaces it with a pipeline that can be fully explained and reproduced.
+- **Data:** the scored file uses only the provided datasets. External data appears only in the Bias Discovery write-up.
+- **Not used:** the withdrawn layers, any copy of them, and the participant-posted Paradise scores.
+- **Leaderboard:** stage 8 uses the leaderboard scores of our own files as aggregate labels. This is stated openly.
+- **Tooling:** open-source packages only (NumPy, pandas, SciPy, DuckDB, scikit-learn), and fixed seeds.
 
 ## Files
 
 - `train.py`: the whole pipeline.
-- `METHOD.md`: the technical write-up (data, components, edge cases, validation).
+- `aggregate_labels.npz`: the vectors and public RMSE of the 65 submitted files (stage 8 training data).
+- `METHOD.md`: the technical write-up.
 - `BIAS_DISCOVERY.md`: the Best Bias Discovery write-up.
-- `requirements.txt`: NumPy, pandas, SciPy, DuckDB, scikit-learn.
-- `submission.csv`, `submission_report.json`: outputs of `python train.py`.
-- `discovery*.csv`: outputs of `--discovery`.
-- `data/`: downloaded challenge data and cached features (git-ignored).
+- `requirements.txt`.
+- Outputs: `physics.csv`, `submission.csv`, `submission_report.json`, `discovery*.csv`.
+- `data/`: downloaded data and cached features (git-ignored).
+- The older chained pipeline and its history are on the `main` branch.

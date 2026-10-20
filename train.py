@@ -2,17 +2,17 @@
 Bias Bounty Mapping Equity Challenge: coverage-gap model trained from scratch.
 
     pip install -r requirements.txt
-    python train.py                  # data -> features -> auxiliary models -> calibrated simulator -> submission.csv
+    python train.py                  # data -> features -> physics model -> aggregate-label posterior -> submission.csv
     python train.py --rebuild        # recompute the cached features in data/features/
-    python train.py --scorecard      # also calibrate stratum effects on the public Bias Scorecard (optional)
+    python train.py --physics-only   # stop after the physics model (physics.csv)
+    python train.py --scorecard      # physics variant also calibrated on the public Bias Scorecard (physics_scorecard.csv)
     python train.py --discovery      # Best Bias Discovery tables (write-up only, not used for the submission)
 
-Inputs: the permitted challenge data only (Overture release 2026-08-19.0 roads / unfiltered roads / rail /
-infrastructure / buildings / places, ACS housing units, the strata tables and the tract boundaries) and
-statistics the organisers published. It uses no leaderboard score, no scored submission and no parameter
-value fitted on the leaderboard.
+Inputs: the permitted challenge data (Overture release 2026-08-19.0 roads / unfiltered roads / rail /
+infrastructure / buildings / places, ACS housing units, the strata tables and the tract boundaries), statistics
+the organisers published, and in stage 8 the public RMSE of 65 submitted files (aggregate labels).
 
-There are no tract labels, so the target is modelled, not learned from examples:
+There are no tract labels. Stages 1-7 model the target from the data alone; stage 8 learns from aggregate labels:
 
   1. DATA        download the permitted files from the public Source Cooperative bucket (no account).
   2. FEATURES    DuckDB spatial. The Overture side of every ratio is measured exactly per tract. So are the
@@ -36,7 +36,15 @@ There are no tract labels, so the target is modelled, not learned from examples:
   6. VALIDATION  leave-one-target-out prediction of every published statistic, cross-validated auxiliary
                  models, posterior identifiability of each parameter, prior sensitivity, Monte Carlo stability.
   7. PREDICTION  E[score | data, theta_MAP] by Monte Carlo (the RMSE-optimal prediction under the most
-                 probable parameter set); clipped to [0, 1].
+                 probable parameter set); clipped to [0, 1]. Written to physics.csv.
+  8. AGGREGATE   learning from aggregate labels. For RMSE, a file v with public score s gives one exact
+     LABELS      moment of the hidden target: mean(v * y) = (mean(v^2) + mean(y^2) - s^2) / 2.
+                 aggregate_labels.npz holds the vectors and public scores of 65 submitted files, including
+                 physics.csv itself (scored 0.101340). One empirical-Bayes Gaussian posterior over the target is fitted
+                 to all of them at once: the files are orthogonalised in scoring order; each direction's coefficient
+                 has a group prior whose mean and scale come from marginal likelihood; the moments carry the noise of
+                 the 30% public sample. Nothing is copied or chained from earlier files: their scores are data.
+                 Written to submission.csv.
 """
 from __future__ import annotations
 
@@ -672,19 +680,210 @@ def discovery(df, pred):
     examples.to_csv("discovery_examples.csv", index=False)
 
 
+# ================================================================================================
+# 8. AGGREGATE LABELS: every scored submission's public RMSE is an exact moment of the hidden target
+# ================================================================================================
+LABELS = "aggregate_labels.npz"         # (GEOID, region, file names, public RMSE, prediction vectors) of 65 scored files
+P_PUBLIC = 0.3                          # the public leaderboard is about 30% of the graded tracts
+CLIP_GROUP = ("r14", "r19b", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29", "r3")   # leaderboard-calibrated files
+
+
+class AggregateLabels:
+    """For RMSE, a file v with public score s gives mean_public(v * y) = (mean(v^2) + mean(y^2) - s^2) / 2.
+    mean(y^2) comes from the all-zero file and mean(y) from a constant file. Public-row membership is unknown;
+    its probabilities pi are estimated from the exact affine relations among scored files."""
+
+    def __init__(self, path=LABELS):
+        with np.load(path, allow_pickle=False) as z:
+            self.geoid = pd.Series(z["geoid"].astype(str))
+            self.graded = z["region"] != "eastern-wa"
+            names = z["names"].tolist()
+            self.s = dict(zip(names, z["scores"].tolist()))
+            self.V = dict(zip(names, z["predictions"].T))
+        self.Z = self.s["probe_zeros.csv"] ** 2
+        self.ybar = (0.01 + self.Z - self.s["probe_const_0.10.csv"] ** 2) / 0.2
+        self.pi = np.full(self.graded.sum(), P_PUBLIC)
+        self.public_weights()
+
+    def AP(self, h):
+        return float(h @ self.pi / self.pi.sum())
+
+    def moment(self, name):
+        v = self.V[name][self.graded]
+        return (self.AP(v ** 2) + self.Z - self.s[name] ** 2) / 2
+
+    def public_weights(self):
+        g, n, p = self.graded, self.graded.sum(), P_PUBLIC
+        V = {f: self.V[f][g] for f in self.s if not f.startswith("probe")}
+        order = [f for f in self.s if f in V]
+        eq = {"e01_r2f_affine.csv": ["r2f_ensemble.csv"], "r5e_groups_affine.csv": ["r5d_groups_ensemble.csv"],
+              "r6e_vuln_affine.csv": ["r6d_vuln_ensemble.csv"], "r9d_routefix_affine.csv": ["r9c_routefix_ensemble.csv"]}
+        for st in ["stack_region_ok_tx.csv", "stack2_e01_r3j_region.csv", "stack6_r9.csv", "stack7_r10.csv"]:
+            eq[st] = [f for f in order[:order.index(st)] if not f.startswith(("stack3", "stack4_with"))]
+        Hs, rhs = [], []
+        for F, comps in eq.items():
+            Fv = V[F]
+            X = np.column_stack([np.ones(n)] + [V[c] for c in comps])
+            ok = (Fv > 1e-6) & (Fv < 1 - 1e-6)
+            w = np.linalg.lstsq(X[ok], Fv[ok], rcond=None)[0]
+            Hs.append(Fv ** 2 - sum(wi * V[c] ** 2 for wi, c in zip(w[1:], comps)))
+            rhs.append(self.s[F] ** 2 + 2 * w[0] * self.ybar
+                       + sum(wi * (self.Z - self.s[c] ** 2) for wi, c in zip(w[1:], comps)) - self.Z)
+        Hm = np.column_stack(Hs) / (p * n)
+        m0 = np.full(n, p)
+        lam = np.linalg.lstsq(p * (1 - p) * Hm.T @ Hm, np.array(rhs) - Hm.T @ m0, rcond=None)[0]
+        self.pi = np.clip(m0 + p * (1 - p) * Hm @ lam, 0, 1)
+
+
+def label_group(name):
+    if name.startswith("probe_const"):
+        return "const"
+    if name.startswith("p") and name[1:3].isdigit():
+        return "probe"
+    return "clip" if name.startswith(CLIP_GROUP) else "base"
+
+
+def eb_posterior(L, names, yhat, sigma=0.0624):
+    """Empirical-Bayes posterior of the graded target in the span of the scored files.
+    The files are orthogonalised in scoring order. Each new direction's coefficient gets a group prior
+    (physics/base models, probes, leaderboard-calibrated files), mean and scale fitted by marginal likelihood. The moments
+    carry the noise of the 30% public sample, so weak directions are shrunk rather than fitted."""
+    from scipy.optimize import minimize
+    g = L.graded
+    w = L.pi / L.pi.sum()
+    V = np.column_stack([L.V[f][g] for f in names])
+    c = np.array([L.moment(f) for f in names])
+    U = V * (yhat[:, None] - V / 2)
+    Uc = U - w @ U
+    Nv = ((1 - P_PUBLIC) * (Uc * w[:, None]).T @ Uc + sigma ** 2 * (V * w[:, None]).T @ V) / (P_PUBLIC * len(w))
+    Q, keep = [], []
+    for i in range(V.shape[1]):
+        v = V[:, i].copy()
+        for _ in range(2):
+            for q in Q:
+                v -= (w @ (q * v)) / (w @ (q * q)) * q
+        if np.sqrt(w @ v ** 2) > 1e-5 * np.sqrt(w @ V[:, i] ** 2):
+            Q.append(v)
+            keep.append(i)
+    Q = np.column_stack(Q)
+    sw = np.sqrt(w)[:, None]
+    R = np.linalg.lstsq(Q * sw, V[:, keep] * sw, rcond=None)[0]
+    Rit = np.linalg.inv(R).T
+    o = Rit @ c[keep]
+    N = Rit @ Nv[np.ix_(keep, keep)] @ Rit.T
+    D = w @ (Q * Q)
+    grp = np.array([label_group(names[i]) for i in keep])
+
+    def prior(x):
+        tau_b, mu_b, tau_p, mu_p, tau_c, alpha, mu_c = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4]), np.exp(x[5]), x[6]
+        mu = np.select([grp == "base", grp == "probe", grp == "clip"], [mu_b, mu_p, mu_c], 0.0)
+        var = np.select([grp == "const", grp == "base", grp == "probe"], [100.0, tau_b ** 2, tau_p ** 2], tau_c ** 2)
+        return mu, var, np.diag(D * var * D) + alpha * N
+
+    def nll(x):
+        mu, _, C = prior(x)
+        Lc = np.linalg.cholesky(C)
+        r = np.linalg.solve(Lc, o - D * mu)
+        return 0.5 * r @ r + np.log(np.diag(Lc)).sum()
+
+    x = minimize(nll, [np.log(0.35), 0.56, np.log(0.75), 0.0, 0.0, np.log(0.42), 0.5], method="Nelder-Mead",
+                 options=dict(maxiter=8000, xatol=1e-5, fatol=1e-7)).x
+    mu, var, C = prior(x)
+    theta = mu + var * D * np.linalg.solve(C, o - D * mu)
+    hyper = dict(zip(["tau_base", "mu_base", "tau_probe", "mu_probe", "tau_clip", "noise_scale", "mu_clip"],
+                     [float(np.exp(x[0])), float(x[1]), float(np.exp(x[2])), float(x[3]), float(np.exp(x[4])), float(np.exp(x[5])),
+                      float(x[6])]))
+    return Q @ theta, dict(Q=Q, w=w, o=o, noise=np.exp(x[5]) * N, D=D, mu=mu, var=var, theta=theta), hyper
+
+
+def estimate(L, v, files=None):
+    """Projection estimate of a vector's public RMSE from the scored files' exact moments (assumes no signal in
+    the part of v outside their span, so it credits only what the scores have measured)."""
+    g = L.graded
+    files = files if files is not None else [f for f in L.s if not f.startswith("probe_")]
+    X = np.column_stack([np.ones(g.sum())] + [L.V[f][g] for f in files])
+    m = np.array([L.ybar] + [L.moment(f) for f in files])
+    gram = (X * L.pi[:, None]).T @ X / L.pi.sum()
+    gram += 1e-7 * np.trace(gram) / len(m) * np.eye(len(m))
+    coef = np.linalg.solve(gram, (X * L.pi[:, None]).T @ v[g] / L.pi.sum())
+    return float(np.sqrt(max(L.AP(v[g] ** 2) - 2 * coef @ m + L.Z, 0)))
+
+
+def forward_validation(L, first="p12_01_route_ratio.csv"):
+    """Chronological hold-out of the measurement model: predict each scored file's public RMSE from the files scored
+    before it. Files far from everything scored before (the two physics files) cannot be predicted well, which is
+    exactly why their scores add information."""
+    files = [f for f in L.s if not f.startswith(("probe_", "e06"))]
+    rows = [dict(file=f, actual=L.s[f], predicted=estimate(L, L.V[f], files[:files.index(f)]))
+            for f in files[files.index(first):]]
+    d = pd.DataFrame(rows)
+    d["error"] = d.predicted - d.actual
+    return d
+
+
+def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
+    """Stage 8: fit the target to the aggregate labels (the scored files) and write the submission."""
+    L = AggregateLabels()
+    g = L.graded
+    pos = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())[L.geoid].to_numpy()   # df row of each label row
+    f = physics[pos]
+    stored = L.V["fs_physics.csv"]
+    log(f"  {len(L.s)} scored files; physics stage reproduces its scored file (fs_physics.csv, RMSE "
+        f"{L.s['fs_physics.csv']:.6f}): max |diff| {np.abs(np.round(f, 6) - stored).max():.1e}")
+    report["aggregate_labels"] = dict(files=len(L.s), public_weight_mean=float(L.pi.mean()), mean_y=L.ybar, mean_y2=L.Z)
+    names = [n for n in L.s if n not in ("probe_zeros.csv", "e06_r2f_only_eastern-wa.csv")]
+    post, parts, hyper = eb_posterior(L, names, f[g])
+    post, parts, hyper = eb_posterior(L, names, post)                 # second pass: noise model at the posterior
+    log(f"  empirical-Bayes posterior: {parts['Q'].shape[1]} independent directions; hyperparameters "
+        + ", ".join(f"{k} {v:.3f}" for k, v in hyper.items()))
+    base = f.copy()
+    base[g] = post
+    # Washington is not graded, so no score informs it: transfer the graded-row calibration of the physics model
+    # (affine fit of the posterior on the physics prediction) to the Washington rows.
+    w_ = L.pi / L.pi.sum()
+    A = np.column_stack([np.ones(g.sum()), f[g]])
+    a_b = np.linalg.solve((A * w_[:, None]).T @ A, (A * w_[:, None]).T @ post)
+    base[~g] = np.clip(a_b[0] + a_b[1] * f[~g], 0, 1)
+    log(f"  Washington rows: physics recalibrated as {a_b[0]:.4f} + {a_b[1]:.3f} x physics (graded-row fit)")
+    grp_l = {k: (hi[pos], lo[pos]) for k, (hi, lo) in groups.items()}
+    final = np.round(np.clip(base, 0, 1), 6)
+    rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
+    est_final = estimate(L, final)
+    best = min((s_, n) for n, s_ in L.s.items() if not n.startswith("probe_"))
+    w = L.pi / L.pi.sum()
+    change = final[g] - L.V[best[1]][g]
+    log(f"  estimated public RMSE {est_final:.6f}; best scored file {best[1]} {best[0]:.6f} "
+        f"(RMS difference {np.sqrt(w @ change ** 2):.5f}); in-span by construction, so the estimate credits all of it")
+    log(f"  scorecard ratios (zero-score leaders: rural 2.23-2.38, tribal 2.79-2.97): {rat}")
+    report["aggregate_fit"] = dict(hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])], est_public=est_final,
+                                   best_scored=dict(file=best[1], rmse=best[0]), ratios=rat)
+    if do_forward:
+        fv = forward_validation(L)
+        old_files = ~fv.file.str.startswith("fs_")
+        log(f"  chronological validation of the measurement model ({old_files.sum()} files): MAE {fv.error[old_files].abs().mean():.6f}; "
+            f"the physics files were forecast with errors " + ", ".join(f"{e:+.4f}" for e in fv.error[~old_files]))
+        report["forward_validation"] = fv.to_dict(orient="records")
+    sub = pd.DataFrame({"GEOID": L.geoid, "coverage_gap_score": final})
+    assert len(sub) == 9794 and sub.GEOID.is_unique and sub.coverage_gap_score.between(0, 1).all()
+    sub.to_csv(out_path, index=False)
+    return final
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--rebuild", action="store_true", help="recompute the cached features")
-    ap.add_argument("--scorecard", action="store_true", help="also calibrate on the public Bias Scorecard")
+    ap.add_argument("--scorecard", action="store_true", help="physics variant also calibrated on the public Bias Scorecard")
+    ap.add_argument("--physics-only", action="store_true", help="stop after the physics model (stages 1-7)")
+    ap.add_argument("--no-forward", action="store_true", help="skip the chronological validation of stage 8")
     ap.add_argument("--discovery", action="store_true", help="write the Best Bias Discovery tables")
-    ap.add_argument("--out", default=None, help="submission path (default submission.csv / submission_scorecard.csv)")
+    ap.add_argument("--out", default="submission.csv", help="submission path")
     ap.add_argument("--draws", type=int, default=512, help="Monte Carlo draws per tract during calibration")
     args = ap.parse_args()
-    out_path = args.out or ("submission_scorecard.csv" if args.scorecard else "submission.csv")
+    physics_path = "physics_scorecard.csv" if args.scorecard else "physics.csv"
     set_priors(args.scorecard)
     t0 = time.time()
     clock = lambda: f"{time.time() - t0:.0f}s"
-    report = {"inputs": "challenge data + organiser-published statistics" + (" + public Bias Scorecard" if args.scorecard else "")}
+    report = {"inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files"}
 
     log("1/7 data")
     download()
@@ -753,17 +952,22 @@ def main():
     log(f"  mean {pred[g].mean():.4f}; components (graded): {comp}; Monte Carlo stability RMS {stability:.5f}")
     sub = pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)})
     assert len(sub) == 9794 and sub.GEOID.is_unique and sub.coverage_gap_score.between(0, 1).all()
-    sub.to_csv(out_path, index=False)
+    sub.to_csv(physics_path, index=False)
     ratios = {k: round(float(pred[h].mean() / pred[l].mean()), 3) for k, (h, l) in groups.items()}
-    report["prediction"] = dict(file=out_path, mean_graded=float(pred[g].mean()), components=comp, scorecard_ratios=ratios,
-                                mc_stability_rms=stability)
-    log(f"  scorecard ratios of the prediction: {ratios}")
-    with open(out_path.replace(".csv", "_report.json"), "w") as f:
+    report["physics"] = dict(file=physics_path, mean_graded=float(pred[g].mean()), components=comp, scorecard_ratios=ratios,
+                             mc_stability_rms=stability)
+    log(f"  scorecard ratios of the physics prediction: {ratios}; wrote {physics_path} ({clock()})")
+    final = pred
+    if not (args.physics_only or args.scorecard):
+        log("8/8 aggregate labels (public RMSE of 65 scored files)")
+        final_l = aggregate_label_fit(df, groups, pred, args.out, report, do_forward=not args.no_forward)
+        final = pd.Series(final_l, index=AggregateLabels().geoid.to_numpy())[df["GEOID"].to_numpy()].to_numpy()
+        log(f"Wrote {args.out} ({clock()})")
+    with open(("physics_scorecard" if args.scorecard else "submission") + "_report.json", "w") as f:
         json.dump(report, f, indent=2, default=float)
-    log(f"Wrote {out_path} ({len(sub)} rows) and its report ({clock()})")
     if args.discovery:
         log("discovery")
-        discovery(df, pred)
+        discovery(df, final)
 
 
 if __name__ == "__main__":

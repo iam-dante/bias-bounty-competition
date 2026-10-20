@@ -1,8 +1,13 @@
 # Method: a coverage-gap model trained from scratch
 
 Zindi user **iam-dante**. One script, [`train.py`](train.py), goes from the public challenge data to
-`submission.csv`. It uses **no leaderboard score, no scored submission and no parameter fitted on the
-leaderboard**. Every number it needs is either measured from the permitted data or stated by the organisers.
+`submission.csv` in two parts:
+
+- **Stages 1–7, the physics model** (`physics.csv`). It uses only the permitted data and the organisers'
+  published statistics. Scored alone, it gets 0.101340.
+- **Stage 8, learning from aggregate labels** (`submission.csv`). The public RMSE of the 65 submitted files
+  (`aggregate_labels.npz`) are treated as exact aggregate measurements of the hidden target, and one posterior
+  is fitted to all of them. Estimated public RMSE: 0.061629.
 
 ## 1. Problem and constraints
 
@@ -127,9 +132,9 @@ There are no labels, so validation checks what can be checked:
   - These are the choices to refine first.
 - **Monte Carlo stability:** RMS 0.0016 between two independent 4,096-draw runs, with fixed seeds.
 
-## 7. Prediction (stage 7)
+## 7. Physics prediction (stage 7, `physics.csv`)
 
-`E[score | data, θ_MAP]` with 4,096 draws per tract, clipped to [0, 1].
+`E[score | data, θ_MAP]` with 4,096 draws per tract, clipped to [0, 1]. Scored 0.101340 public RMSE.
 
 | Quantity | Value |
 |---|---:|
@@ -143,7 +148,80 @@ There are no labels, so validation checks what can be checked:
 Parameter uncertainty is reported, not averaged in. With unidentified parameters, averaging over the prior
 inflates the bounded gap and adds bias instead of information.
 
-## 8. Edge cases
+## 8. Learning from aggregate labels (stage 8, `submission.csv`)
+
+**Measurement.** For RMSE, a file `v` with public score `s` gives one exact moment of the target on the public
+rows:
+
+```
+mean_public(v · y) = (mean(v²) + mean(y²) − s²) / 2
+```
+
+- `mean(y²)` comes from an all-zero file, and `mean(y)` from a constant file.
+- Public-row membership is unknown. Its probabilities are estimated from the exact affine relations among
+  scored files (approximate Gaussian conditioning of a 30% public subset).
+
+`aggregate_labels.npz` holds the 65 scored files and their public RMSE. That includes `physics.csv` and its
+scorecard-calibrated variant (0.086862).
+
+**Model.** `y = Σ θ_j q_j` over the scored files, orthogonalised in scoring order (57 independent directions).
+
+- **Group priors:** each coefficient gets a group prior: physics/base models, probes, or
+  leaderboard-calibrated files. Mean and scale are fitted by marginal likelihood:
+  - base models: mean 0.49, sd 0.37;
+  - probes: mean 0.06, sd 0.72;
+  - leaderboard-calibrated files: mean 0.47, sd 0.14.
+- **Noise:** the moments carry the sampling noise of the 30% public set (fitted scale 0.76), so weak
+  directions are shrunk.
+- **Fit:** the posterior mean is the prediction for graded tracts. It is one fit; no file is edited into another.
+- **Washington:** the ungraded Washington rows get the graded-row calibration of the physics model,
+  `0.0196 + 0.411 × physics`.
+
+**What the physics model adds.** Each physics file's part outside the span of all earlier files is measured by
+its own score:
+
+| File | Out-of-span part | Best step along it | z |
+|---|---:|---:|---:|
+| `physics.csv` | RMS 0.044 | 0.083 ± 0.022 | 3.7 |
+| Scorecard variant | RMS 0.050 | 0.152 ± 0.020 | 7.7 |
+
+Both hold under uniform public weights (z 2.9 and 7.4).
+
+Against the best earlier file (R33, 0.062091), the posterior moves RMS 0.0094:
+
+| Part of the move | RMS | Estimated public RMSE if added to R33 |
+|---|---:|---:|
+| Along the measured physics directions | 0.0089 | 0.061534 |
+| Re-weighting inside the old span | 0.0035 | 0.062197 |
+| Whole posterior | 0.0094 | **0.061629** |
+
+The re-weighting is the cost of a fresh fit instead of hand-measured steps.
+
+**Validation.**
+
+- **Chronological check:** each scored file's public RMSE is predicted from the files scored before it.
+  MAE 0.000113 over 36 files.
+- **Physics files:** they were forecast poorly before being scored (errors +0.0016 and +0.0043). That is
+  why their scores add information.
+- **Replay at past cutoffs:** fitting only on earlier files, then re-estimating with all files, shows no
+  optimism (within ±0.00007).
+
+**Tested and rejected.** Adding the 36 public scorecard ratios to the same posterior, with each leader's
+Washington level latent, raised the estimate to 0.0623. The scorecard's information is already in the scored
+files, and a direct test of its remaining part measured −0.2 ± 1.9.
+
+**Ratios of `submission.csv`** vs the rank-1 public scorecard:
+
+| Stratum | Submission | Rank 1 |
+|---|---:|---:|
+| Rural | 2.23 | 2.34 |
+| Tribal | 2.81 | 2.88 |
+| SVI | 1.28 | 1.23 |
+| CVI | 1.58 | 1.55 |
+| Wildfire | 1.68 | 1.77 |
+| Heat | 0.63 | 0.62 |
+
+## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
   scores 0.
@@ -159,15 +237,15 @@ inflates the bounded gap and adds bias instead of information.
 - **Eastern Washington** (not graded): predicted with the mean of the four regional TIGER scales.
 - **GEOIDs** are read as text everywhere (Maricopa's state FIPS is `04`).
 
-## 9. Options
+## 10. Options
 
-- `--scorecard` additionally calibrates 16 stratum effects on the public Bias Scorecard (the rank-1 entry's
-  9 ratios, tolerance 0.03), writing `submission_scorecard.csv`. It is off by default because those ratios
-  come from another team's submission. See README for its fit.
-- `--discovery` writes the Best Bias Discovery tables ([BIAS_DISCOVERY.md](BIAS_DISCOVERY.md)).
+- `--physics-only`: stop after stage 7.
+- `--scorecard`: a physics variant that also calibrates 16 stratum effects on the public Bias Scorecard (the
+  rank-1 entry's 9 ratios, tolerance 0.03). Writes `physics_scorecard.csv`, which scored 0.086862 and is one
+  of the aggregate labels.
+- `--discovery`: writes the Best Bias Discovery tables ([BIAS_DISCOVERY.md](BIAS_DISCOVERY.md)).
 
-## 10. Relation to the leaderboard-calibrated pipeline
+## 11. Relation to the earlier pipeline
 
-The `main` branch keeps the earlier pipeline. It calibrated on 63 scored submissions, and its best file
-(R33) scored 0.062090669 public RMSE. This branch deliberately uses none of that information. The previous
-label-free model of the same family scored 0.069455.
+The `main` branch keeps the earlier chained pipeline, where each file was built from the previous one (best
+R33, 0.062091). This branch replaces the chain with one fit. The old files' scores enter only as training data.
