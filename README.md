@@ -1,15 +1,14 @@
 # Bias Bounty — modeling experiments on dev
 
-Current confirmed best: `submission_r29.csv` (R29), public RMSE **0.062094756** (Zindi user iam-dante, rank 24).
-`submission_r30.csv` was uploaded, but our best entry on the public leaderboard is still R29. So R30 scored
-worse or has not been scored; its exact score is still needed. Its estimate was 0.061833
-([R30 analysis](research/r30/ANALYSIS.md); the [R31 audit](research/r31/ANALYSIS.md) put it at 0.06170–0.06224).
+Current confirmed best: `submission_r32_t1.csv` (R32), public RMSE **0.062092322** (Zindi user iam-dante, rank 24;
+estimated 0.062091253). The previous best was R29 at 0.062094756. Next candidate: `submission_r33.csv`, estimated
+0.062089707. R30's exact score is still unknown: it was uploaded before R29's entry, and our best entry has stayed R29 or later.
 
 R32 (this round) pinned the official Bias Scorecard exactly and tested a moment-calibrated physics model:
 
 - **Scorecard.** The scorecard definitions are now exact (27/27 displayed values reproduced).
   The 3-decimal ratios of every leaderboard entry come from the public API.
-- **T1 candidate.** `submission_r32_t1.csv` (est. 0.062091) is the only new upload candidate.
+- **T1 candidate.** `submission_r32_t1.csv` scored 0.062092322, a new best. R33 then pushes along R29's measured piece.
 - **Physics model.** The calibrated physics model was not shipped. See the [R32 section](#r32-exact-scorecard-and-calibrated-physics-2026-10-20).
 
 `submission_push.csv` is R28b (unchanged). `submission.csv` is the R28 joint update rerun now that R29's
@@ -265,8 +264,9 @@ feedback names are in [research/r31/](research/r31/ANALYSIS.md).
 
 | File | Est. public | Change vs R29 (RMS / inside span) | Note |
 |---|---:|---|---|
-| `submission_r29.csv` | 0.062095 (actual 0.062094756) | – | best; also the most ratio-faithful scored file |
-| `submission_r32_t1.csv` | 0.062091 | 0.00058 / 21% | T1: exact definitions, 4 leaders, Washington latent |
+| `submission_r29.csv` | actual 0.062094756 | – | previous best; the most ratio-faithful scored file |
+| `submission_r32_t1.csv` | **actual 0.062092322** (est. 0.062091253) | 0.00058 / 21% | T1: exact definitions, 4 leaders, Washington latent; **best** |
+| `submission_r33.csv` | 0.062089707 | 0.00019 vs R32 / 52% | R32 + R29's measured out-of-span piece (z 2.36), step shrunk to a N(1, 3²) prior |
 | MSM physics blend (not written) | 0.06232–0.06294 | 0.005–0.010 / 0% | T2: rejected |
 
 **Validation.**
@@ -275,16 +275,24 @@ feedback names are in [research/r31/](research/r31/ANALYSIS.md).
 - **MSM physics as out-of-span prior:** forward MAE 0.000108. It is not significant
   (17 wins / 17 losses, bootstrap 95% CI includes 0).
 
+**What R32's score showed.**
+
+- **Out-of-span part (new):** R32's new multi-leader piece (RMS 0.00051) measured step −0.2 ± 1.9, so
+  no signal. Its gain came from the part inside the scored span, as the estimator predicted
+  (forward error −0.000001).
+- **R29's piece (u29):** R29's small out-of-span piece (RMS 0.0001, 72% in Texas) measured step 23 ± 10
+  (z = 2.36). Rerunning the joint update with R32's score changes nothing (the per-tract scale fits to 0).
+- **R33:** pushes u29 to a posterior total step of 2.9 (`python research/r33_push.py`). The prior sd is 3,
+  not 1: on R28b the 1 ± 1 prior undershot (pushed to 2.3; the optimum was about 3.9).
+
 **Upload order** (at most 5 per day):
 
-1. `submission_r32_t1.csv`. It is the only file with a positive estimate. The gain is small
-   (0.000004), and the score measures whether the multi-leader Washington-latent constraints carry signal.
-2. Keep the remaining slots unless R30's score changes the picture. Report it and the
-   R32 score; add each with `research/add_score.py`.
+1. `submission_r33.csv`. Its score gives a second point on the u29 line; a later file can step to the measured optimum.
+2. Hold the other slots. Report each score; add it with `python research/add_score.py <name> <file> <rmse>`.
 
 **Final selection** (by 2026-10-30, chosen manually on Zindi):
 
-- (i) the best public file, currently R29;
+- (i) the best public file, currently R32 (R33 if it scores better);
 - (ii) R27, the ratio-faithful file from before the public-leaning push.
 
 **Best Bias Discovery** (separate $1,000 prize, judged from the write-up):
@@ -300,4 +308,5 @@ python research/r32_scorecard.py
 python research/r32_features.py
 OPENBLAS_NUM_THREADS=4 python research/r32_msm.py
 python research/r32_discovery.py
+python research/r33_push.py      # needs R32's score in model.npz
 ```

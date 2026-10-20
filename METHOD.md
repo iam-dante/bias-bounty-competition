@@ -9,7 +9,7 @@ Neither uses the withdrawn layers or any copy of them.
 | Approach | Script | Inputs | Public RMSE |
 |---|---|---|---|
 | A. Data-only physics model | `data_only.py` | Permitted challenge data + the 5 published Paradise scores | unscored |
-| B. Calibrated model | `solution.py`, `research/r29_analysis.py` | A's physics family + scored-submission feedback + the public Bias Scorecard | **0.062095** (R29) |
+| B. Calibrated model | `solution.py`, `research/r29_analysis.py`, `research/r32_scorecard.py` | A's physics family + scored-submission feedback + the public Bias Scorecard | **0.062092** (R32) |
 | C. Physics calibrated by simulated moments | `research/r32_msm.py` | A + true scorecard ratios + public mean(y), mean(y²) (+ optionally scored-file moments) | not shipped (see C) |
 
 ## A. Data-only physics model (`data_only.py`)
@@ -111,8 +111,8 @@ entries with RMS ≈ 0.004. Fitted levels: rank 1 1.00 ± 0.13, rank 2 1.74, ran
 sample file's zeros), rank 4 0.89. The graded-row truth is therefore pinned only up to the true
 Washington level. The joint update treats each leader's level and offset as unknowns.
 
-**Result (T1 candidate, `submission_r32_t1.csv`).** The update uses R29's score and the 4
-leaders × 9 ratios.
+**Result (R32, `submission_r32_t1.csv`).** The update uses R29's score and the 4
+leaders × 9 ratios. It **scored 0.062092322**, a new best (estimated 0.062091253).
 
 - **Estimated public RMSE:** 0.062091253, vs R29's estimate of 0.062095180 (R29 actual 0.062094756).
 - **Change:** RMS 0.00058 from R29; 21% inside the scored span, 79% outside.
@@ -197,12 +197,18 @@ of it falls in Texas.
 | R25 | 0.062148 | Measured scorecard component only |
 | R27 | 0.062113 | Joint minimum-change update |
 | R28b | 0.062098 | Calibrated push on R27's new piece |
-| **R29** | **0.062095** | Correlated scorecard recalibration |
+| R29 | 0.062095 | Correlated scorecard recalibration |
+| **R32** | **0.062092** | Exact scorecard definitions, 4 leaders with latent Washington rows |
+
+**R32's score.** The new out-of-span piece measured −0.2 ± 1.9 (no signal); the gain came
+from the in-span part. R29's small out-of-span piece u29 (RMS 0.0001) measured 23 ± 10 (z = 2.36).
+**R33** (`research/r33_push.py`) adds it to R32 at the posterior step 2.9 under a N(1, 3²) prior.
+That is estimated at 0.062089707, an RMS change of 0.00019.
 
 ### Final selection (T3)
 
-1. **Best public file: R29** (`submission_r29.csv`, 0.062094756). Under the exact definitions it
-   is also the most ratio-faithful scored file.
+1. **Best public file: R32** (`submission_r32_t1.csv`, 0.062092322), or R33 if it scores better.
+   R29 (0.062094756) is the most ratio-faithful scored file under the exact definitions.
 2. **Hedge: R27** (0.062113403). It is the ratio-faithful joint solve before the public-leaning
    push (ratio RMS gap 0.0085), so it is less tuned to the public 30%.
 
