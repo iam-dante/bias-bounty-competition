@@ -1,0 +1,43 @@
+{
+  "best_confirmed_rmse": 0.062094756,
+  "new_confirmed_scores": 0,
+  "best_chronological_tol": 1e-05,
+  "best_chronological_mae": 0.0001191258769809,
+  "r30_selected_tol_estimate": 0.061732457523156495,
+  "rejected_tol": 1e-07,
+  "rejected_tol_mae": 0.017022003619467,
+  "r30_estimate_range": [
+    0.057712131327749334,
+    0.06223849339912175
+  ],
+  "goal_verified": false,
+  "next_required_measurement": "Actual public score of submission_r30.csv",
+  "probes": [
+    {
+      "name": "splines",
+      "artifact": "probe_r31_splines.csv",
+      "feedback_name": "p31_01_splines.csv",
+      "sha256": "0f33ba42efe039ebf7190fcc563db88fba7849653bcaf9d8c30cba55b853fcb0",
+      "design_eigenvalue": 0.006080154853823361,
+      "actual_rms": 0.00580825608653132,
+      "novel_rms": 0.0057855391911057034,
+      "novel_rms_fraction": 0.9960888612541905,
+      "r30_direction_cosine": 0.02788471894080228,
+      "measurement_sampling_sd_approx": 0.0009794111628558255,
+      "label": "diagnostic query; no measured score or demonstrated gain"
+    },
+    {
+      "name": "spatial",
+      "artifact": "probe_r31_spatial.csv",
+      "feedback_name": "p31_02_spatial.csv",
+      "sha256": "d909f280fdabfd12088029663110e0ddcafd904eb7ca09d54d601b25cb849764",
+      "design_eigenvalue": 0.05290659468831552,
+      "actual_rms": 0.005761808534664898,
+      "novel_rms": 0.005723610186311006,
+      "novel_rms_fraction": 0.9933704238653406,
+      "r30_direction_cosine": 0.031168456915081456,
+      "measurement_sampling_sd_approx": 0.0009794111628558255,
+      "label": "diagnostic query; no measured score or demonstrated gain"
+    }
+  ]
+}

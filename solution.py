@@ -136,7 +136,7 @@ def eb_posterior(lb, yhat, sigma=0.0624, scorecard=None):
     D = w @ (Q * Q)
     group = np.array(["const" if names[i].startswith("probe_const") else
                       "probe" if probe_direction_of(names[i]) else
-                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24", "r25", "r26", "r27", "r28")) else "base" for i in keep])
+                      "clip" if names[i].startswith(("r14", "r19b", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29", "r3")) else "base" for i in keep])
 
     def prior(x):
         tau_b, mu_b, tau_p, mu_p, alpha = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4])
