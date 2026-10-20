@@ -1,8 +1,19 @@
-# Bias Bounty — R28 joint minimum-change update (with R27's score)
+# Bias Bounty — modeling experiments on dev
 
-Current best file: `submission_push.csv` (R28b). `submission.csv` is the ratio-faithful R28.
-`submission_data_only.csv` comes from `data_only.py`, a standalone physics model that uses
-no leaderboard feedback. See [METHOD.md](METHOD.md) for both approaches.
+Current confirmed best: `submission_r32_t1.csv` (R32), public RMSE **0.062092322** (Zindi user iam-dante, rank 24;
+estimated 0.062091253). The previous best was R29 at 0.062094756. Next candidate: `submission_r33.csv`, estimated
+0.062089707. R30's exact score is still unknown: it was uploaded before R29's entry, and our best entry has stayed R29 or later.
+
+R32 (this round) pinned the official Bias Scorecard exactly and tested a moment-calibrated physics model:
+
+- **Scorecard.** The scorecard definitions are now exact (27/27 displayed values reproduced).
+  The 3-decimal ratios of every leaderboard entry come from the public API.
+- **T1 candidate.** `submission_r32_t1.csv` scored 0.062092322, a new best. R33 then pushes along R29's measured piece.
+- **Physics model.** The calibrated physics model was not shipped. See the [R32 section](#r32-exact-scorecard-and-calibrated-physics-2026-10-20).
+
+`submission_push.csv` is R28b (unchanged). `submission.csv` is the R28 joint update rerun now that R29's
+score is in `model.npz`. `submission_data_only.csv` comes from `data_only.py`, a standalone physics model
+that uses no leaderboard feedback. See [METHOD.md](METHOD.md) for all approaches.
 
 ## Run
 
@@ -171,7 +182,8 @@ Reproduction inputs and scripts for this check are archived outside the repo:
 - `solution.py`: calibrated model (ridge, empirical Bayes, scorecard updates) and submissions.
 - `data_only.py`: data-only physics model (data -> DuckDB features -> Monte-Carlo simulator); `--rebuild` recomputes features.
 - `METHOD.md`: technical write-up of both approaches.
-- `model.npz`: compressed frozen inputs and historical score record (2.7 MB).
+- `model.npz`: compressed frozen inputs and historical score record (61 scored files; add new scores with
+  `python research/add_score.py <name.csv> <file> <rmse>`).
 - `submission.csv`: the only submission to upload.
 - `submission_push.csv`: public-leaning variant (R28b), written on every run.
 - `validation.csv`: predicted vs actual score for every scored file (rewritten each run).
@@ -187,3 +199,114 @@ The archive preserves the original generation code and score provenance.
 Regenerating historical features from raw challenge data requires that archive;
 the minimal branch reproduces the final calibration from frozen features.
 No withdrawn reference datasets were added during this consolidation.
+
+## R29 analysis (2026-10-19)
+
+`submission_r29.csv` is a separate recalibration of R28b, now confirmed at **0.062094756**.
+It propagates scorecard rounding error and correlated uncertainty from ungraded
+Washington tracts. Three empirical-Bayes priors were compared on 33 chronological
+score holdouts; none clearly improved forecasting. R29's original estimated public
+RMSE was 0.062097258; the user subsequently reported its actual improved score.
+
+See [the full analysis](research/r29/ANALYSIS.md) for the data audit, validation,
+prior comparisons, sensitivity analyses, ablations, installed skill provenance,
+and limitations. Reproduce with:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python research/r29_analysis.py
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python research/r29_report.py
+```
+
+The numerical pipeline uses the existing requirements. The optional diagnostic
+report additionally needs Matplotlib. R29 does not replace `submission_push.csv`.
+
+## R30 candidate (2026-10-19)
+
+R30 adds R29's verified file and user-reported score through
+`research/score_feedback.json`; `model.npz` remains immutable. The new research
+compares linear, spline, unsupervised tree and spatial Gaussian-process covariances,
+then solves bounded aggregate regression with soft scorecard constraints.
+
+`submission_r30.csv` is the primary unscored candidate. The optional
+`submission_r30_conservative.csv` blends it equally with R29. Both pass all 9,794-row
+schema, GEOID, bound and published-anchor checks. No upload was performed.
+The 0.05 goal remains open. Reproduce using the four commands in
+[research/r30/ANALYSIS.md](research/r30/ANALYSIS.md).
+
+## R31 estimator audit and follow-up design
+
+Seven rank cutoffs were backtested against 34 chronological scores. The cutoff
+giving a tempting R30 estimate near 0.0577 failed that backtest badly and is
+rejected. Two complementary diagnostic probes were prepared from supplied spline
+and spatial features; neither is a demonstrated improvement or should replace
+R30 as the first pending measurement. Exact hashes, probe novelty and future
+feedback names are in [research/r31/](research/r31/ANALYSIS.md).
+
+## R32: exact scorecard and calibrated physics (2026-10-20)
+
+**New information.**
+
+- **Source.** The leaderboard API (`api.zindi.world/v1/competitions/<slug>/participations`) returns
+  every entry's 9 scorecard ratios to 3 decimals (`research/r32/leaderboard_rubrics.json`).
+- **Definitions.** Our R29 entry is a known vector, which pins the definitions. They use all 9,794
+  rows and median splits, and drop rows missing the stratum variable. Rural is Census `ur_class`
+  (not RUCA). SVI is split at the median (not 0.6).
+- **High Hazard + High Vulnerability:** (heat or wildfire or summer drought high) and SVI high,
+  vs every other row.
+- **Check:** R23, R24 and R29 reproduce 27/27 displayed values (`research/r32/definition_check.csv`).
+- **The four zero-score leaders disagree** (rural 2.23–2.38, CVI 1.46–1.65).
+  - The cause is their ungraded Washington rows: their fitted Washington levels are 1.0×, 1.7×,
+    ≈0× and 0.9× ours.
+  - So "rank 1 = truth" holds only up to the true Washington level. The joint update now treats
+    each leader's level as unknown.
+
+**Candidates.**
+
+| File | Est. public | Change vs R29 (RMS / inside span) | Note |
+|---|---:|---|---|
+| `submission_r29.csv` | actual 0.062094756 | – | previous best; the most ratio-faithful scored file |
+| `submission_r32_t1.csv` | **actual 0.062092322** (est. 0.062091253) | 0.00058 / 21% | T1: exact definitions, 4 leaders, Washington latent; **best** |
+| `submission_r33.csv` | 0.062089707 | 0.00019 vs R32 / 52% | R32 + R29's measured out-of-span piece (z 2.36), step shrunk to a N(1, 3²) prior |
+| MSM physics blend (not written) | 0.06232–0.06294 | 0.005–0.010 / 0% | T2: rejected |
+
+**Validation.**
+
+- **Estimator:** forward MAE 0.000119 over 34 files, leave-one-out MAE 0.000033.
+- **MSM physics as out-of-span prior:** forward MAE 0.000108. It is not significant
+  (17 wins / 17 losses, bootstrap 95% CI includes 0).
+
+**What R32's score showed.**
+
+- **Out-of-span part (new):** R32's new multi-leader piece (RMS 0.00051) measured step −0.2 ± 1.9, so
+  no signal. Its gain came from the part inside the scored span, as the estimator predicted
+  (forward error −0.000001).
+- **R29's piece (u29):** R29's small out-of-span piece (RMS 0.0001, 72% in Texas) measured step 23 ± 10
+  (z = 2.36). Rerunning the joint update with R32's score changes nothing (the per-tract scale fits to 0).
+- **R33:** pushes u29 to a posterior total step of 2.9 (`python research/r33_push.py`). The prior sd is 3,
+  not 1: on R28b the 1 ± 1 prior undershot (pushed to 2.3; the optimum was about 3.9).
+
+**Upload order** (at most 5 per day):
+
+1. `submission_r33.csv`. Its score gives a second point on the u29 line; a later file can step to the measured optimum.
+2. Hold the other slots. Report each score; add it with `python research/add_score.py <name> <file> <rmse>`.
+
+**Final selection** (by 2026-10-30, chosen manually on Zindi):
+
+- (i) the best public file, currently R32 (R33 if it scores better);
+- (ii) R27, the ratio-faithful file from before the public-leaning push.
+
+**Best Bias Discovery** (separate $1,000 prize, judged from the write-up):
+
+- Draft: [BIAS_DISCOVERY.md](BIAS_DISCOVERY.md). Among urban tracts, places supplied mostly by Meta
+  pages carry about twice the estimated gap in all four regions.
+- Submit it through the competition's write-up form.
+
+Reproduce (about 10 minutes; data/ required):
+
+```bash
+python research/r32_scorecard.py
+python research/r32_features.py
+OPENBLAS_NUM_THREADS=4 python research/r32_msm.py
+python research/r32_discovery.py
+python research/r33_push.py      # needs R32's score in model.npz
+```
