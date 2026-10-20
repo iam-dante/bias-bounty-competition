@@ -1,8 +1,8 @@
-# Bias Bounty — modeling experiments on dev
+# Bias Bounty — leaderboard-calibrated pipeline (main)
 
-Current confirmed best: `submission_r32_t1.csv` (R32), public RMSE **0.062092322** (Zindi user iam-dante, rank 24;
-estimated 0.062091253). The previous best was R29 at 0.062094756. Next candidate: `submission_r33.csv`, estimated
-0.062089707. R30's exact score is still unknown: it was uploaded before R29's entry, and our best entry has stayed R29 or later.
+Current confirmed best: `submission_r33.csv` (R33), public RMSE **0.062090669** (Zindi user iam-dante; estimated 0.062089707).
+Previous: R32 0.062092322, R29 0.062094756. R30's exact score is unknown (it was uploaded before R29's entry).
+This branch keeps the leaderboard-calibrated pipeline. The from-scratch, leaderboard-free training pipeline lives on `dev` (`train.py`).
 
 R32 (this round) pinned the official Bias Scorecard exactly and tested a moment-calibrated physics model:
 
@@ -266,7 +266,7 @@ feedback names are in [research/r31/](research/r31/ANALYSIS.md).
 |---|---:|---|---|
 | `submission_r29.csv` | actual 0.062094756 | – | previous best; the most ratio-faithful scored file |
 | `submission_r32_t1.csv` | **actual 0.062092322** (est. 0.062091253) | 0.00058 / 21% | T1: exact definitions, 4 leaders, Washington latent; **best** |
-| `submission_r33.csv` | 0.062089707 | 0.00019 vs R32 / 52% | R32 + R29's measured out-of-span piece (z 2.36), step shrunk to a N(1, 3²) prior |
+| `submission_r33.csv` | **actual 0.062090669** (est. 0.062089707) | 0.00019 vs R32 / 52% | R32 + R29's measured out-of-span piece (z 2.36), step shrunk to a N(1, 3²) prior |
 | MSM physics blend (not written) | 0.06232–0.06294 | 0.005–0.010 / 0% | T2: rejected |
 
 **Validation.**
