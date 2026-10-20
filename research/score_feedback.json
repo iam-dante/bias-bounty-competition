@@ -1,9 +1,0 @@
-[
-  {
-    "name": "r29_correlated_scorecard.csv",
-    "file": "submission_r29.csv",
-    "rmse": 0.062094756,
-    "sha256": "f3792cd93c8bbda6c62b77c1530f9f0d348605c85bf44562e2c43d7611070c0c",
-    "source": "User-reported public leaderboard score, 2026-10-19"
-  }
-]
