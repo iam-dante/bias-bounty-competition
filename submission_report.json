@@ -1,40 +1,40 @@
 {
   "inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files",
   "aggregate_labels": {
-    "files": 66,
+    "files": 67,
     "public_weight_mean": 0.3052414652336193,
     "mean_y": 0.0598061011140652,
     "mean_y2": 0.011501768649197401
   },
   "aggregate_fit": {
     "hyper": {
-      "tau_base": 0.3602200639477177,
-      "mu_base": 0.4946075538092338,
-      "tau_probe": 0.7193147101843358,
-      "mu_probe": 0.06034364801662135,
-      "tau_clip": 0.1261989059333969,
-      "noise_scale": 0.7741260348652187,
-      "mu_clip": 0.46506206346482115
+      "tau_base": 0.36196668674640226,
+      "mu_base": 0.4688430614474315,
+      "tau_probe": 0.7190744498846492,
+      "mu_probe": 0.059916510095044395,
+      "tau_clip": 0.12904936654570423,
+      "noise_scale": 0.7778751328959148,
+      "mu_clip": 0.46534129274184616
     },
     "washington_affine": [
-      0.01842175537007082,
-      0.4222337502584029
+      0.018413544499959904,
+      0.42241186122781715
     ],
-    "est_public": 0.06134693280464805,
+    "est_public": 0.06135479587710009,
     "best_scored": {
       "file": "s8_posterior_v1.csv",
       "rmse": 0.061371997
     },
     "ratios": {
-      "rural": 2.23,
-      "tribal": 2.815,
-      "svi": 1.281,
-      "cvi": 1.581,
-      "sdrought": 0.979,
-      "wdrought": 1.367,
-      "wildfire": 1.679,
+      "rural": 2.228,
+      "tribal": 2.818,
+      "svi": 1.284,
+      "cvi": 1.584,
+      "sdrought": 0.978,
+      "wdrought": 1.366,
+      "wildfire": 1.68,
       "heat": 0.634,
-      "hv": 1.259
+      "hv": 1.261
     }
   },
   "forward_validation": [
@@ -271,6 +271,12 @@
       "actual": 0.061371997,
       "predicted": 0.06162939710432723,
       "error": 0.00025740010432723226
+    },
+    {
+      "file": "q01_physics_scorecard_road.csv",
+      "actual": 0.061456001,
+      "predicted": 0.061427745991110116,
+      "error": -2.825500888988669e-05
     }
   ]
 }

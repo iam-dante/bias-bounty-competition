@@ -11,8 +11,9 @@ python train.py
 |---|---|---:|
 | `physics.csv` | stages 1–7: physics model from the challenge data alone | 0.101340 (scored) |
 | stage 8 with 65 labels | posterior fitted to the aggregate labels | **0.061372 (scored; best)**, estimated 0.061629 |
-| `submission.csv` | stage 8 refit with 66 labels (including that score) | 0.061347 (estimated) |
-| `probes/q*.csv` | stage 9: probes along directions no scored file has measured | ≈ 0.0613–0.0615 each |
+| `probes/q01_physics_scorecard_road.csv` | probe: road pattern of the scorecard physics | 0.061456 (scored; no signal) |
+| `submission.csv` | stage 8 refit with all 67 labels | 0.061355 (estimated) |
+| `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
 The first run downloads about 4.2 GB of challenge data; a run then takes about 5 minutes on a laptop CPU.
