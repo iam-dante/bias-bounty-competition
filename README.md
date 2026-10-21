@@ -13,8 +13,9 @@ python train.py
 | stage 8 with 65 labels | posterior fitted to the aggregate labels | **0.061372 (scored; best)**, estimated 0.061629 |
 | `probes/q01_physics_scorecard_road.csv` | probe: road pattern of the scorecard physics | 0.061456 (scored; no signal) |
 | stage 8 refit with 67 labels | posterior after the probe | **0.061348 (scored; best)**, estimated 0.061355 |
-| `physics_lb.csv` | stage 10: physics refitted on all 68 scores + statistics + scorecard | 0.0673 (estimated) |
-| `submission.csv` | best scored file (0.061348) + 15% of the part of `physics_lb.csv` no scored file contains | 0.06132 if the truth's coefficient is 0.1, 0.06122 at 0.2; 0.06142 if 0 |
+| best + 0.15 × unscored part of `physics_lb.csv` (68 labels) | first transfer step | **0.060742 (scored; best)**; implies the truth follows that direction at 0.68 ± 0.05 |
+| `physics_lb.csv` | stage 10 recalibrated on 69 labels | 0.0635 on its own (estimated) |
+| `submission.csv` | 1-D update to 4.18× the measured step (est. 0.059819) + 0.4 × the 69-label physics' new unscored part | 0.0599 if that part is empty, 0.0597 at a coefficient of 0.4, 0.0596 at 0.6 |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
@@ -119,10 +120,24 @@ physics model that reproduces the scored truth:
 - the scorecard ratios fall within 0.03;
 - estimated public RMSE 0.0673 on its own, vs 0.087 and 0.101 for the earlier physics files.
 
-Its value is in the part no scored file contains (RMS 0.020). Stage 8 adds 15% of that part to the best file.
+Its value is in the part no scored file contains (RMS 0.020). The first time, stage 8 added 15% of that part to
+the best file. The file scored 0.060742, which means the truth follows that part at 0.68 ± 0.05.
 The two earlier physics files' unscored parts entered the truth at 8% and 15% once scored, and the step breaks
 even at 7.5%. Once the file is scored, its score measures that direction (±0.05), and the next refit takes its
 full measured value.
+
+### Stage 8 candidate selection
+
+Stage 8 now compares three candidates and keeps the one with the lowest estimated public RMSE:
+
+- **the full empirical-Bayes refit;**
+- **the best scored file;**
+- **a 1-D update for each transfer label.** A transfer file is a deliberate step from the best file scored before
+  it. The two scored points on that line, and its known curvature, give the optimum multiple of the step; the
+  prior is N(1, 1).
+
+Then it adds `TRANSFER` (0.4) × the part of the label-calibrated physics that is still unscored. The previous
+calibrated-physics direction measured 0.68, and this step breaks even at 0.2.
 
 ## Options
 

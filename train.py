@@ -755,6 +755,8 @@ def add_label(name, path, rmse):
 def label_group(name):
     if name.startswith("probe_const"):
         return "const"
+    if name.startswith("tr_"):
+        return "transfer"           # deliberate small step: prior N(1, 1) in units of the step taken
     if name.startswith("p") and name[1:3].isdigit():
         return "probe"
     return "clip" if name.startswith(CLIP_GROUP) else "base"
@@ -793,8 +795,9 @@ def eb_posterior(L, names, yhat, sigma=0.0624):
 
     def prior(x):
         tau_b, mu_b, tau_p, mu_p, tau_c, alpha, mu_c = np.exp(x[0]), x[1], np.exp(x[2]), x[3], np.exp(x[4]), np.exp(x[5]), x[6]
-        mu = np.select([grp == "base", grp == "probe", grp == "clip"], [mu_b, mu_p, mu_c], 0.0)
-        var = np.select([grp == "const", grp == "base", grp == "probe"], [100.0, tau_b ** 2, tau_p ** 2], tau_c ** 2)
+        mu = np.select([grp == "base", grp == "probe", grp == "clip", grp == "transfer"], [mu_b, mu_p, mu_c, 1.0], 0.0)
+        var = np.select([grp == "const", grp == "base", grp == "probe", grp == "transfer"], [100.0, tau_b ** 2, tau_p ** 2, 1.0],
+                        tau_c ** 2)
         return mu, var, np.diag(D * var * D) + alpha * N
 
     def nll(x):
@@ -871,19 +874,25 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     change = final[g] - L.V[best[1]][g]
     log(f"  estimated public RMSE {est_final:.6f}; best scored file {best[1]} {best[0]:.6f} "
         f"(RMS difference {np.sqrt(w @ change ** 2):.5f}); in-span by construction, so the estimate credits all of it")
-    if est_final >= best[0]:
-        # The posterior cannot beat what the scores already confirm: output the best scored file (it is a label, so
-        # its score is known exactly rather than estimated).
-        final = np.round(L.V[best[1]].copy(), 6)
-        rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
-        log(f"  the refit does not improve on {best[1]}: writing that file (public RMSE {best[0]:.6f}) as the submission")
+    cands = [("refit", est_final, final), (f"best scored file {best[1]}", best[0], np.round(L.V[best[1]].copy(), 6))]
+    for tu in transfer_updates(L):
+        v = tu["vector"].copy()
+        v[~g] = final[~g]
+        e = estimate(L, v)
+        log(f"  1-D update along {tu['label']} (from {tu['base']}): measured {tu['t_measured']:.2f} +- {tu['sd']:.2f} x the step, "
+            f"posterior {tu['t_posterior']:.2f}; estimated public RMSE {e:.6f}")
+        cands.append((f"1-D update along {tu['label']}", e, v))
+    choice = min(cands, key=lambda c: c[1])
+    final = choice[2]
+    rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
+    log(f"  chosen: {choice[0]} (estimated public RMSE {choice[1]:.6f})")
+    report["aggregate_fit"] = dict(report.get("aggregate_fit", {}), chosen=choice[0], chosen_est=choice[1])
     log(f"  scorecard ratios (zero-score leaders: rural 2.23-2.38, tribal 2.79-2.97): {rat}")
-    report["aggregate_fit"] = dict(hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])], est_public=est_final,
-                                   best_scored=dict(file=best[1], rmse=best[0]), ratios=rat,
-                                   submission="refit" if est_final < best[0] else best[1])
+    report["aggregate_fit"] = dict(report.get("aggregate_fit", {}), hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])],
+                                   est_public_refit=est_final, best_scored=dict(file=best[1], rmse=best[0]), ratios=rat)
     if os.path.exists("physics_lb.csv"):
         lb_phys = pd.read_csv("physics_lb.csv", dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
-        final = np.round(transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report), 6)
+        final = np.round(transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report, choice[1]), 6)
         rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
         report["aggregate_fit"]["ratios_after_transfer"] = rat
     if do_forward:
@@ -976,8 +985,9 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.15     # expected share of a new physics model's unscored part in the truth: the two scored physics
-                    # files measured 0.083 and 0.152 (z 3.7 and 7.7); this model fits the scored truth far better
+TRANSFER = 0.40     # step along the unscored part of the label-calibrated physics. Measured so far: physics files
+                    # with guessed parameters 0.083 and 0.152; the first label-calibrated physics 0.676 (z 14).
+                    # 0.4 is a shrunk prior mean for the next one; the step breaks even at a coefficient of 0.2.
 
 
 class LabelTargets(Targets):
@@ -1040,7 +1050,31 @@ def calibrate_physics_on_labels(df, groups, report, S=512):
     return pred
 
 
-def transfer_step(L, base, physics_lb, report):
+def transfer_updates(L):
+    """For every transfer label (a deliberate step from the best file scored before it), the 1-D Bayesian update along
+    that step: two scored points on one line with known curvature give the optimum multiple of the step; prior N(1, 1)
+    (the step taken was the prior guess)."""
+    g = L.graded
+    order = list(L.s)
+    out = []
+    for name in order:
+        if label_group(name) != "transfer":
+            continue
+        before = [n for n in order[:order.index(name)] if not n.startswith("probe_")]
+        base_name = min(before, key=L.s.get)
+        step = (L.V[name] - L.V[base_name])[g]
+        size2 = L.AP(step ** 2)
+        t_hat = (size2 - (L.s[name] ** 2 - L.s[base_name] ** 2)) / (2 * size2)
+        sd = L.s[base_name] * np.sqrt((1 - P_PUBLIC) / (P_PUBLIC * g.sum())) / np.sqrt(size2)
+        t_post = (t_hat / sd ** 2 + 1.0) / (1 / sd ** 2 + 1.0)
+        v = L.V[base_name].copy()
+        v[g] = np.clip(L.V[base_name][g] + t_post * step, 0, 1)
+        out.append(dict(label=name, base=base_name, t_measured=float(t_hat), sd=float(sd), t_posterior=float(t_post),
+                        vector=np.round(v, 6)))
+    return out
+
+
+def transfer_step(L, base, physics_lb, report, base_rmse):
     """Add TRANSFER x the part of the label-calibrated physics that no scored file contains."""
     g = L.graded
     w = L.pi / L.pi.sum()
@@ -1052,9 +1086,8 @@ def transfer_step(L, base, physics_lb, report):
     out = base.copy()
     out[g] = np.clip(base[g] + TRANSFER * u, 0, 1)
     size = float(np.sqrt(w @ u ** 2))
-    best = min(s_ for n, s_ in L.s.items() if not n.startswith("probe_"))
-    outcomes = {f"coef_{b:.1f}": float(np.sqrt(max(best ** 2 + size ** 2 * (TRANSFER ** 2 - 2 * TRANSFER * b), 0)))
-                for b in (0.0, 0.1, 0.2, 0.3, 0.4)}
+    outcomes = {f"coef_{b:.1f}": float(np.sqrt(max(base_rmse ** 2 + size ** 2 * (TRANSFER ** 2 - 2 * TRANSFER * b), 0)))
+                for b in (0.0, 0.2, 0.4, 0.6)}
     log(f"  transfer step: {TRANSFER} x the unscored part of physics_lb.csv (RMS {size:.4f}); expected public RMSE by the "
         f"truth's coefficient along it: " + ", ".join(f"{k[5:]} -> {v:.6f}" for k, v in outcomes.items()))
     report["transfer"] = dict(share=TRANSFER, unscored_rms=size, expected=outcomes)

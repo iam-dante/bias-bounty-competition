@@ -300,6 +300,20 @@ on its own.
 
 Once the file is scored, the direction is measured to about ±0.05 and the next stage-8 refit takes its full value.
 
+**Result.** The file scored **0.060742**. Along its step, the optimum is 4.50 ± 0.32 times the step taken, i.e.
+the truth follows the label-calibrated physics' unscored part at 0.68 ± 0.05 (z 14). The guessed-parameter
+physics directions measured 0.08 and 0.15.
+
+**Next round.**
+
+- **1-D update:** stage 8 compares the full refit (0.0602, which re-weights old directions badly), the best
+  scored file, and the 1-D Bayesian update along the transfer step (posterior 4.18×, estimated **0.059819**).
+  It keeps the lowest.
+- **Recalibration:** stage 10 recalibrated on 69 labels gives a physics model estimated at 0.0635 on its own,
+  with a new unscored part of RMS 0.0088.
+- **Submission:** the 1-D update plus 0.4 × that new part. Expected public RMSE: 0.05992 if the part is empty,
+  0.05982 at a coefficient of 0.2 (break-even), 0.05971 at 0.4, 0.05961 at 0.6.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
