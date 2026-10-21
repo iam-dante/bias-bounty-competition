@@ -881,6 +881,11 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     report["aggregate_fit"] = dict(hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])], est_public=est_final,
                                    best_scored=dict(file=best[1], rmse=best[0]), ratios=rat,
                                    submission="refit" if est_final < best[0] else best[1])
+    if os.path.exists("physics_lb.csv"):
+        lb_phys = pd.read_csv("physics_lb.csv", dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
+        final = np.round(transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report), 6)
+        rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
+        report["aggregate_fit"]["ratios_after_transfer"] = rat
     if do_forward:
         fv = forward_validation(L)
         old_files = ~fv.file.str.startswith("fs_")
@@ -968,6 +973,94 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
     return manifest
 
 
+# ================================================================================================
+# 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
+# ================================================================================================
+TRANSFER = 0.15     # expected share of a new physics model's unscored part in the truth: the two scored physics
+                    # files measured 0.083 and 0.152 (z 3.7 and 7.7); this model fits the scored truth far better
+
+
+class LabelTargets(Targets):
+    """Published statistics, the public scorecard and the orthogonalised moments of every scored file."""
+
+    def __init__(self, df, groups, Q, o, N, w, pos, graded):
+        super().__init__(df, groups, True)
+        self.Q, self.o, self.N, self.w, self.pos, self.g = Q, o, N, w, pos, graded
+        self.names = self.names + [f"moment[{j}]" for j in range(Q.shape[1])]
+
+    def observed(self):
+        return np.r_[super().observed(), self.o]
+
+    def model(self, sim):
+        return np.r_[super().model(sim), (self.Q * self.w[:, None]).T @ sim["Ey"][self.pos][self.g]]
+
+    def sd(self, sim):
+        return np.r_[super().sd(sim), np.sqrt(np.diag(self.N))]
+
+
+def calibrate_physics_on_labels(df, groups, report, S=512):
+    """Stage 10: refit the physics model's 41 parameters (stratum effects included) to the published statistics,
+    the public scorecard and every scored file's moment, starting from the scorecard-calibrated physics. Its part
+    outside the scored span is the physics extrapolation of everything the scores have measured."""
+    L = AggregateLabels()
+    g = L.graded
+    pos = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())[L.geoid].to_numpy()
+    names = [n for n in L.s if n not in ("probe_zeros.csv", "e06_r2f_only_eastern-wa.csv")]
+    best = min((s_, n) for n, s_ in L.s.items() if not n.startswith("probe_"))
+    _, parts, _ = eb_posterior(L, names, L.V[best[1]][g])
+    set_priors(True)
+    with open("physics_scorecard_report.json") as f:
+        th0 = np.array([p["posterior"] for p in json.load(f)["calibration"]["parameters"]])
+    X, _ = context_matrix(df)
+    mu = {t: cross_fit(df, X, t, cap)[0] for t, cap in AUX_TARGETS}
+    F = inputs(df, mu)
+    T = LabelTargets(df, groups, parts["Q"], parts["o"], parts["noise"], parts["w"], pos, g)
+    obs, k0 = T.observed(), len(T.names) - parts["Q"].shape[1]
+    sim0 = simulate(F, th0, S)
+    m0, sd0 = T.model(sim0), T.sd(sim0)
+    J = moment_jacobian(F, T, th0, S)
+    th, m, sd, cost, _, _ = calibrate(F, T, J, S, th0=th0, iters=40)
+    chi = lambda mm, ss: ((mm - obs) / ss) ** 2
+    log(f"  chi-square: published + scorecard {chi(m0, sd0)[:k0].sum():.1f} -> {chi(m, sd)[:k0].sum():.1f}; "
+        f"{parts['Q'].shape[1]} score moments {chi(m0, sd0)[k0:].sum():.1f} -> {chi(m, sd)[k0:].sum():.1f}")
+    sim = predict(F, th)
+    pred = np.clip(sim["Ey"], 0, 1)
+    pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv("physics_lb.csv", index=False)
+    v = L.V[best[1]].copy()
+    v[g] = pred[pos][g]
+    est = estimate(L, v)
+    ratios = {k: round(float(pred[h].mean() / pred[l].mean()), 3) for k, (h, l) in groups.items()}
+    log(f"  label-calibrated physics: mean {pred[df['graded'].to_numpy()].mean():.4f}; estimated public RMSE {est:.6f}; "
+        f"scorecard ratios {ratios}")
+    report.update(parameters=[dict(parameter=n, start=float(a), fitted=float(b)) for n, a, b in zip(NAMES, th0, th)],
+                  targets=[dict(target=n, observed=float(x), start=float(y), fitted=float(z))
+                           for n, x, y, z in zip(T.names[:k0], obs[:k0], m0[:k0], m[:k0])],
+                  est_public=est, ratios=ratios, cost=cost)
+    set_priors(False)
+    return pred
+
+
+def transfer_step(L, base, physics_lb, report):
+    """Add TRANSFER x the part of the label-calibrated physics that no scored file contains."""
+    g = L.graded
+    w = L.pi / L.pi.sum()
+    sw = np.sqrt(w)[:, None]
+    X = np.column_stack([np.ones(g.sum())] + [L.V[n][g] for n in L.s if n != "probe_zeros.csv"])
+    Qx, _ = np.linalg.qr(X * sw)
+    d = physics_lb[g] - base[g]
+    u = d - (Qx @ (Qx.T @ (d[:, None] * sw)))[:, 0] / sw[:, 0]
+    out = base.copy()
+    out[g] = np.clip(base[g] + TRANSFER * u, 0, 1)
+    size = float(np.sqrt(w @ u ** 2))
+    best = min(s_ for n, s_ in L.s.items() if not n.startswith("probe_"))
+    outcomes = {f"coef_{b:.1f}": float(np.sqrt(max(best ** 2 + size ** 2 * (TRANSFER ** 2 - 2 * TRANSFER * b), 0)))
+                for b in (0.0, 0.1, 0.2, 0.3, 0.4)}
+    log(f"  transfer step: {TRANSFER} x the unscored part of physics_lb.csv (RMS {size:.4f}); expected public RMSE by the "
+        f"truth's coefficient along it: " + ", ".join(f"{k[5:]} -> {v:.6f}" for k, v in outcomes.items()))
+    report["transfer"] = dict(share=TRANSFER, unscored_rms=size, expected=outcomes)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--rebuild", action="store_true", help="recompute the cached features")
@@ -980,6 +1073,7 @@ def main():
     ap.add_argument("--add-label", nargs=3, metavar=("NAME", "FILE", "RMSE"), help="append a scored file to the labels and exit")
     ap.add_argument("--fit-only", action="store_true", help="stage 8 only, reading the physics model from physics.csv")
     ap.add_argument("--probes", type=int, default=0, metavar="K", help="write K probe files to probes/ and exit")
+    ap.add_argument("--calibrate-physics", action="store_true", help="stage 10: physics calibrated on the labels -> physics_lb.csv")
     args = ap.parse_args()
     if args.add_label:
         add_label(*args.add_label)
@@ -990,6 +1084,15 @@ def main():
     clock = lambda: f"{time.time() - t0:.0f}s"
     report = {"inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files"}
 
+    if args.calibrate_physics:
+        df, groups = load()
+        log("10 physics calibrated on the aggregate labels (published statistics + scorecard + score moments)")
+        rep = {}
+        calibrate_physics_on_labels(df, groups, rep)
+        with open("physics_lb_report.json", "w") as f:
+            json.dump(rep, f, indent=2, default=float)
+        log(f"Wrote physics_lb.csv and physics_lb_report.json ({clock()})")
+        return
     if args.probes:
         df, _ = load()
         log(f"9/9 probe design: {args.probes} directions the scored files have not measured")

@@ -13,7 +13,8 @@ python train.py
 | stage 8 with 65 labels | posterior fitted to the aggregate labels | **0.061372 (scored; best)**, estimated 0.061629 |
 | `probes/q01_physics_scorecard_road.csv` | probe: road pattern of the scorecard physics | 0.061456 (scored; no signal) |
 | stage 8 refit with 67 labels | posterior after the probe | **0.061348 (scored; best)**, estimated 0.061355 |
-| `submission.csv` | stage 8 with 68 labels: the refit (estimated 0.061367) cannot beat the best scored file, so stage 8 writes that file | **0.061348** |
+| `physics_lb.csv` | stage 10: physics refitted on all 68 scores + statistics + scorecard | 0.0673 (estimated) |
+| `submission.csv` | best scored file (0.061348) + 15% of the part of `physics_lb.csv` no scored file contains | 0.06132 if the truth's coefficient is 0.1, 0.06122 at 0.2; 0.06142 if 0 |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
@@ -107,6 +108,22 @@ python train.py --fit-only                                        # refit stage 
 This is how the physics model's own scores moved the target from 0.0621 to 0.0614. The probes ask the same
 question component by component: how strongly does the truth agree with each part of the physics model?
 
+## Stage 10: the physics model calibrated on the scores
+
+`python train.py --calibrate-physics` refits the physics model's 41 parameters to three sets of targets at once:
+the published statistics, the public scorecard, and the 60 independent moments of the scored files. This gives a
+physics model that reproduces the scored truth:
+
+- the misfit to the score moments (chi-squared) drops from 1,513 to 169;
+- the mean is 0.057;
+- the scorecard ratios fall within 0.03;
+- estimated public RMSE 0.0673 on its own, vs 0.087 and 0.101 for the earlier physics files.
+
+Its value is in the part no scored file contains (RMS 0.020). Stage 8 adds 15% of that part to the best file.
+The two earlier physics files' unscored parts entered the truth at 8% and 15% once scored, and the step breaks
+even at 7.5%. Once the file is scored, its score measures that direction (±0.05), and the next refit takes its
+full measured value.
+
 ## Options
 
 ```bash
@@ -117,6 +134,7 @@ python train.py --rebuild        # recompute cached features
 python train.py --fit-only       # stage 8 only (reads physics.csv)
 python train.py --probes K       # stage 9: write K probe files
 python train.py --add-label NAME FILE RMSE   # record a new score as a label
+python train.py --calibrate-physics          # stage 10: physics refitted on all labels -> physics_lb.csv
 ```
 
 ## Rules

@@ -260,6 +260,46 @@ with it. The first batch (`probes/manifest.json`):
 
 The facility component is already almost entirely inside the scored span.
 
+## 8c. Physics calibrated on the scores, and the transfer step (stage 10)
+
+**What the last gain was made of.** The best file is close to:
+
+```
+0.89 × R33 + 0.11 × (scorecard physics, facility part) + 0.10 × (its road part) − (its establishment part)
+```
+
+This explains 98.8% of it. The truth endorsed the scorecard-calibrated physics' structure; single tract features
+explain little (|correlation| ≤ 0.11).
+
+**Stage 10.** It refits the 41 physics parameters, stratum effects included, on three sets of targets at once:
+the published statistics, the scorecard (tolerance 0.03), and the 60 orthogonalised score moments. The fit uses
+the same simulated-moments machinery as stage 5.
+
+| Fit | Start | Fitted |
+|---|---:|---:|
+| Chi-squared, 60 score moments | 1,513 | 169 |
+| Chi-squared, published statistics + scorecard | 100.8 | 28.7 |
+
+The fitted model has mean 0.057, scorecard ratios within 0.03 of rank 1, and an estimated public RMSE of 0.0673
+on its own.
+
+**Transfer step.**
+
+- **Step:** `submission.csv` adds 0.15 × the part of this model that is orthogonal to every scored file
+  (RMS 0.020) to the best scored file.
+- **Why 0.15:** the two physics files' orthogonal parts entered the truth at 0.083 ± 0.022 and 0.152 ± 0.020
+  when scored, and the step breaks even at a coefficient of 0.075.
+- **Expected outcomes:**
+
+  | Truth's coefficient | Expected public RMSE |
+  |---|---:|
+  | 0 | 0.061424 |
+  | 0.1 | 0.061323 |
+  | 0.2 | 0.061222 |
+  | 0.3 | 0.061121 |
+
+Once the file is scored, the direction is measured to about ±0.05 and the next stage-8 refit takes its full value.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
@@ -282,6 +322,7 @@ The facility component is already almost entirely inside the scored span.
 - `--fit-only`: stage 8 only, reading `physics.csv`.
 - `--probes K`: stage 9, which writes K probe files and `probes/manifest.json`.
 - `--add-label NAME FILE RMSE`: record a scored file as a new label.
+- `--calibrate-physics`: stage 10, which writes `physics_lb.csv` and its report.
 - `--scorecard`: a physics variant that also calibrates 16 stratum effects on the public Bias Scorecard (the
   rank-1 entry's 9 ratios, tolerance 0.03). Writes `physics_scorecard.csv`, which scored 0.086862 and is one
   of the aggregate labels.

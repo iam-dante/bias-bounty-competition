@@ -36,6 +36,276 @@
       "heat": 0.634,
       "hv": 1.261
     },
-    "submission": "s8_refit67.csv"
-  }
+    "submission": "s8_refit67.csv",
+    "ratios_after_transfer": {
+      "rural": 2.224,
+      "tribal": 2.816,
+      "svi": 1.285,
+      "cvi": 1.595,
+      "sdrought": 0.977,
+      "wdrought": 1.361,
+      "wildfire": 1.684,
+      "heat": 0.632,
+      "hv": 1.263
+    }
+  },
+  "transfer": {
+    "share": 0.15,
+    "unscored_rms": 0.020323375530024005,
+    "expected": {
+      "coef_0.0": 0.06142400514457279,
+      "coef_0.1": 0.06132305618780323,
+      "coef_0.2": 0.06122194077636253,
+      "coef_0.3": 0.061120658084124146,
+      "coef_0.4": 0.0610192072781053
+    }
+  },
+  "forward_validation": [
+    {
+      "file": "p12_01_route_ratio.csv",
+      "actual": 0.064583076,
+      "predicted": 0.06413784156336523,
+      "error": -0.0004452344366347727
+    },
+    {
+      "file": "p13_02_boundary_leak.csv",
+      "actual": 0.063780455,
+      "predicted": 0.06405568688402143,
+      "error": 0.0002752318840214263
+    },
+    {
+      "file": "p14_04_gmm_route.csv",
+      "actual": 0.063801619,
+      "predicted": 0.06377693276186586,
+      "error": -2.4686238134147276e-05
+    },
+    {
+      "file": "r14_route_boundary_corrected.csv",
+      "actual": 0.063433173,
+      "predicted": 0.06345359267494105,
+      "error": 2.041967494105512e-05
+    },
+    {
+      "file": "p14_02_tiger_multiplicity.csv",
+      "actual": 0.063591517,
+      "predicted": 0.06353440695537371,
+      "error": -5.711004462628788e-05
+    },
+    {
+      "file": "p15_01_county_s1200.csv",
+      "actual": 0.063466552,
+      "predicted": 0.06355836305488692,
+      "error": 9.181105488692554e-05
+    },
+    {
+      "file": "p15_02_unrouted_s1200.csv",
+      "actual": 0.063373747,
+      "predicted": 0.06355228089205413,
+      "error": 0.0001785338920541335
+    },
+    {
+      "file": "p15_03_tertiary_vs_named.csv",
+      "actual": 0.063190463,
+      "predicted": 0.06354633045559722,
+      "error": 0.00035586745559722244
+    },
+    {
+      "file": "p15_04_poi_share_brightquery.csv",
+      "actual": 0.063752599,
+      "predicted": 0.0635626069827319,
+      "error": -0.00018999201726808967
+    },
+    {
+      "file": "p15_05_poi_share_meta.csv",
+      "actual": 0.063449447,
+      "predicted": 0.06341866572030812,
+      "error": -3.0781279691888264e-05
+    },
+    {
+      "file": "p16_01_tertiary_s1200.csv",
+      "actual": 0.063349242,
+      "predicted": 0.06312263609181974,
+      "error": -0.00022660590818025794
+    },
+    {
+      "file": "p16_02_tertiary_vs_named_maricopa-az.csv",
+      "actual": 0.063360383,
+      "predicted": 0.0631329056452751,
+      "error": -0.00022747735472490593
+    },
+    {
+      "file": "p16_03_tertiary_vs_named_northern-ca.csv",
+      "actual": 0.063072465,
+      "predicted": 0.06307840420857004,
+      "error": 5.939208570046595e-06
+    },
+    {
+      "file": "p16_04_tertiary_vs_named_eastern-ok.csv",
+      "actual": 0.063093421,
+      "predicted": 0.06310150883148918,
+      "error": 8.087831489186903e-06
+    },
+    {
+      "file": "p16_05_log_land_area.csv",
+      "actual": 0.063314542,
+      "predicted": 0.063123435420302,
+      "error": -0.00019110657969800826
+    },
+    {
+      "file": "p17_01_unrouted_s1200_maricopa-az.csv",
+      "actual": 0.062696319,
+      "predicted": 0.06288058022593652,
+      "error": 0.0001842612259365245
+    },
+    {
+      "file": "p17_02_unrouted_s1200_south-central-tx.csv",
+      "actual": 0.062768729,
+      "predicted": 0.06292240179171284,
+      "error": 0.00015367279171284165
+    },
+    {
+      "file": "p17_03_log_land_area_maricopa-az.csv",
+      "actual": 0.062675344,
+      "predicted": 0.0627904516882043,
+      "error": 0.00011510768820430228
+    },
+    {
+      "file": "p17_04_route_ratio_maricopa-az.csv",
+      "actual": 0.062781719,
+      "predicted": 0.06287518578320299,
+      "error": 9.346678320298896e-05
+    },
+    {
+      "file": "p17_05_fire_vs_expected.csv",
+      "actual": 0.06284496,
+      "predicted": 0.06276937718472785,
+      "error": -7.558281527215993e-05
+    },
+    {
+      "file": "p18_01_building_coverage.csv",
+      "actual": 0.062725943,
+      "predicted": 0.0627707983887436,
+      "error": 4.48553887435893e-05
+    },
+    {
+      "file": "p18_02_tiger_noise.csv",
+      "actual": 0.062561554,
+      "predicted": 0.06274591703631834,
+      "error": 0.00018436303631833018
+    },
+    {
+      "file": "p18_03_poi_per_person.csv",
+      "actual": 0.062957426,
+      "predicted": 0.0627688643361688,
+      "error": -0.0001885616638312021
+    },
+    {
+      "file": "r19b_backward_selection.csv",
+      "actual": 0.062455004,
+      "predicted": 0.06247142619630231,
+      "error": 1.642219630230979e-05
+    },
+    {
+      "file": "p19_64_school_region_specialist.csv",
+      "actual": 0.062474294,
+      "predicted": 0.06248937352613828,
+      "error": 1.5079526138279953e-05
+    },
+    {
+      "file": "p20_02_multiref_share.csv",
+      "actual": 0.062438801,
+      "predicted": 0.062484663067833776,
+      "error": 4.5862067833774e-05
+    },
+    {
+      "file": "r22_ridge_eb_blend.csv",
+      "actual": 0.062343029,
+      "predicted": 0.06237361563619321,
+      "error": 3.058663619320834e-05
+    },
+    {
+      "file": "r23_ridge_eb_blend.csv",
+      "actual": 0.062327384,
+      "predicted": 0.062328179340008776,
+      "error": 7.953400087759577e-07
+    },
+    {
+      "file": "r24_scorecard_joint.csv",
+      "actual": 0.062185147,
+      "predicted": 0.06268631819769195,
+      "error": 0.0005011711976919478
+    },
+    {
+      "file": "r25_scorecard_step.csv",
+      "actual": 0.062147723,
+      "predicted": 0.06212182541842157,
+      "error": -2.5897581578435136e-05
+    },
+    {
+      "file": "r26_nn_half.csv",
+      "actual": 0.062236918,
+      "predicted": 0.06225033132029575,
+      "error": 1.3413320295745101e-05
+    },
+    {
+      "file": "r27_joint_min_change.csv",
+      "actual": 0.062113403,
+      "predicted": 0.0621415208495164,
+      "error": 2.8117849516402782e-05
+    },
+    {
+      "file": "r28b_push.csv",
+      "actual": 0.062097808,
+      "predicted": 0.06208661291357689,
+      "error": -1.119508642311029e-05
+    },
+    {
+      "file": "r29_correlated_scorecard.csv",
+      "actual": 0.062094756,
+      "predicted": 0.06209667645752713,
+      "error": 1.920457527129771e-06
+    },
+    {
+      "file": "r32_t1_multi_leader.csv",
+      "actual": 0.062092322,
+      "predicted": 0.06209092626970519,
+      "error": -1.3957302948050532e-06
+    },
+    {
+      "file": "r33_u29_push.csv",
+      "actual": 0.062090669,
+      "predicted": 0.062090188268359214,
+      "error": -4.80731640786769e-07
+    },
+    {
+      "file": "fs_physics.csv",
+      "actual": 0.101340334,
+      "predicted": 0.10291151803320508,
+      "error": 0.0015711840332050808
+    },
+    {
+      "file": "fs_physics_scorecard.csv",
+      "actual": 0.086861829,
+      "predicted": 0.09111908539007318,
+      "error": 0.004257256390073183
+    },
+    {
+      "file": "s8_posterior_v1.csv",
+      "actual": 0.061371997,
+      "predicted": 0.06162939710432723,
+      "error": 0.00025740010432723226
+    },
+    {
+      "file": "q01_physics_scorecard_road.csv",
+      "actual": 0.061456001,
+      "predicted": 0.061427745991110116,
+      "error": -2.825500888988669e-05
+    },
+    {
+      "file": "s8_refit67.csv",
+      "actual": 0.061348309,
+      "predicted": 0.061354798792449025,
+      "error": 6.48979244902842e-06
+    }
+  ]
 }
