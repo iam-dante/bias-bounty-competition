@@ -10,8 +10,10 @@ python train.py
 | Output | What it is | Public RMSE |
 |---|---|---:|
 | `physics.csv` | stages 1–7: physics model from the challenge data alone | 0.101340 (scored) |
-| `submission.csv` | stage 8: posterior fitted to the aggregate labels | **0.06163** (estimated) |
-| `submission_report.json` | every parameter, target, validation table and diagnostic | – |
+| stage 8 with 65 labels | posterior fitted to the aggregate labels | **0.061372 (scored; best)**, estimated 0.061629 |
+| `submission.csv` | stage 8 refit with 66 labels (including that score) | 0.061347 (estimated) |
+| `probes/q*.csv` | stage 9: probes along directions no scored file has measured | ≈ 0.0613–0.0615 each |
+| `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
 The first run downloads about 4.2 GB of challenge data; a run then takes about 5 minutes on a laptop CPU.
 Seeds are fixed, and reruns reproduce both files byte for byte.
@@ -49,8 +51,8 @@ gives one exact equation about the hidden target:
 mean_public(v · y) = (mean(v²) + mean(y²) − s²) / 2
 ```
 
-`aggregate_labels.npz` holds the vectors and public scores of the 65 submitted files, including `physics.csv`
-itself. One empirical-Bayes Gaussian posterior over the target is fitted to all 65 equations at once:
+`aggregate_labels.npz` holds the vectors and public scores of every submitted file (66 now), including
+`physics.csv` itself. One empirical-Bayes Gaussian posterior over the target is fitted to all 65 equations at once:
 
 - **Directions:** the files are orthogonalised in the order they were scored.
 - **Priors:** each new direction's coefficient gets a group prior (physics models, probes,
@@ -79,6 +81,27 @@ Compared with the best earlier file (R33, 0.062091), the posterior's estimate is
 - re-weighting inside the old span costs about 0.0001;
 - this is an estimate until the file is scored.
 
+## Improving it: the probe loop (stage 9)
+
+Each new score is one more training label. The loop is:
+
+```bash
+python train.py --probes 5                                        # design 5 probes -> probes/q*.csv
+# upload them; then for each score:
+python train.py --add-label q01_physics_scorecard_road.csv probes/q01_physics_scorecard_road.csv 0.0614xxxxx
+python train.py --fit-only                                        # refit stage 8 on all labels -> submission.csv
+```
+
+**How a probe is built:**
+- **Direction:** a direction no scored file has measured. Here these are the components of the physics models
+  (roads, buildings, facilities, establishments), each made orthogonal to every scored file and to the others.
+- **Probe file:** the best scored file plus a small step (RMS 0.003) along that direction. It scores within
+  about ±0.00015 of the best and measures how far the truth lies along its direction (±0.001).
+- **Refit:** the next stage-8 fit uses that measurement.
+
+This is how the physics model's own scores moved the target from 0.0621 to 0.0614. The probes ask the same
+question component by component: how strongly does the truth agree with each part of the physics model?
+
 ## Options
 
 ```bash
@@ -86,6 +109,9 @@ python train.py --physics-only   # stop after the physics model
 python train.py --scorecard      # physics variant also calibrated on the public Bias Scorecard -> physics_scorecard.csv
 python train.py --discovery      # Best Bias Discovery tables (discovery*.csv), see BIAS_DISCOVERY.md
 python train.py --rebuild        # recompute cached features
+python train.py --fit-only       # stage 8 only (reads physics.csv)
+python train.py --probes K       # stage 9: write K probe files
+python train.py --add-label NAME FILE RMSE   # record a new score as a label
 ```
 
 ## Rules
@@ -102,6 +128,6 @@ python train.py --rebuild        # recompute cached features
 - `METHOD.md`: the technical write-up.
 - `BIAS_DISCOVERY.md`: the Best Bias Discovery write-up.
 - `requirements.txt`.
-- Outputs: `physics.csv`, `submission.csv`, `submission_report.json`, `discovery*.csv`.
+- Outputs: `physics.csv`, `submission.csv`, the report files, `discovery*.csv`, `probes/` (with `manifest.json`).
 - `data/`: downloaded data and cached features (git-ignored).
 - The older chained pipeline and its history are on the `main` branch.

@@ -492,12 +492,15 @@ def simulate(F, th, S=256, seed=0):
     dP = nP > 0
     nd_all = dT.astype(int) + dB + dP
     y = np.where(nd_all > 0, (t + b + pg) / np.maximum(nd_all, 1), 0.0)
+    contrib = {"c_road": (t * dT / np.maximum(nd_all, 1)).mean(0), "c_building": (b * dB / np.maximum(nd_all, 1)).mean(0),
+               "c_facility": (np.where(dP, h / np.maximum(nP, 1), 0.0) / np.maximum(nd_all, 1)).mean(0),
+               "c_establishment": (np.where(dP, c / np.maximum(nP, 1), 0.0) / np.maximum(nd_all, 1)).mean(0)}
     undefined = ~(dT & dB & dP)
     comp = {f"{k}_defined": d.mean(0) for k, d in [("road", dT), ("building", dB), ("poi", dP)]}
     comp.update({f"{k}_gap": (v * d).sum(0) / np.maximum(d.sum(0), 1) for k, v, d in [("road", t, dT), ("building", b, dB),
                                                                                            ("facility", h, dH), ("establishment", c, dC)]})
     return dict(Ey=y.mean(0), Ey2=(y ** 2).mean(0), und=undefined.mean(0), ET=(T * dT).mean(0), ECBP=CBP.mean(0),
-                **comp, **types)
+                **comp, **types, **contrib)
 
 
 # ================================================================================================
@@ -685,7 +688,7 @@ def discovery(df, pred):
 # ================================================================================================
 LABELS = "aggregate_labels.npz"         # (GEOID, region, file names, public RMSE, prediction vectors) of 65 scored files
 P_PUBLIC = 0.3                          # the public leaderboard is about 30% of the graded tracts
-CLIP_GROUP = ("r14", "r19b", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29", "r3")   # leaderboard-calibrated files
+CLIP_GROUP = ("r14", "r19b", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29", "r3", "s8")   # leaderboard-calibrated files
 
 
 class AggregateLabels:
@@ -733,6 +736,20 @@ class AggregateLabels:
         m0 = np.full(n, p)
         lam = np.linalg.lstsq(p * (1 - p) * Hm.T @ Hm, np.array(rhs) - Hm.T @ m0, rcond=None)[0]
         self.pi = np.clip(m0 + p * (1 - p) * Hm @ lam, 0, 1)
+
+
+def add_label(name, path, rmse):
+    """Append one scored file (its vector and public RMSE) to the aggregate labels."""
+    with np.load(LABELS, allow_pickle=False) as z:
+        art = {k: z[k] for k in z.files}
+    assert name not in art["names"], f"{name} is already a label"
+    v = pd.read_csv(path, dtype={"GEOID": str}).set_index("GEOID").loc[art["geoid"].astype(str), "coverage_gap_score"]
+    assert len(v) == 9794 and v.notna().all()
+    art["names"] = np.append(art["names"], name).astype("<U42")
+    art["scores"] = np.append(art["scores"], float(rmse))
+    art["predictions"] = np.column_stack([art["predictions"], v.to_numpy(float)])
+    np.savez_compressed(LABELS, **art)
+    log(f"{LABELS}: added {name} ({path}, public RMSE {float(rmse):.9f}); {len(art['names'])} labels")
 
 
 def label_group(name):
@@ -869,6 +886,81 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     return final
 
 
+# ================================================================================================
+# 9. PROBE DESIGN (active learning with aggregate labels)
+# ================================================================================================
+AUX_TARGETS = [("E_fire", 20), ("E_ems", 20), ("E_sch", 40), ("n_poi_bq", 2000)]
+PROBE_STEP = 0.003                      # RMS of each probe's step: costs at most ~0.00007 RMSE if the direction is empty
+COMPONENTS = ["c_road", "c_building", "c_facility", "c_establishment"]
+
+
+def physics_contributions(df, report_path, use_scorecard):
+    """Rebuild a calibrated physics model from its report and return each component's contribution to the score
+    (the four sum to the model's prediction)."""
+    set_priors(use_scorecard)
+    with open(report_path) as f:
+        par = json.load(f)["calibration"]["parameters"]
+    assert [p["parameter"] for p in par] == NAMES, f"{report_path} does not match the model's parameters"
+    th = np.array([p["posterior"] for p in par])
+    X, _ = context_matrix(df)
+    mu = {t: cross_fit(df, X, t, cap)[0] for t, cap in AUX_TARGETS}
+    sim = predict(inputs(df, mu), th)
+    return {k: sim[k] for k in COMPONENTS}, sim["Ey"]
+
+
+def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
+    """Directions the scored files have not measured yet: each physics model's component contributions, made
+    orthogonal to the span of every scored file and to each other (largest first). Each probe is the best scored
+    file plus `step` along one direction; its score measures the target's projection on that direction (sd about
+    0.001), and the next stage-8 fit uses it."""
+    L = AggregateLabels()
+    g = L.graded
+    w = L.pi / L.pi.sum()
+    sw = np.sqrt(w)[:, None]
+    pos = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())[L.geoid].to_numpy()
+    cands = {}
+    for tag, path, sc in [("physics", "physics_report.json", False), ("physics_scorecard", "physics_scorecard_report.json", True)]:
+        contrib, ey = physics_contributions(df, path, sc)
+        log(f"  {tag}: components rebuilt (sum matches the model to {np.abs(sum(contrib.values()) - ey).max():.1e})")
+        for k, v in contrib.items():
+            cands[f"{tag}:{k[2:]}"] = v[pos][g]
+    set_priors(False)
+    X = np.column_stack([np.ones(g.sum())] + [L.V[f][g] for f in L.s if f != "probe_zeros.csv"])
+    Qx, _ = np.linalg.qr(X * sw)
+    resid = {k: v - (Qx @ (Qx.T @ (v[:, None] * sw)))[:, 0] / sw[:, 0] for k, v in cands.items()}
+    chosen = []
+    while len(chosen) < K:
+        size = {k: float(np.sqrt(w @ r ** 2)) for k, r in resid.items() if k not in [c[0] for c in chosen]}
+        if not size:
+            break
+        k = max(size, key=size.get)
+        if size[k] < min_rms:
+            break
+        e = resid[k] / size[k]
+        chosen.append((k, e, size[k]))
+        for j in resid:
+            resid[j] = resid[j] - (w @ (resid[j] * e)) * e
+    best = min((s_, n) for n, s_ in L.s.items() if not n.startswith(("probe_", "p")))
+    base = L.V[best[1]]
+    os.makedirs("probes", exist_ok=True)
+    manifest = []
+    for i, (k, e, size) in enumerate(chosen, 1):
+        v = base.copy()
+        v[g] = np.clip(base[g] + step * e, 0, 1)
+        name = f"q{i:02d}_{k.replace(':', '_')}"
+        path = os.path.join("probes", f"{name}.csv")
+        pd.DataFrame({"GEOID": L.geoid, "coverage_gap_score": np.round(v, 6)}).to_csv(path, index=False)
+        no_signal = float(np.sqrt(best[0] ** 2 + L.AP((v[g] - base[g]) ** 2)))
+        manifest.append(dict(file=path, label_name=f"{name}.csv", direction=k, base=best[1], base_rmse=best[0], step_rms=step,
+                             out_of_span_rms_of_component=size, expected_rmse_if_no_signal=no_signal,
+                             expected_rmse_if_like_physics=float(np.sqrt(max(best[0] ** 2 - 2 * step * 0.003 + step ** 2, 0)))))
+        log(f"  {path}: {k} (new part RMS {size:.4f}); expected score {no_signal:.6f} if the direction is empty, "
+            f"{manifest[-1]['expected_rmse_if_like_physics']:.6f} if it carries signal like the physics directions")
+    with open(os.path.join("probes", "manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2)
+    return manifest
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--rebuild", action="store_true", help="recompute the cached features")
@@ -878,12 +970,34 @@ def main():
     ap.add_argument("--discovery", action="store_true", help="write the Best Bias Discovery tables")
     ap.add_argument("--out", default="submission.csv", help="submission path")
     ap.add_argument("--draws", type=int, default=512, help="Monte Carlo draws per tract during calibration")
+    ap.add_argument("--add-label", nargs=3, metavar=("NAME", "FILE", "RMSE"), help="append a scored file to the labels and exit")
+    ap.add_argument("--fit-only", action="store_true", help="stage 8 only, reading the physics model from physics.csv")
+    ap.add_argument("--probes", type=int, default=0, metavar="K", help="write K probe files to probes/ and exit")
     args = ap.parse_args()
+    if args.add_label:
+        add_label(*args.add_label)
+        return
     physics_path = "physics_scorecard.csv" if args.scorecard else "physics.csv"
     set_priors(args.scorecard)
     t0 = time.time()
     clock = lambda: f"{time.time() - t0:.0f}s"
     report = {"inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files"}
+
+    if args.probes:
+        df, _ = load()
+        log(f"9/9 probe design: {args.probes} directions the scored files have not measured")
+        make_probes(df, K=args.probes)
+        return
+    if args.fit_only:
+        df, groups = load()
+        phys = pd.read_csv("physics.csv", dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
+        pred = phys.loc[df["GEOID"]].to_numpy(float)
+        log("8/8 aggregate labels (stage 8 only; physics model read from physics.csv)")
+        aggregate_label_fit(df, groups, pred, args.out, report, do_forward=not args.no_forward)
+        with open("submission_report.json", "w") as f:
+            json.dump(report, f, indent=2, default=float)
+        log(f"Wrote {args.out} ({clock()})")
+        return
 
     log("1/7 data")
     download()
@@ -902,7 +1016,7 @@ def main():
     log("3/7 auxiliary models (county-grouped 5-fold CV)")
     X, xnames = context_matrix(df)
     mu, aux = {}, []
-    for target, cap in [("E_fire", 20), ("E_ems", 20), ("E_sch", 40), ("n_poi_bq", 2000)]:
+    for target, cap in AUX_TARGETS:
         mu[target], rep = cross_fit(df, X, target, cap)
         aux.append(rep)
         log(f"  {target:9s} CV Poisson deviance: GLM {rep['cv_deviance']['poisson_glm']:.3f}, GBM {rep['cv_deviance']['poisson_gbm']:.3f}, "
@@ -957,14 +1071,17 @@ def main():
     report["physics"] = dict(file=physics_path, mean_graded=float(pred[g].mean()), components=comp, scorecard_ratios=ratios,
                              mc_stability_rms=stability)
     log(f"  scorecard ratios of the physics prediction: {ratios}; wrote {physics_path} ({clock()})")
+    with open(physics_path.replace(".csv", "_report.json"), "w") as f:
+        json.dump(report, f, indent=2, default=float)
     final = pred
     if not (args.physics_only or args.scorecard):
-        log("8/8 aggregate labels (public RMSE of 65 scored files)")
-        final_l = aggregate_label_fit(df, groups, pred, args.out, report, do_forward=not args.no_forward)
+        log("8/8 aggregate labels (public RMSE of the scored files)")
+        report8 = {}
+        final_l = aggregate_label_fit(df, groups, pred, args.out, report8, do_forward=not args.no_forward)
+        with open("submission_report.json", "w") as f:
+            json.dump(report8, f, indent=2, default=float)
         final = pd.Series(final_l, index=AggregateLabels().geoid.to_numpy())[df["GEOID"].to_numpy()].to_numpy()
         log(f"Wrote {args.out} ({clock()})")
-    with open(("physics_scorecard" if args.scorecard else "submission") + "_report.json", "w") as f:
-        json.dump(report, f, indent=2, default=float)
     if args.discovery:
         log("discovery")
         discovery(df, final)

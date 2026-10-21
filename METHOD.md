@@ -221,6 +221,45 @@ files, and a direct test of its remaining part measured −0.2 ± 1.9.
 | Wildfire | 1.68 | 1.77 |
 | Heat | 0.63 | 0.62 |
 
+**Result.**
+
+- The 65-label fit scored **0.061372**, better than its estimate of 0.061629 and than R33 (0.062091).
+- The line through R33 and this file has a known curvature, so the two scores place the optimum along it at
+  about 1.0×. The fit is already at the best point of its own direction.
+- With that score added (66 labels), the refit is estimated at 0.061347.
+
+## 8b. Probe design (stage 9)
+
+Further gains need directions no scored file has measured.
+
+**Candidates:** the four component contributions (roads, buildings, facilities, establishments) of both physics
+models. They sum to each model's prediction, and only that sum has been scored.
+
+**Selection:**
+- Each candidate is made orthogonal to the span of all scored files (pi-weighted).
+- The largest is taken first, and the rest are made orthogonal to it.
+- The process repeats while the remaining part has RMS > 0.002.
+
+**Probe file:** the best scored file plus a step of RMS 0.003 along the unit direction. Its score gives the
+target's projection on that direction, to about ±0.001 (public-sampling noise).
+
+**Cost and gain:**
+- If the direction is empty, the probe costs at most about 0.00007 RMSE.
+- If it carries signal like the physics directions did, it gains about the same.
+
+The scores enter stage 8 as labels, so the next fit re-weights each component by how strongly the truth agrees
+with it. The first batch (`probes/manifest.json`):
+
+| Probe | Component | New part (RMS) |
+|---|---|---:|
+| 1 | Roads, scorecard physics | 0.028 |
+| 2 | Establishments | 0.017 |
+| 3 | Roads | 0.014 |
+| 4 | Buildings | 0.010 |
+| 5 | Buildings, scorecard physics | 0.005 |
+
+The facility component is already almost entirely inside the scored span.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
@@ -240,6 +279,9 @@ files, and a direct test of its remaining part measured −0.2 ± 1.9.
 ## 10. Options
 
 - `--physics-only`: stop after stage 7.
+- `--fit-only`: stage 8 only, reading `physics.csv`.
+- `--probes K`: stage 9, which writes K probe files and `probes/manifest.json`.
+- `--add-label NAME FILE RMSE`: record a scored file as a new label.
 - `--scorecard`: a physics variant that also calibrates 16 stratum effects on the public Bias Scorecard (the
   rank-1 entry's 9 ratios, tolerance 0.03). Writes `physics_scorecard.csv`, which scored 0.086862 and is one
   of the aggregate labels.
