@@ -871,9 +871,16 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     change = final[g] - L.V[best[1]][g]
     log(f"  estimated public RMSE {est_final:.6f}; best scored file {best[1]} {best[0]:.6f} "
         f"(RMS difference {np.sqrt(w @ change ** 2):.5f}); in-span by construction, so the estimate credits all of it")
+    if est_final >= best[0]:
+        # The posterior cannot beat what the scores already confirm: output the best scored file (it is a label, so
+        # its score is known exactly rather than estimated).
+        final = np.round(L.V[best[1]].copy(), 6)
+        rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
+        log(f"  the refit does not improve on {best[1]}: writing that file (public RMSE {best[0]:.6f}) as the submission")
     log(f"  scorecard ratios (zero-score leaders: rural 2.23-2.38, tribal 2.79-2.97): {rat}")
     report["aggregate_fit"] = dict(hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])], est_public=est_final,
-                                   best_scored=dict(file=best[1], rmse=best[0]), ratios=rat)
+                                   best_scored=dict(file=best[1], rmse=best[0]), ratios=rat,
+                                   submission="refit" if est_final < best[0] else best[1])
     if do_forward:
         fv = forward_validation(L)
         old_files = ~fv.file.str.startswith("fs_")

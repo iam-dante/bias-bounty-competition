@@ -12,7 +12,8 @@ python train.py
 | `physics.csv` | stages 1–7: physics model from the challenge data alone | 0.101340 (scored) |
 | stage 8 with 65 labels | posterior fitted to the aggregate labels | **0.061372 (scored; best)**, estimated 0.061629 |
 | `probes/q01_physics_scorecard_road.csv` | probe: road pattern of the scorecard physics | 0.061456 (scored; no signal) |
-| `submission.csv` | stage 8 refit with all 67 labels | 0.061355 (estimated) |
+| stage 8 refit with 67 labels | posterior after the probe | **0.061348 (scored; best)**, estimated 0.061355 |
+| `submission.csv` | stage 8 with 68 labels: the refit (estimated 0.061367) cannot beat the best scored file, so stage 8 writes that file | **0.061348** |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
@@ -81,6 +82,9 @@ Compared with the best earlier file (R33, 0.062091), the posterior's estimate is
 - the gain comes from these two measured directions;
 - re-weighting inside the old span costs about 0.0001;
 - this is an estimate until the file is scored.
+
+Stage 8 writes the refit only if its estimate beats the best scored file; otherwise it writes the best scored file
+itself. So `python train.py` always reproduces the best submission.
 
 ## Improving it: the probe loop (stage 9)
 
