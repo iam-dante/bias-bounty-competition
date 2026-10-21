@@ -14,8 +14,9 @@ python train.py
 | `probes/q01_physics_scorecard_road.csv` | probe: road pattern of the scorecard physics | 0.061456 (scored; no signal) |
 | stage 8 refit with 67 labels | posterior after the probe | **0.061348 (scored; best)**, estimated 0.061355 |
 | best + 0.15 × unscored part of `physics_lb.csv` (68 labels) | first transfer step | **0.060742 (scored; best)**; implies the truth follows that direction at 0.68 ± 0.05 |
-| `physics_lb.csv` | stage 10 recalibrated on 69 labels | 0.0635 on its own (estimated) |
-| `submission.csv` | 1-D update to 4.18× the measured step (est. 0.059819) + 0.4 × the 69-label physics' new unscored part | 0.0599 if that part is empty, 0.0597 at a coefficient of 0.4, 0.0596 at 0.6 |
+| local update + 0.4 × the 69-label physics' new part | second transfer step | **0.060353 (scored; best)**; the new part runs the other way: optimum −2.14 ± 0.27 × that step |
+| `physics_lb.csv` | stage 10 recalibrated on 70 labels | 0.0635 on its own (estimated) |
+| `submission.csv` | local update (4.49× first part, −2.11× second; est. 0.059359) + small bet 0.1 × the 70-label physics' new part | 0.05933–0.05941 depending on the bet's sign |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
@@ -136,8 +137,15 @@ Stage 8 now compares three candidates and keeps the one with the lowest estimate
   it. The two scored points on that line, and its known curvature, give the optimum multiple of the step; the
   prior is N(1, 1).
 
-Then it adds `TRANSFER` (0.4) × the part of the label-calibrated physics that is still unscored. The previous
-calibrated-physics direction measured 0.68, and this step breaks even at 0.2.
+With several transfer files, the update is local around their anchor:
+
+- **Steps:** each file's displacement is made orthogonal to the earlier ones.
+- **Measurement:** the scores measure the target's projection on each new part.
+- **Prior:** each coefficient gets N(0, 0.8²).
+- **Next step:** a small `TRANSFER` (0.1) × the newest calibrated-physics direction is added as the next bet.
+
+The calibrated-physics directions have measured +0.68 and −0.86: informative, but of unpredictable sign. A small
+step risks at most about ±0.0001, and its score still measures the direction fully.
 
 ## Options
 

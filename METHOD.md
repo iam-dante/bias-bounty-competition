@@ -314,6 +314,27 @@ physics directions measured 0.08 and 0.15.
 - **Submission:** the 1-D update plus 0.4 × that new part. Expected public RMSE: 0.05992 if the part is empty,
   0.05982 at a coefficient of 0.2 (break-even), 0.05971 at 0.4, 0.05961 at 0.6.
 
+**Result:** it scored **0.060353**. The two parts are orthogonal (correlation −0.008), so the scores separate them:
+
+| Part | Optimum multiple of the step taken |
+|---|---:|
+| First direction | 4.50 ± 0.32 (confirmed) |
+| New part (the 0.4 bet) | **−2.14 ± 0.27** |
+
+So the truth runs opposite to the 69-label physics' new direction, with coefficient about −0.86. Without the bet,
+the file would have scored 0.059808, as predicted.
+
+**Lessons:**
+- Every bet is a precise measurement, whichever its sign.
+- The measurement's precision does not depend on the step size, so bets are now small (`TRANSFER = 0.1`).
+
+**Stage 8 now:**
+- **Local update:** around the anchor (`s8_refit67`), every transfer displacement's new part is measured, with a
+  prior N(0, 0.8²) on its coefficient.
+- **Next file:** 4.49 × the first part and −2.11 × the second (estimated 0.059359), plus 0.1 × the 70-label
+  physics' new part (RMS 0.0057).
+- **Expected:** 0.05933–0.05941.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

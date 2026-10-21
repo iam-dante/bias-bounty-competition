@@ -879,9 +879,12 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
         v = tu["vector"].copy()
         v[~g] = final[~g]
         e = estimate(L, v)
-        log(f"  1-D update along {tu['label']} (from {tu['base']}): measured {tu['t_measured']:.2f} +- {tu['sd']:.2f} x the step, "
-            f"posterior {tu['t_posterior']:.2f}; estimated public RMSE {e:.6f}")
-        cands.append((f"1-D update along {tu['label']}", e, v))
+        for p_ in tu["parts"]:
+            log(f"  new part of {p_['label']} (RMS {p_['rms']:.5f}): optimum {p_['t_measured']:+.2f} +- {p_['sd']:.2f} x the step taken, "
+                f"posterior {p_['t_posterior']:+.2f}")
+        log(f"  local update around {tu['anchor']}: estimated public RMSE {e:.6f}")
+        cands.append((f"local update around {tu['anchor']}", e, v))
+        report["transfer_parts"] = tu["parts"]
     choice = min(cands, key=lambda c: c[1])
     final = choice[2]
     rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
@@ -985,9 +988,10 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.40     # step along the unscored part of the label-calibrated physics. Measured so far: physics files
-                    # with guessed parameters 0.083 and 0.152; the first label-calibrated physics 0.676 (z 14).
-                    # 0.4 is a shrunk prior mean for the next one; the step breaks even at a coefficient of 0.2.
+TRANSFER = 0.10     # step along the unscored part of the label-calibrated physics. Its coefficient has been +0.68 and
+                    # -0.86 (z 14 and 8): informative but of unpredictable sign. A small step costs at most ~0.0001 now
+                    # and its score still measures the direction fully, so the next file can take the measured optimum.
+TRANSFER_PRIOR_SD = 0.8   # prior sd of a calibrated-physics direction's coefficient (spread of the measured +0.68, -0.86)
 
 
 class LabelTargets(Targets):
@@ -1051,27 +1055,41 @@ def calibrate_physics_on_labels(df, groups, report, S=512):
 
 
 def transfer_updates(L):
-    """For every transfer label (a deliberate step from the best file scored before it), the 1-D Bayesian update along
-    that step: two scored points on one line with known curvature give the optimum multiple of the step; prior N(1, 1)
-    (the step taken was the prior guess)."""
+    """Local Bayesian update around the anchor (the best file scored before the first transfer label). Every transfer
+    file is a deliberate displacement D_k from the anchor; its score gives <D_k, y - anchor> on the public rows
+    exactly. The displacements are made orthogonal in order (each file's new part), the target's projection on each
+    new part is measured from the scores, and each new part's coefficient on its physics direction gets a prior
+    N(0, TRANSFER_PRIOR_SD^2). Transfer labels are named tr_<model>_<step x 100>.csv. The update is the anchor plus
+    the posterior multiples of the new parts."""
     g = L.graded
     order = list(L.s)
-    out = []
-    for name in order:
-        if label_group(name) != "transfer":
+    names = [n for n in order if label_group(n) == "transfer"]
+    if not names:
+        return []
+    anchor = min([n for n in order[:order.index(names[0])] if not n.startswith("probe_")], key=L.s.get)
+    a, ma = L.V[anchor][g], L.s[anchor] ** 2
+    unit = L.s[anchor] * np.sqrt((1 - P_PUBLIC) / (P_PUBLIC * g.sum()))
+    w = L.pi / L.pi.sum()
+    E, gE, parts = [], [], []
+    for name in names:
+        D = L.V[name][g] - a
+        gD = (ma + L.AP(D ** 2) - L.s[name] ** 2) / 2
+        c = [(w @ (D * e)) / (w @ e ** 2) for e in E]
+        e = D - sum((cj * ej for cj, ej in zip(c, E)), np.zeros_like(D))
+        ge = gD - sum(cj * gj for cj, gj in zip(c, gE))
+        size2 = L.AP(e ** 2)
+        if size2 < 1e-12:
             continue
-        before = [n for n in order[:order.index(name)] if not n.startswith("probe_")]
-        base_name = min(before, key=L.s.get)
-        step = (L.V[name] - L.V[base_name])[g]
-        size2 = L.AP(step ** 2)
-        t_hat = (size2 - (L.s[name] ** 2 - L.s[base_name] ** 2)) / (2 * size2)
-        sd = L.s[base_name] * np.sqrt((1 - P_PUBLIC) / (P_PUBLIC * g.sum())) / np.sqrt(size2)
-        t_post = (t_hat / sd ** 2 + 1.0) / (1 / sd ** 2 + 1.0)
-        v = L.V[base_name].copy()
-        v[g] = np.clip(L.V[base_name][g] + t_post * step, 0, 1)
-        out.append(dict(label=name, base=base_name, t_measured=float(t_hat), sd=float(sd), t_posterior=float(t_post),
-                        vector=np.round(v, 6)))
-    return out
+        t_hat, sd = ge / size2, unit / np.sqrt(size2)
+        step = int(name.split("_")[-1].split(".")[0]) / 100          # tr_<model>_<step x 100>.csv
+        prior_sd = TRANSFER_PRIOR_SD / step                          # prior N(0, 0.8^2) on the direction's coefficient
+        t_post = t_hat * prior_sd ** 2 / (prior_sd ** 2 + sd ** 2)
+        E.append(e)
+        gE.append(ge)
+        parts.append(dict(label=name, rms=float(np.sqrt(size2)), t_measured=float(t_hat), sd=float(sd), t_posterior=float(t_post)))
+    v = L.V[anchor].copy()
+    v[g] = np.clip(a + sum(p_["t_posterior"] * e for p_, e in zip(parts, E)), 0, 1)
+    return [dict(anchor=anchor, parts=parts, vector=np.round(v, 6))]
 
 
 def transfer_step(L, base, physics_lb, report, base_rmse):
