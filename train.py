@@ -1012,8 +1012,9 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     log(f"  scorecard ratios (zero-score leaders: rural 2.23-2.38, tribal 2.79-2.97): {rat}")
     report["aggregate_fit"] = dict(report.get("aggregate_fit", {}), hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])],
                                    est_public_refit=est_final, best_scored=dict(file=best[1], rmse=best[0]), ratios=rat)
-    if TRANSFER > 0 and os.path.exists(TRANSFER_SOURCE):
-        lb_phys = pd.read_csv(TRANSFER_SOURCE, dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
+    sources = TRANSFER_SOURCE if isinstance(TRANSFER_SOURCE, list) else [TRANSFER_SOURCE]
+    if TRANSFER > 0 and all(os.path.exists(f_) for f_ in sources):
+        lb_phys = sum(pd.read_csv(f_, dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"] for f_ in sources) / len(sources)
         final = np.round(transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report, choice[1]), 6)
         rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
         report["aggregate_fit"]["ratios_after_transfer"] = rat
@@ -1107,9 +1108,11 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.0      # no bet: after the structural step (coefficient 0.25-0.30, nearly used up) the remaining unscored
-                    # directions are small (RMS <= 0.008) and their expected gain is below 0.00002.
-TRANSFER_SOURCE = "physics_lb_struct.csv"
+TRANSFER = 0.30     # bet on the ensemble of the three best-fitting physics models (moment chi-square ~106-113): their
+                    # unscored parts correlate +0.58 to +0.87. Measured so far for calibrated-physics directions: +0.5,
+                    # ~0, +0.28; 0.3 is a deliberately firm step (break-even coefficient 0.2).
+TRANSFER_SOURCE = ["physics_lb_struct_regional.csv", "physics_lb_struct_unmatched.csv",
+                   "physics_lb_struct_unmatched_regional.csv"]                              # averaged (an ensemble)
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
 
@@ -1144,9 +1147,11 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     set_priors(True, regional, structural, unmatched)
     with open("physics_scorecard_report.json") as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
-    if structural and (regional or unmatched) and os.path.exists("physics_lb_struct_report.json"):
-        with open("physics_lb_struct_report.json") as f:                # warm start from the fitted structural model
-            start.update({p["parameter"]: p["fitted"] for p in json.load(f)["parameters"]})
+    warm = ["physics_lb_struct_report.json"] + (["physics_lb_struct_unmatched_report.json"] if unmatched and regional else [])
+    for wf in warm if structural and (regional or unmatched) else []:
+        if os.path.exists(wf):
+            with open(wf) as f:                                           # warm start from the fitted smaller models
+                start.update({p["parameter"]: p["fitted"] for p in json.load(f)["parameters"]})
     th0 = np.array([start.get(n, c0) for n, c0 in zip(NAMES, THETA0)])   # new mechanisms start at their prior centres
     X, _ = context_matrix(df)
     mu = {t: cross_fit(df, X, t, cap)[0] for t, cap in AUX_TARGETS}
@@ -1256,7 +1261,8 @@ def transfer_step(L, base, physics_lb, report, base_rmse):
     size = float(np.sqrt(w @ u ** 2))
     outcomes = {f"coef_{b:+.1f}": float(np.sqrt(max(base_rmse ** 2 + size ** 2 * (CURVATURE * TRANSFER ** 2 - 2 * TRANSFER * b), 0)))
                 for b in (-0.3, 0.0, 0.3, 0.5)}
-    log(f"  transfer step: {TRANSFER} x the unscored part of {TRANSFER_SOURCE} (RMS {size:.4f}); expected public RMSE by the "
+    log(f"  transfer step: {TRANSFER} x the unscored part of {' + '.join(TRANSFER_SOURCE) if isinstance(TRANSFER_SOURCE, list) else TRANSFER_SOURCE}"
+        f" (RMS {size:.4f}); expected public RMSE by the "
         f"truth's coefficient along it: " + ", ".join(f"{k[5:]} -> {v:.6f}" for k, v in outcomes.items()))
     report["transfer"] = dict(share=TRANSFER, unscored_rms=size, expected=outcomes)
     return out

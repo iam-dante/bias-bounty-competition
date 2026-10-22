@@ -426,6 +426,23 @@ it becomes a main direction once scored). Expected public RMSE with curvature 1.
 - **Tract area.** The misfit also correlates −0.10 with tract area, but area lies 98% inside the scored span: the
   posterior already uses it, and a physics mechanism for it would add no new scored information.
 
+**Largest model and ensemble bet.**
+
+- **Last local update:** scored **0.059954**, exactly as predicted.
+- **Largest model:** structural + unmatched facilities + regional (59 parameters, warm-started from the smaller
+  fits). It reaches moment chi-square 112.6 on 66 moments, about the same fit per moment as structural alone.
+- **Agreement:** the three best-fitting models' unscored parts relative to all 74 labels correlate +0.58 to
+  +0.87. Different calibrations of the physics agree on this direction.
+- **Bet:** `submission.csv` adds 0.3 × their average (an ensemble; RMS 0.0089) to the best file. Expected public
+  RMSE:
+
+  | Truth's coefficient | Expected public RMSE |
+  |---:|---:|
+  | +0.5 | 0.05983 |
+  | +0.3 | 0.05991 |
+  | 0 | 0.06003 |
+  | −0.3 | 0.06015 |
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
