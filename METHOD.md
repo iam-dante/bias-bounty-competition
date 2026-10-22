@@ -403,6 +403,29 @@ it becomes a main direction once scored). Expected public RMSE with curvature 1.
   0.059954 ± 0.00003).
 - **Further gains** need a mechanism that makes the physics fit the scores clearly better than chi-square ≈ 106.
 
+**Facility mechanisms tested (`--unmatched`).**
+
+- **Screen.** I correlated the score-visible misfit (best file minus the structural physics, restricted to the
+  scored span) with candidate Overture categories that the organisers' match does not count. The signs all fit
+  "the reference layers hold places the match misses":
+
+  | Candidate | Correlation |
+  |---|---:|
+  | Colleges / universities | +0.18 |
+  | Vocational schools | +0.11 |
+  | Generic "education" | +0.09 |
+  | Hospital ERs | +0.09 |
+  | Preschools | +0.07 |
+  | Charter / religious / Montessori schools | +0.06 |
+
+- **Mechanism.** Reference copies from colleges and vocational schools, from other K-12 / education places
+  (schools layer) and from ERs (EMS layer), each with a fitted share.
+- **Calibration** (structural + unmatched, warm-started, 73 labels): moment chi-square **106.2**, no better than
+  structural alone. Fitted shares: colleges 7%, other K-12 11%, ERs 2%.
+- **Decision:** not used. A model that fits no better gives no reason to trust its unscored part (RMS 0.0125).
+- **Tract area.** The misfit also correlates −0.10 with tract area, but area lies 98% inside the scored span: the
+  posterior already uses it, and a physics mechanism for it would add no new scored information.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

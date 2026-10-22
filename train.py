@@ -302,10 +302,29 @@ def _facility_points(con, region):
         FROM pts JOIN tr ON ST_DWithin(tr.g, pts.g, 500) JOIN trb USING (GEOID)""").df()
 
 
+UNMATCHED = {"col": "('college_university','vocational_and_technical_school','specialty_school')",
+             "k12": "('charter_school','religious_school','montessori_school','education','educational_services')",
+             "er": "('emergency_room','emergency_medicine')"}
+
+
+def _unmatched_features(con, region):
+    """Overture places the organisers' category match does not count but that the reference layers may hold:
+    colleges / vocational schools and other K-12 or education places (schools layer), hospital ERs (EMS layer)."""
+    sel = ", ".join(f"count(*) FILTER (p.cat IN {v}) AS n_{k}" for k, v in UNMATCHED.items())
+    return con.sql(f"""
+        WITH p AS (SELECT geometry, categories.primary cat FROM '{DATA}/reference/{region}/{region}-overture-pois.parquet')
+        SELECT tr.GEOID, {sel} FROM tr JOIN p ON ST_Contains(tr.g4326, p.geometry) GROUP BY tr.GEOID""").df()
+
+
 def build_features(region, force=False):
     base, extra = os.path.join(FEAT, f"{region}.parquet"), os.path.join(FEAT, f"{region}-extra.parquet")
     facpts = os.path.join(FEAT, f"{region}-facpts.parquet")
+    unmatched = os.path.join(FEAT, f"{region}-unmatched.parquet")
     if os.path.exists(base) and os.path.exists(extra) and os.path.exists(facpts) and not force:
+        if not os.path.exists(unmatched):
+            con = _con()
+            con.sql(f"CREATE OR REPLACE TABLE tr AS SELECT GEOID, geometry g4326 FROM '{DATA}/strata/{region}/{region}-census-tracts.parquet'")
+            _unmatched_features(con, region).to_parquet(unmatched, index=False)
         return
     os.makedirs(FEAT, exist_ok=True)
     t0 = time.time()
@@ -323,6 +342,7 @@ def build_features(region, force=False):
     df.to_parquet(base, index=False)
     _extra_features(con, region).to_parquet(extra, index=False)
     _facility_points(con, region).to_parquet(facpts, index=False)
+    _unmatched_features(con, region).to_parquet(unmatched, index=False)
     log(f"  features [{region}] {df.shape} in {time.time() - t0:.0f}s")
 
 
@@ -350,9 +370,15 @@ def load():
         x = pd.read_parquet(os.path.join(FEAT, f"{r}-extra.parquet"))
         ss = pd.read_csv(f"{DATA}/reference/{r}/{r}-sample-submission.csv", dtype={"GEOID": str})
         f = ss[["GEOID"]].merge(f, on="GEOID", how="left").merge(x, on="GEOID", how="left")
+        um = os.path.join(FEAT, f"{r}-unmatched.parquet")
+        if os.path.exists(um):
+            f = f.merge(pd.read_parquet(um), on="GEOID", how="left")
         f["region"] = r
         frames.append(f)
     df = pd.concat(frames, ignore_index=True)
+    for k in UNMATCHED:
+        if f"n_{k}" not in df.columns:
+            df[f"n_{k}"] = 0
     zero = [c for c in df.columns if c.startswith(("L_", "Lb_", "n_"))] + ["housing_units"]
     df[zero] = df[zero].fillna(0)
     df["area_km2"] = df["area_m2"] / 1e6
@@ -439,17 +465,20 @@ STRATA_PRIORS = [(f"gf_{k}", 0.0, 0.3) for k in STRATA] + [(f"gr_{k}", 0.0, 0.3)
 # structural mechanisms: facility copies leak across tract boundaries (spread sigma_loc, metres); TIGER keeps one
 # record per (edge, name), so routes that also carry a local street name count again (w_local); Interstate adjustment
 STRUCT_PRIORS = [("log_sigma_loc", np.log(60.0), 0.5), ("w_local", 0.0, 0.5), ("w_inter", 0.0, 0.5)]
+# reference facilities that the organisers' Overture category match does not count: share of Overture colleges /
+# vocational schools and of other K-12 / education places that are in the schools layer, and of ERs in the EMS layer
+UNMATCHED_PRIORS = [("logit_a_col", LOGIT(0.2), 1.5), ("logit_a_k12", LOGIT(0.3), 1.5), ("logit_a_er", LOGIT(0.1), 1.5)]
 # per-region log-multipliers of the unseen-facility rate, establishments per resident and the building scale
 REGIONAL_PRIORS = [(f"{pre}_{r}", 0.0, 0.3) for pre in ("gfr", "gcr", "gbr") for r in GRADED]
 NAMES, THETA0, PRIOR_SD = [], np.zeros(0), np.zeros(0)
 
 
-def set_priors(use_scorecard, regional=False, structural=False):
+def set_priors(use_scorecard, regional=False, structural=False, unmatched=False):
     """Stratum effects are free only when the public scorecard is used to calibrate them; regional multipliers only
     in the regional physics model."""
     global NAMES, THETA0, PRIOR_SD
     pri = (CORE_PRIORS + (STRATA_PRIORS if use_scorecard else []) + (STRUCT_PRIORS if structural else [])
-           + (REGIONAL_PRIORS if regional else []))
+           + (UNMATCHED_PRIORS if unmatched else []) + (REGIONAL_PRIORS if regional else []))
     NAMES, THETA0, PRIOR_SD = [p[0] for p in pri], np.array([p[1] for p in pri]), np.array([p[2] for p in pri])
 
 
@@ -467,6 +496,8 @@ def inputs(df, mu):
     F["z_effort"] = (e - e.mean()) / e.std()
     F["ridx"] = df["region"].map({r: i for i, r in enumerate(REGIONS)}).to_numpy()
     F["L_loc"], F["L_int"] = df["L_route_localname"].to_numpy(float), df["L_interstate"].to_numpy(float)
+    for k in UNMATCHED:
+        F[f"U_{k}"] = df[f"n_{k}"].to_numpy().astype(int)
     F["pts"] = facility_points(df)
     for k in STRATA:
         F[f"s_{k}"] = df[f"s_{k}"].to_numpy(float)
@@ -550,6 +581,10 @@ def simulate(F, th, S=256, seed=0):
             H = (rng.binomial(np.broadcast_to(F[f"O_{k}"], (S, n)), SIG(p[f"logit_a_{k}"]))
                  + rng.binomial(np.broadcast_to(F[f"X_{k}"], (S, n)), SIG(p[f"logit_x_{k}"]))
                  + rng.poisson(np.broadcast_to(lam, (S, n))))
+        extra = {"sch": [("col", "logit_a_col"), ("k12", "logit_a_k12")], "ems": [("er", "logit_a_er")]}.get(k, [])
+        for src, par in extra:
+            if par in p:
+                H = H + rng.binomial(np.broadcast_to(F[f"U_{src}"], (S, n)), SIG(p[par]))
         if k == "ems":
             H_ems = H
             types["ems_binding"] = ((H >= 1) & (F["O_ems"][None, :] < H)).mean(0)
@@ -1096,7 +1131,7 @@ class LabelTargets(Targets):
         return np.r_[super().sd(sim), np.sqrt(np.diag(self.N))]
 
 
-def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, structural=False):
+def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, structural=False, unmatched=False):
     """Stage 10: refit the physics model's 41 parameters (stratum effects included) to the published statistics,
     the public scorecard and every scored file's moment, starting from the scorecard-calibrated physics. Its part
     outside the scored span is the physics extrapolation of everything the scores have measured."""
@@ -1106,10 +1141,10 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     names = [n for n in L.s if n not in ("probe_zeros.csv", "e06_r2f_only_eastern-wa.csv")]
     best = min((s_, n) for n, s_ in L.s.items() if not n.startswith("probe_"))
     _, parts, _ = eb_posterior(L, names, L.V[best[1]][g])
-    set_priors(True, regional, structural)
+    set_priors(True, regional, structural, unmatched)
     with open("physics_scorecard_report.json") as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
-    if structural and regional and os.path.exists("physics_lb_struct_report.json"):
+    if structural and (regional or unmatched) and os.path.exists("physics_lb_struct_report.json"):
         with open("physics_lb_struct_report.json") as f:                # warm start from the fitted structural model
             start.update({p["parameter"]: p["fitted"] for p in json.load(f)["parameters"]})
     th0 = np.array([start.get(n, c0) for n, c0 in zip(NAMES, THETA0)])   # new mechanisms start at their prior centres
@@ -1127,7 +1162,8 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
         f"{parts['Q'].shape[1]} score moments {chi(m0, sd0)[k0:].sum():.1f} -> {chi(m, sd)[k0:].sum():.1f}")
     sim = predict(F, th)
     pred = np.clip(sim["Ey"], 0, 1)
-    out_csv = "physics_lb" + ("_struct" if structural else "") + ("_regional" if regional else "") + ".csv"
+    out_csv = ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "")
+               + ("_regional" if regional else "") + ".csv")
     pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out_csv, index=False)
     v = L.V[best[1]].copy()
     v[g] = pred[pos][g]
@@ -1241,6 +1277,7 @@ def main():
     ap.add_argument("--calibrate-physics", action="store_true", help="stage 10: physics calibrated on the labels -> physics_lb.csv")
     ap.add_argument("--regional", action="store_true", help="with --calibrate-physics: add per-region multipliers")
     ap.add_argument("--structural", action="store_true", help="with --calibrate-physics: facility leakage and road-frame mechanisms")
+    ap.add_argument("--unmatched", action="store_true", help="with --calibrate-physics: reference facilities outside the category match")
     args = ap.parse_args()
     if args.add_label:
         add_label(*args.add_label)
@@ -1255,8 +1292,9 @@ def main():
         df, groups = load()
         log("10 physics calibrated on the aggregate labels (published statistics + scorecard + score moments)")
         rep = {}
-        calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural)
-        name = "physics_lb" + ("_struct" if args.structural else "") + ("_regional" if args.regional else "")
+        calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural, unmatched=args.unmatched)
+        name = ("physics_lb" + ("_struct" if args.structural else "") + ("_unmatched" if args.unmatched else "")
+                + ("_regional" if args.regional else ""))
         with open(f"{name}_report.json", "w") as f:
             json.dump(rep, f, indent=2, default=float)
         log(f"Wrote {name}.csv and {name}_report.json ({clock()})")
