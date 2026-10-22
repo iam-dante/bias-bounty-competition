@@ -469,17 +469,21 @@ STRUCT_PRIORS = [("log_sigma_loc", np.log(60.0), 0.5), ("w_local", 0.0, 0.5), ("
 # reference facilities that the organisers' Overture category match does not count: share of Overture colleges /
 # vocational schools and of other K-12 / education places that are in the schools layer, and of ERs in the EMS layer
 UNMATCHED_PRIORS = [("logit_a_col", LOGIT(0.2), 1.5), ("logit_a_k12", LOGIT(0.3), 1.5), ("logit_a_er", LOGIT(0.1), 1.5)]
+# covariate effects found by screening the score-visible misfit: log-effects of the Interstate share, road detail and
+# Farm-to-Market share on the TIGER length, and of buildings per housing unit on the Microsoft building scale
+COVAR_PRIORS = [("gt_inter", 0.0, 0.3), ("gt_detail", 0.0, 0.3), ("gt_fm", 0.0, 0.3), ("gb_bph", 0.0, 0.3)]
 # per-region log-multipliers of the unseen-facility rate, establishments per resident and the building scale
 REGIONAL_PRIORS = [(f"{pre}_{r}", 0.0, 0.3) for pre in ("gfr", "gcr", "gbr") for r in GRADED]
 NAMES, THETA0, PRIOR_SD = [], np.zeros(0), np.zeros(0)
 
 
-def set_priors(use_scorecard, regional=False, structural=False, unmatched=False):
+def set_priors(use_scorecard, regional=False, structural=False, unmatched=False, covariates=False):
     """Stratum effects are free only when the public scorecard is used to calibrate them; regional multipliers only
     in the regional physics model."""
     global NAMES, THETA0, PRIOR_SD
     pri = (CORE_PRIORS + (STRATA_PRIORS if use_scorecard else []) + (STRUCT_PRIORS if structural else [])
-           + (UNMATCHED_PRIORS if unmatched else []) + (REGIONAL_PRIORS if regional else []))
+           + (UNMATCHED_PRIORS if unmatched else []) + (REGIONAL_PRIORS if regional else [])
+           + (COVAR_PRIORS if covariates else []))
     NAMES, THETA0, PRIOR_SD = [p[0] for p in pri], np.array([p[1] for p in pri]), np.array([p[2] for p in pri])
 
 
@@ -498,6 +502,11 @@ def inputs(df, mu):
     F["ridx"] = df["region"].map({r: i for i, r in enumerate(REGIONS)}).to_numpy()
     F["L_loc"], F["L_int"] = df["L_route_localname"].to_numpy(float), df["L_interstate"].to_numpy(float)
     F["L_multi"] = df["L_route_multiref"].to_numpy(float)
+    zs = lambda x: (np.asarray(x, float) - np.mean(x)) / (np.std(x) + 1e-12)
+    F["z_inter"] = zs(df["L_interstate"] / (df["L_route"] + 100))
+    F["z_detail"] = zs(np.log((df["detail"] + 0.01) / (1.01 - df["detail"])))
+    F["z_fm"] = zs(df["L_fm"] / (df["L_route"] + df["L_fm"] + 100))
+    F["z_bph"] = zs(np.log((df["n_bld"] + 1) / (df["housing_units"] + 1)))
     for k in UNMATCHED:
         F[f"U_{k}"] = df[f"n_{k}"].to_numpy().astype(int)
     F["pts"] = facility_points(df)
@@ -562,13 +571,15 @@ def simulate(F, th, S=256, seed=0):
     G = (route + p["beta_bnd"] * F["bnd"])[None, :] + inc("logit_q_fm", F["L_fm"]) + inc("logit_q_cty", F["L_cty"]) \
         + inc("logit_q_unr", F["L_unr"])
     has = G > 1.0
-    T = (m * eff("gr"))[None, :] * G * ln(np.exp(p["log_sigma_t"]), (S, n))
+    cov_t = np.exp(p.get("gt_inter", 0.0) * F["z_inter"] + p.get("gt_detail", 0.0) * F["z_detail"] + p.get("gt_fm", 0.0) * F["z_fm"])
+    T = (m * eff("gr") * cov_t)[None, :] * G * ln(np.exp(p["log_sigma_t"]), (S, n))
     surprise = ~has & (rng.random((S, n)) < SIG(p["logit_p_surprise"]))
     T = np.where(surprise, 400.0 * ln(1.0, (S, n)), T)
     dT = has | surprise
     t = np.where(dT, 1 - np.minimum(1, F["N"][None, :] / np.maximum(T, 1e-9)), 0.0)
     # buildings: Microsoft count = kappa * USFS count * noise
-    MS = (np.exp(p["log_kappa"]) * F["U_b"] * reg("gbr"))[None, :] * ln(np.exp(p["log_sigma_b"]), (S, n))
+    MS = (np.exp(p["log_kappa"]) * F["U_b"] * reg("gbr") * np.exp(p.get("gb_bph", 0.0) * F["z_bph"]))[None, :] \
+        * ln(np.exp(p["log_sigma_b"]), (S, n))
     dB = MS > 0.5
     b = np.where(dB, 1 - np.minimum(1, F["O_b"][None, :] / np.maximum(MS, 1e-9)), 0.0)
     # facilities: reference = Bin(Overture primary, a) + Bin(weak evidence, x) + Poisson(unseen)
@@ -1135,7 +1146,7 @@ class LabelTargets(Targets):
         return np.r_[super().sd(sim), np.sqrt(np.diag(self.N))]
 
 
-def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, structural=False, unmatched=False):
+def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, structural=False, unmatched=False, covariates=False):
     """Stage 10: refit the physics model's 41 parameters (stratum effects included) to the published statistics,
     the public scorecard and every scored file's moment, starting from the scorecard-calibrated physics. Its part
     outside the scored span is the physics extrapolation of everything the scores have measured."""
@@ -1145,7 +1156,7 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     names = [n for n in L.s if n not in ("probe_zeros.csv", "e06_r2f_only_eastern-wa.csv")]
     best = min((s_, n) for n, s_ in L.s.items() if not n.startswith("probe_"))
     _, parts, _ = eb_posterior(L, names, L.V[best[1]][g])
-    set_priors(True, regional, structural, unmatched)
+    set_priors(True, regional, structural, unmatched, covariates)
     with open("physics_scorecard_report.json") as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
     warm = ["physics_lb_struct_report.json", "physics_lb_struct_unmatched_report.json", "physics_lb_struct_regional_report.json",
@@ -1170,7 +1181,7 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     sim = predict(F, th)
     pred = np.clip(sim["Ey"], 0, 1)
     out_csv = ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "")
-               + ("_regional" if regional else "") + ".csv")
+               + ("_regional" if regional else "") + ("_covar" if covariates else "") + ".csv")
     pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out_csv, index=False)
     v = L.V[best[1]].copy()
     v[g] = pred[pos][g]
@@ -1286,6 +1297,7 @@ def main():
     ap.add_argument("--regional", action="store_true", help="with --calibrate-physics: add per-region multipliers")
     ap.add_argument("--structural", action="store_true", help="with --calibrate-physics: facility leakage and road-frame mechanisms")
     ap.add_argument("--unmatched", action="store_true", help="with --calibrate-physics: reference facilities outside the category match")
+    ap.add_argument("--covariates", action="store_true", help="with --calibrate-physics: screened covariate effects on TIGER length and buildings")
     args = ap.parse_args()
     if args.add_label:
         add_label(*args.add_label)
@@ -1300,9 +1312,10 @@ def main():
         df, groups = load()
         log("10 physics calibrated on the aggregate labels (published statistics + scorecard + score moments)")
         rep = {}
-        calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural, unmatched=args.unmatched)
+        calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural, unmatched=args.unmatched,
+                                    covariates=args.covariates)
         name = ("physics_lb" + ("_struct" if args.structural else "") + ("_unmatched" if args.unmatched else "")
-                + ("_regional" if args.regional else ""))
+                + ("_regional" if args.regional else "") + ("_covar" if args.covariates else ""))
         with open(f"{name}_report.json", "w") as f:
             json.dump(rep, f, indent=2, default=float)
         log(f"Wrote {name}.csv and {name}_report.json ({clock()})")

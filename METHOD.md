@@ -484,6 +484,22 @@ strongest direction found.
 - **No bet.** Recalibrated on 75 labels, the best physics fits the same (94.6), estimates 0.0626 on its own, and
   has almost nothing unscored left (RMS 0.0019).
 
+**Next road screen.**
+
+- **The screen validates itself.** On the improved model, the concurrent-route signal fell from +0.31 to +0.09.
+- **What remains:**
+
+  | Signal | Correlation |
+  |---|---:|
+  | Interstate share | +0.24 |
+  | Road detail | +0.23 |
+  | Farm-to-Market length | −0.21 |
+  | Buildings per housing unit | −0.20 |
+
+- **Covariate effects (`--covariates`).** Log-effects of these on the TIGER length and the building scale give
+  moment chi-square 94.6 → 89.3 (64 parameters). The fitted effects are small: buildings per housing −0.12,
+  Farm-to-Market −0.06, the others about 0. The unscored part is RMS 0.0045, too small for a worthwhile bet.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
