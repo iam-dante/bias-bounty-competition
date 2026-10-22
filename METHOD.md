@@ -473,6 +473,17 @@ it becomes a main direction once scored). Expected public RMSE with curvature 1.
   | 0 | 0.06006 |
   | −0.3 | 0.06023 |
 
+**Result:** it scored **0.059507**, beyond the best case. Along that step the optimum is 2.3–3.2× (curvature
+1.5 to 1.0), so the truth follows the concurrent-route model's unscored part with coefficient **0.7–1.0**: the
+strongest direction found.
+
+- **Curvature prior.** The public curvature has measured 1.04–1.56 on every direction, so the local update's
+  prior is now log-normal with median 1.3 (sd 0.35) instead of 1.0.
+- **Next file.** The update takes 2.45× along the new direction: expected **0.05926 ± 0.00016**, P(beats best)
+  0.93.
+- **No bet.** Recalibrated on 75 labels, the best physics fits the same (94.6), estimates 0.0626 on its own, and
+  has almost nothing unscored left (RMS 0.0019).
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

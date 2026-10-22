@@ -23,7 +23,8 @@ python train.py
 | `physics_lb_struct_regional.csv` | structural + regional (56 parameters), warm-started from the structural fit | moment chi-square 105.9: no better than structural alone |
 | local Bayesian update over the three measured directions | sixth transfer file | **0.059954 (scored; best)**, as predicted |
 | `physics_lb_struct_unmatched_regional.csv` | the largest physics model, now with concurrent-route double counting (60 parameters) | **moment chi-square 94.2** on 66 moments (ceiling before: 106–113) |
-| `submission.csv` | best + 0.3 × that model's unscored part (RMS 0.0106; agrees +0.87 with the earlier three-model ensemble) | 0.05978 at a coefficient of +0.5, 0.05990 at +0.3, 0.06006 at 0, 0.06023 at −0.3 |
+| best + 0.3 × that model's unscored part | seventh transfer file | **0.059507 (scored; best)**: the truth follows the concurrent-route model's direction at 0.7–1.0 |
+| `submission.csv` | local Bayesian update over all four measured directions (2.45× along the last one), curvature prior median 1.3 | **0.05926 ± 0.00016** (P(beats best) 0.93) |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 

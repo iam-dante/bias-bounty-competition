@@ -1,81 +1,62 @@
 {
   "inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files",
   "aggregate_labels": {
-    "files": 74,
+    "files": 75,
     "public_weight_mean": 0.3052414652336193,
     "mean_y": 0.0598061011140652,
     "mean_y2": 0.011501768649197401
   },
   "transfer_update": {
     "anchor": "s8_refit67.csv",
-    "directions": 3,
+    "directions": 4,
     "coordinates": [
-      3.467096972214244,
-      -0.12081709660438195,
-      1.5475984262159233
+      3.547211801931076,
+      -0.2203521180964217,
+      1.4502186024004622,
+      2.4544455898756885
     ],
-    "expected_rmse": 0.05995292236204602,
-    "sd_rmse": 6.233439687080607e-06,
-    "p_beats_best": 0.5636774098182065,
-    "effective_draws": 804.7333414709639,
+    "expected_rmse": 0.05926217823730354,
+    "sd_rmse": 0.00015690537504934942,
+    "p_beats_best": 0.9311889193528626,
+    "effective_draws": 1760.658378508923,
     "curvature_scale": [
-      1.3386541873692763,
-      1.5285644258475457,
-      1.0122428418894895
+      1.3364561477536123,
+      1.5830883977725638,
+      1.20326425005349,
+      1.3869889456623574
     ]
   },
   "aggregate_fit": {
-    "chosen": "best scored file tr_local2_000.csv",
-    "chosen_est": 0.059953567,
+    "chosen": "local Bayesian update around s8_refit67.csv",
+    "chosen_est": 0.05926217823730354,
     "hyper": {
-      "tau_base": 0.350965146198968,
-      "mu_base": 0.4810359282664252,
-      "tau_probe": 0.6909320582407826,
-      "mu_probe": 0.0942596383496002,
-      "tau_clip": 2.383931748802823e-07,
-      "noise_scale": 0.7560998762294874,
-      "mu_clip": 0.38265120789534945
+      "tau_base": 0.3516955308730607,
+      "mu_base": 0.4835802041373433,
+      "tau_probe": 0.6831566149267406,
+      "mu_probe": 0.09675202139688302,
+      "tau_clip": 9.937303952694435e-08,
+      "noise_scale": 0.7469949905287195,
+      "mu_clip": 0.36851295105803833
     },
     "washington_affine": [
-      0.018229474357355002,
-      0.42469434844440995
+      0.018370453173629772,
+      0.42265436990874694
     ],
-    "est_public_refit": 0.061624879927287754,
+    "est_public_refit": 0.061065451546341167,
     "best_scored": {
-      "file": "tr_local2_000.csv",
-      "rmse": 0.059953567
+      "file": "tr_lbmulti_030.csv",
+      "rmse": 0.059507486
     },
     "ratios": {
-      "rural": 2.214,
-      "tribal": 2.809,
-      "svi": 1.29,
-      "cvi": 1.62,
-      "sdrought": 0.971,
-      "wdrought": 1.346,
-      "wildfire": 1.697,
-      "heat": 0.627,
-      "hv": 1.269
-    },
-    "ratios_after_transfer": {
-      "rural": 2.217,
-      "tribal": 2.808,
-      "svi": 1.286,
-      "cvi": 1.614,
-      "sdrought": 0.975,
-      "wdrought": 1.349,
-      "wildfire": 1.69,
-      "heat": 0.628,
-      "hv": 1.265
-    }
-  },
-  "transfer": {
-    "share": 0.3,
-    "unscored_rms": 0.010551195112542806,
-    "expected": {
-      "coef_-0.3": 0.06022868526175434,
-      "coef_+0.0": 0.06006209735819199,
-      "coef_+0.3": 0.05989504612044642,
-      "coef_+0.5": 0.05978341930313161
+      "rural": 2.221,
+      "tribal": 2.806,
+      "svi": 1.279,
+      "cvi": 1.603,
+      "sdrought": 0.981,
+      "wdrought": 1.353,
+      "wildfire": 1.679,
+      "heat": 0.629,
+      "hv": 1.258
     }
   },
   "forward_validation": [
@@ -360,6 +341,12 @@
       "actual": 0.059953567,
       "predicted": 0.05995715363081908,
       "error": 3.5866308190773966e-06
+    },
+    {
+      "file": "tr_lbmulti_030.csv",
+      "actual": 0.059507486,
+      "predicted": 0.06013591314871306,
+      "error": 0.0006284271487130635
     }
   ]
 }

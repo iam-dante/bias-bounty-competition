@@ -1111,10 +1111,8 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.30     # bet along the unscored part of the best-fitting physics: structural (facility leakage, local-name
-                    # and concurrent-route double counting, Interstate) + unmatched facilities + regional, chi-square
-                    # 94.2 on 66 score moments (previous ceiling ~106-113). Its direction agrees +0.87 with the earlier
-                    # three-model ensemble. Measured so far for calibrated-physics directions: +0.5, ~0, +0.28.
+TRANSFER = 0.0      # no bet: recalibrated on 75 labels the best physics has almost nothing unscored left (RMS 0.0019);
+                    # its last direction measured a coefficient of 0.7-1.0 and is taken by the local update instead.
 TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional.csv"
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
@@ -1188,15 +1186,15 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     return pred
 
 
-def transfer_updates(L, draws=200000, min_rms=0.002, proj_scale=0.005, seed=0):
+def transfer_updates(L, draws=200000, min_rms=0.002, proj_scale=0.005, seed=0, k_median=None, k_sd=0.35):
     """Local Bayesian update around the anchor (the best file scored before the first transfer label).
 
     Every transfer file is a displacement D_k from the anchor, and its public MSE is exactly
         MSE_k = MSE_anchor + pub(D_k^2) - 2 pub(D_k (y - anchor)).
     The linear terms are what the scores measure. The quadratic term is the mean of D_k^2 over the unknown public rows.
-    Estimated weights get it wrong for large, concentrated moves: the third transfer file showed the public curvature
-    1.4x the estimate. So the curvature along the main directions (each displacement's new part with RMS >= min_rms)
-    gets a prior: log-normal scales (sd 0.4) and correlations N(0, 0.3^2). Each prior draw fits the linear terms to
+    Estimated weights get it wrong for large, concentrated moves: every measured direction has shown public curvature
+    1.0-1.6x the estimate. So the curvature along the main directions (each displacement's new part with RMS >= min_rms)
+    gets a prior: log-normal scales with median CURVATURE and sd k_sd, and correlations N(0, 0.3^2). Each prior draw fits the linear terms to
     all transfer scores by weighted least squares and is weighted by how well it reproduces them. A file's score is
     exact except for its part outside the main directions (a small bet, clipping): its noise is
     2 x proj_scale x RMS(that part) in MSE units. The update minimises the posterior expected MSE: x* = E[C]^-1 E[G]."""
@@ -1221,7 +1219,7 @@ def transfer_updates(L, draws=200000, min_rms=0.002, proj_scale=0.005, seed=0):
     sd = np.array([2 * proj_scale * np.sqrt(w @ r_ ** 2) + 1e-7 for r_ in rest])        # per-file noise (MSE units)
     c = np.array([[L.AP(ei * ej) for ej in E] for ei in E])
     rng = np.random.default_rng(seed)
-    k = np.exp(rng.normal(0, 0.4, (draws, K)))
+    k = np.exp(rng.normal(np.log(CURVATURE if k_median is None else k_median), k_sd, (draws, K)))
     R = np.tile(np.eye(K), (draws, 1, 1))
     iu = np.triu_indices(K, 1)
     corr = rng.normal(0, 0.3, (draws, len(iu[0])))
