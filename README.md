@@ -19,7 +19,9 @@ python train.py
 | curvature-aware local update (3.32×, 0×) | fourth transfer file | **0.060100 (scored; best)** |
 | `physics_lb_regional.csv` | stage 10 with per-region multipliers (53 parameters) | moment chi-square 167.5 (global: 175.2) |
 | `physics_lb_struct.csv` | stage 10 with facility leakage + TIGER local-name double count + Interstate adjustment (44 parameters) | **moment chi-square 106.0**; fitted `w_local` 0.97, spread 15 m |
-| `submission.csv` | best + 0.2 × the structural physics' unscored part (RMS 0.0136) | 0.05987 if the truth follows it at +0.5, 0.06000 at +0.3, 0.06018 at 0, 0.06036 at −0.3 |
+| best + 0.2 × the structural physics' unscored part | fifth transfer file | **0.059977 (scored; best)**; structural direction coefficient 0.25–0.30 |
+| `physics_lb_struct_regional.csv` | structural + regional (56 parameters), warm-started from the structural fit | moment chi-square 105.9: no better than structural alone |
+| `submission.csv` | local Bayesian update over the three measured directions, no bet | 0.059954 ± 0.00003 (P(beats best) 0.80) |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 

@@ -389,6 +389,20 @@ it becomes a main direction once scored). Expected public RMSE with curvature 1.
 | 0 | 0.06018 |
 | −0.3 | 0.06036 |
 
+**Result:** it scored **0.059977**. The structural direction's coefficient is 0.25–0.30, depending on curvature;
+0.2 was already close.
+
+**Diminishing returns.**
+
+- **Big steps came from better fits.** They appeared when a new model fitted the scores much better than the
+  last: guessed → calibrated gave −0.0007; calibrated → structural (chi-square 175 → 106) gave −0.00012.
+- **Fit has stopped improving.** With 73 labels, structural + regional reaches the same fit as structural alone
+  (105.9; 127.5 when cold-started). Its unscored part is RMS 0.008, worth at most about 0.00002.
+- **No other source is left.** The old-span correction toward R33 is worth 0.000016.
+- **Current file:** the local Bayesian update over the three measured directions, without a bet (estimated
+  0.059954 ± 0.00003).
+- **Further gains** need a mechanism that makes the physics fit the scores clearly better than chi-square ≈ 106.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
