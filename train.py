@@ -464,7 +464,8 @@ CORE_PRIORS = [(f"log_m_{r}", 0.0, 0.4) for r in GRADED] + [  # TIGER metres per
 STRATA_PRIORS = [(f"gf_{k}", 0.0, 0.3) for k in STRATA] + [(f"gr_{k}", 0.0, 0.3) for k in STRATA]
 # structural mechanisms: facility copies leak across tract boundaries (spread sigma_loc, metres); TIGER keeps one
 # record per (edge, name), so routes that also carry a local street name count again (w_local); Interstate adjustment
-STRUCT_PRIORS = [("log_sigma_loc", np.log(60.0), 0.5), ("w_local", 0.0, 0.5), ("w_inter", 0.0, 0.5)]
+STRUCT_PRIORS = [("log_sigma_loc", np.log(60.0), 0.5), ("w_local", 0.0, 0.5), ("w_inter", 0.0, 0.5),
+                 ("w_multi", 0.0, 0.5)]   # concurrent routes (several route numbers on one road): one TIGER record each
 # reference facilities that the organisers' Overture category match does not count: share of Overture colleges /
 # vocational schools and of other K-12 / education places that are in the schools layer, and of ERs in the EMS layer
 UNMATCHED_PRIORS = [("logit_a_col", LOGIT(0.2), 1.5), ("logit_a_k12", LOGIT(0.3), 1.5), ("logit_a_er", LOGIT(0.1), 1.5)]
@@ -496,6 +497,7 @@ def inputs(df, mu):
     F["z_effort"] = (e - e.mean()) / e.std()
     F["ridx"] = df["region"].map({r: i for i, r in enumerate(REGIONS)}).to_numpy()
     F["L_loc"], F["L_int"] = df["L_route_localname"].to_numpy(float), df["L_interstate"].to_numpy(float)
+    F["L_multi"] = df["L_route_multiref"].to_numpy(float)
     for k in UNMATCHED:
         F[f"U_{k}"] = df[f"n_{k}"].to_numpy().astype(int)
     F["pts"] = facility_points(df)
@@ -555,7 +557,8 @@ def simulate(F, th, S=256, seed=0):
     m = np.exp(np.array([p[f"log_m_{r}"] for r in GRADED] + [np.mean([p[f"log_m_{r}"] for r in GRADED])]))[F["ridx"]]
     # roads: TIGER S1100+S1200 length vs Overture named length
     inc = lambda q, L: np.where(rng.random((S, n)) < SIG(p[q]), 1.0, 0.0) * L[None, :]
-    route = np.clip(F["L_route"] + p.get("w_local", 0.0) * F["L_loc"] - p.get("w_inter", 0.0) * F["L_int"], 0, None)
+    route = np.clip(F["L_route"] + p.get("w_local", 0.0) * F["L_loc"] + p.get("w_multi", 0.0) * F["L_multi"]
+                    - p.get("w_inter", 0.0) * F["L_int"], 0, None)
     G = (route + p["beta_bnd"] * F["bnd"])[None, :] + inc("logit_q_fm", F["L_fm"]) + inc("logit_q_cty", F["L_cty"]) \
         + inc("logit_q_unr", F["L_unr"])
     has = G > 1.0
@@ -1108,11 +1111,11 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.30     # bet on the ensemble of the three best-fitting physics models (moment chi-square ~106-113): their
-                    # unscored parts correlate +0.58 to +0.87. Measured so far for calibrated-physics directions: +0.5,
-                    # ~0, +0.28; 0.3 is a deliberately firm step (break-even coefficient 0.2).
-TRANSFER_SOURCE = ["physics_lb_struct_regional.csv", "physics_lb_struct_unmatched.csv",
-                   "physics_lb_struct_unmatched_regional.csv"]                              # averaged (an ensemble)
+TRANSFER = 0.30     # bet along the unscored part of the best-fitting physics: structural (facility leakage, local-name
+                    # and concurrent-route double counting, Interstate) + unmatched facilities + regional, chi-square
+                    # 94.2 on 66 score moments (previous ceiling ~106-113). Its direction agrees +0.87 with the earlier
+                    # three-model ensemble. Measured so far for calibrated-physics directions: +0.5, ~0, +0.28.
+TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional.csv"
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
 
@@ -1147,8 +1150,9 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     set_priors(True, regional, structural, unmatched)
     with open("physics_scorecard_report.json") as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
-    warm = ["physics_lb_struct_report.json"] + (["physics_lb_struct_unmatched_report.json"] if unmatched and regional else [])
-    for wf in warm if structural and (regional or unmatched) else []:
+    warm = ["physics_lb_struct_report.json", "physics_lb_struct_unmatched_report.json", "physics_lb_struct_regional_report.json",
+            "physics_lb_struct_unmatched_regional_report.json"]
+    for wf in warm if structural else []:
         if os.path.exists(wf):
             with open(wf) as f:                                           # warm start from the fitted smaller models
                 start.update({p["parameter"]: p["fitted"] for p in json.load(f)["parameters"]})

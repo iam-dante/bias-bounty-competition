@@ -443,6 +443,36 @@ it becomes a main direction once scored). Expected public RMSE with curvature 1.
   | 0 | 0.06003 |
   | −0.3 | 0.06015 |
 
+**Road screen: concurrent routes.**
+
+- **Screen.** The same in-span screen on roads, buildings and establishments found much stronger signals than
+  for facilities:
+
+  | Signal | Correlation |
+  |---|---:|
+  | Share of route length carrying several route numbers | **+0.31** |
+  | Road detail | +0.25 |
+  | Interstate share | +0.21 |
+  | Farm-to-Market length | −0.20 |
+  | Local-name share | +0.20 |
+  | Named-to-route ratio | −0.20 |
+
+- **Mechanism.** TIGER keeps one record per (edge, name), so a road carrying two route numbers is counted
+  twice, as the local-name mechanism already showed. A fitted weight `w_multi` on concurrent-route length now
+  enters the TIGER length.
+- **Recalibration** of the largest model, warm-started:
+  - moment chi-square 112.6 → **94.2**, the first break below the 106 ceiling;
+  - fitted `w_multi` 0.46, `w_local` 0.67, `w_inter` 0.21.
+- **Bet.** The new model's unscored part (RMS 0.0106) agrees +0.87 with the earlier ensemble direction.
+  `submission.csv` now adds 0.3 × it to the best file:
+
+  | Truth's coefficient | Expected public RMSE |
+  |---:|---:|
+  | +0.5 | 0.05978 |
+  | +0.3 | 0.05990 |
+  | 0 | 0.06006 |
+  | −0.3 | 0.06023 |
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

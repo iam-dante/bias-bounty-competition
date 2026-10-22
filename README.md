@@ -22,8 +22,8 @@ python train.py
 | best + 0.2 × the structural physics' unscored part | fifth transfer file | **0.059977 (scored; best)**; structural direction coefficient 0.25–0.30 |
 | `physics_lb_struct_regional.csv` | structural + regional (56 parameters), warm-started from the structural fit | moment chi-square 105.9: no better than structural alone |
 | local Bayesian update over the three measured directions | sixth transfer file | **0.059954 (scored; best)**, as predicted |
-| `physics_lb_struct_unmatched_regional.csv` | the largest physics model: structural + unmatched facilities + regional (59 parameters) | moment chi-square 112.6 on 66 moments |
-| `submission.csv` | best + 0.3 × the ensemble (average) of the three best-fitting physics models' unscored parts (RMS 0.0089; their pairwise correlations +0.58 to +0.87) | 0.05983 at a coefficient of +0.5, 0.05991 at +0.3, 0.06003 at 0, 0.06015 at −0.3 |
+| `physics_lb_struct_unmatched_regional.csv` | the largest physics model, now with concurrent-route double counting (60 parameters) | **moment chi-square 94.2** on 66 moments (ceiling before: 106–113) |
+| `submission.csv` | best + 0.3 × that model's unscored part (RMS 0.0106; agrees +0.87 with the earlier three-model ensemble) | 0.05978 at a coefficient of +0.5, 0.05990 at +0.3, 0.06006 at 0, 0.06023 at −0.3 |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
