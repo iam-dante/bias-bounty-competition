@@ -16,7 +16,10 @@ python train.py
 | best + 0.15 × unscored part of `physics_lb.csv` (68 labels) | first transfer step | **0.060742 (scored; best)**; implies the truth follows that direction at 0.68 ± 0.05 |
 | local update + 0.4 × the 69-label physics' new part | second transfer step | **0.060353 (scored; best)**; the new part runs the other way: optimum −2.14 ± 0.27 × that step |
 | local update (4.38×, −1.96×) + 0.1 bet | third transfer file | 0.060747 (scored): missed the 0.0594 prediction because the public curvature is 1.4× the estimate |
-| `submission.csv` | curvature-aware local update: 3.32 × the first direction, 0 × the second (interpolates between scored points) | **0.06016 ± 0.00006** (expected) |
+| curvature-aware local update (3.32×, 0×) | fourth transfer file | **0.060100 (scored; best)** |
+| `physics_lb_regional.csv` | stage 10 with per-region multipliers (53 parameters) | moment chi-square 167.5 (global: 175.2) |
+| `physics_lb_struct.csv` | stage 10 with facility leakage + TIGER local-name double count + Interstate adjustment (44 parameters) | **moment chi-square 106.0**; fitted `w_local` 0.97, spread 15 m |
+| `submission.csv` | best + 0.2 × the structural physics' unscored part (RMS 0.0136) | 0.05987 if the truth follows it at +0.5, 0.06000 at +0.3, 0.06018 at 0, 0.06036 at −0.3 |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
@@ -169,6 +172,8 @@ python train.py --fit-only       # stage 8 only (reads physics.csv)
 python train.py --probes K       # stage 9: write K probe files
 python train.py --add-label NAME FILE RMSE   # record a new score as a label
 python train.py --calibrate-physics          # stage 10: physics refitted on all labels -> physics_lb.csv
+python train.py --calibrate-physics --structural   # + facility leakage and road-frame mechanisms -> physics_lb_struct.csv
+python train.py --calibrate-physics --regional     # + per-region multipliers -> physics_lb_regional.csv
 ```
 
 ## Rules

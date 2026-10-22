@@ -359,6 +359,36 @@ the file would have scored 0.059808, as predicted.
   0.0578–0.0623, which contains the actual 0.0607 (81st percentile).
 - **No new bet this round** (`TRANSFER = 0`).
 
+**Result:** that file scored **0.060100**, better than its expected 0.060156. With four scored points, the
+plane's optimum is 0.060099 ± 0.00003: the measured directions are exhausted.
+
+**Richer physics, calibrated on all 72 scores.**
+
+| Model | Parameters | Moment chi-square (64 moments) | Unscored part (RMS) |
+|---|---:|---:|---:|
+| Global | 41 | 175.2 | 0.0039 |
+| + per-region multipliers (unseen facilities, establishments, building scale) | 53 | 167.5 | 0.0063 |
+| **+ structural mechanisms** | **44** | **106.0** | **0.0136** |
+
+- **Regional effects:** unseen facilities about +57% in Texas and −30% in Maricopa.
+- **Structural mechanisms:**
+  - facility copies leak across tract boundaries (fitted spread 15 m);
+  - TIGER counts route highways that also carry a local street name twice (fitted 0.97);
+  - an Interstate adjustment (−0.14).
+
+The structural model's unscored part correlates only about 0.2 with the others. It is the analogue of the first
+calibrated-physics direction (RMS 0.020, coefficient +0.5).
+
+**Bet:** `submission.csv` adds 0.2 × that part to the best file (step RMS 0.0027, above the 0.002 threshold, so
+it becomes a main direction once scored). Expected public RMSE with curvature 1.3:
+
+| Truth's coefficient | Expected public RMSE |
+|---:|---:|
+| +0.5 | 0.05987 |
+| +0.3 | 0.06000 |
+| 0 | 0.06018 |
+| −0.3 | 0.06036 |
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

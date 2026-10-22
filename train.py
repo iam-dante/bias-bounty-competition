@@ -277,9 +277,35 @@ def _extra_features(con, region):
     return out.fillna(0)
 
 
+def _facility_points(con, region):
+    """One row per (Overture facility point, tract within 500 m): d > 0 is the distance to the boundary of the
+    containing tract, d < 0 minus the distance to a neighbouring tract (reference copies near a boundary can land
+    next door)."""
+    sc = "(" + ",".join(f"'{c}'" for c in SCHOOL_CATS) + ")"
+    con.sql(f"""
+        CREATE OR REPLACE TABLE pts AS
+        WITH p AS (SELECT id, categories.primary cat, coalesce(categories.alternate, []) alts,
+                          coalesce(names.primary, '') nm, {_t('geometry')} g
+                   FROM '{DATA}/reference/{region}/{region}-overture-pois.parquet')
+        SELECT id, g, 'fire' typ, cat = 'fire_department' AS strong FROM p
+          WHERE cat = 'fire_department' OR list_contains(alts, 'fire_department') OR regexp_matches(nm, '{FIRE_NAME_RE}')
+        UNION ALL
+        SELECT id, g, 'ems', cat = 'ambulance_and_ems_services' FROM p
+          WHERE cat = 'ambulance_and_ems_services' OR list_contains(alts, 'ambulance_and_ems_services') OR regexp_matches(nm, '{EMS_NAME_RE}')
+        UNION ALL
+        SELECT id, g, 'sch', coalesce(cat IN {sc}, false) FROM p
+          WHERE coalesce(cat IN {sc}, false) OR list_has_any(alts, {_sql_list(SCHOOL_CATS)})
+             OR (regexp_matches(nm, '{SCHOOL_NAME_RE}') AND NOT regexp_matches(coalesce(cat, ''), '{NOT_SCHOOL}'))""")
+    return con.sql("""
+        SELECT pts.id, pts.typ, pts.strong, tr.GEOID,
+               CASE WHEN ST_Contains(tr.g, pts.g) THEN ST_Distance(pts.g, trb.bd) ELSE -ST_Distance(pts.g, tr.g) END AS d
+        FROM pts JOIN tr ON ST_DWithin(tr.g, pts.g, 500) JOIN trb USING (GEOID)""").df()
+
+
 def build_features(region, force=False):
     base, extra = os.path.join(FEAT, f"{region}.parquet"), os.path.join(FEAT, f"{region}-extra.parquet")
-    if os.path.exists(base) and os.path.exists(extra) and not force:
+    facpts = os.path.join(FEAT, f"{region}-facpts.parquet")
+    if os.path.exists(base) and os.path.exists(extra) and os.path.exists(facpts) and not force:
         return
     os.makedirs(FEAT, exist_ok=True)
     t0 = time.time()
@@ -296,6 +322,7 @@ def build_features(region, force=False):
     df.insert(1, "region", region)
     df.to_parquet(base, index=False)
     _extra_features(con, region).to_parquet(extra, index=False)
+    _facility_points(con, region).to_parquet(facpts, index=False)
     log(f"  features [{region}] {df.shape} in {time.time() - t0:.0f}s")
 
 
@@ -409,13 +436,20 @@ CORE_PRIORS = [(f"log_m_{r}", 0.0, 0.4) for r in GRADED] + [  # TIGER metres per
     ("log_eps", np.log(0.02), 0.7), ("log_sigma_c", np.log(0.5), 0.4),        # establishments per resident
     ("a_bq", 0.5, 0.5)]                                          # business-registry intensity elasticity
 STRATA_PRIORS = [(f"gf_{k}", 0.0, 0.3) for k in STRATA] + [(f"gr_{k}", 0.0, 0.3) for k in STRATA]
+# structural mechanisms: facility copies leak across tract boundaries (spread sigma_loc, metres); TIGER keeps one
+# record per (edge, name), so routes that also carry a local street name count again (w_local); Interstate adjustment
+STRUCT_PRIORS = [("log_sigma_loc", np.log(60.0), 0.5), ("w_local", 0.0, 0.5), ("w_inter", 0.0, 0.5)]
+# per-region log-multipliers of the unseen-facility rate, establishments per resident and the building scale
+REGIONAL_PRIORS = [(f"{pre}_{r}", 0.0, 0.3) for pre in ("gfr", "gcr", "gbr") for r in GRADED]
 NAMES, THETA0, PRIOR_SD = [], np.zeros(0), np.zeros(0)
 
 
-def set_priors(use_scorecard):
-    """Stratum effects are free only when the public scorecard is used to calibrate them."""
+def set_priors(use_scorecard, regional=False, structural=False):
+    """Stratum effects are free only when the public scorecard is used to calibrate them; regional multipliers only
+    in the regional physics model."""
     global NAMES, THETA0, PRIOR_SD
-    pri = CORE_PRIORS + (STRATA_PRIORS if use_scorecard else [])
+    pri = (CORE_PRIORS + (STRATA_PRIORS if use_scorecard else []) + (STRUCT_PRIORS if structural else [])
+           + (REGIONAL_PRIORS if regional else []))
     NAMES, THETA0, PRIOR_SD = [p[0] for p in pri], np.array([p[1] for p in pri]), np.array([p[2] for p in pri])
 
 
@@ -432,10 +466,49 @@ def inputs(df, mu):
     e = np.log((df["detail"].to_numpy() + 0.01) / (1.01 - df["detail"].to_numpy()))
     F["z_effort"] = (e - e.mean()) / e.std()
     F["ridx"] = df["region"].map({r: i for i, r in enumerate(REGIONS)}).to_numpy()
+    F["L_loc"], F["L_int"] = df["L_route_localname"].to_numpy(float), df["L_interstate"].to_numpy(float)
+    F["pts"] = facility_points(df)
     for k in STRATA:
         F[f"s_{k}"] = df[f"s_{k}"].to_numpy(float)
     F["n"] = len(df)
     return F
+
+
+def facility_points(df):
+    """Per facility type: each Overture point, the tracts within 500 m, signed distances and a sparse tract map."""
+    from scipy import sparse
+    paths = [os.path.join(FEAT, f"{r}-facpts.parquet") for r in REGIONS]
+    if not all(os.path.exists(p_) for p_ in paths):
+        return None
+    idx = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())
+    pts = pd.concat([pd.read_parquet(p_) for p_ in paths])
+    pts = pts[pts["GEOID"].isin(idx.index)]
+    out = {}
+    for k in ["fire", "ems", "sch"]:
+        q = pts[pts["typ"] == k].sort_values(["id", "d"], ascending=[True, False]).reset_index(drop=True)
+        pid, j = np.unique(q["id"].to_numpy(), return_inverse=True)
+        strong = q["strong"].fillna(False).astype(bool).groupby(j).first().to_numpy()
+        A = sparse.csr_matrix((np.ones(len(q)), (idx[q["GEOID"]].to_numpy(), np.arange(len(q)))), shape=(len(df), len(q)))
+        out[k] = {"j": j, "d": q["d"].to_numpy(), "strong": strong, "A": A, "n_pts": len(pid)}
+    return out
+
+
+def point_counts(rng, P, alpha, alpha_x, sigma, S):
+    """Reference copies of Overture facility points: each point is real with probability alpha (strong evidence)
+    or alpha_x (weak), and lands in one of the tracts within 500 m with weight Phi(d / sigma)."""
+    from scipy.stats import norm
+    j, d = P["j"], P["d"]
+    wgt = norm.cdf(d / max(sigma, 1e-3))
+    tot = np.bincount(j, weights=wgt, minlength=P["n_pts"])
+    wgt = wgt / np.maximum(tot[j], 1.0)
+    c = np.cumsum(wgt)
+    start = np.r_[0, np.cumsum(np.bincount(j, minlength=P["n_pts"]))[:-1]]
+    base = np.r_[0.0, c][start][j]
+    hi, lo = c - base, c - base - wgt
+    real = rng.random((S, P["n_pts"])) < np.where(P["strong"], alpha, alpha_x)
+    u = rng.random((S, P["n_pts"]))
+    sel = real[:, j] & (u[:, j] >= lo) & (u[:, j] < hi)
+    return np.asarray((P["A"] @ sel.T.astype(np.float32)).T)
 
 
 def simulate(F, th, S=256, seed=0):
@@ -446,10 +519,13 @@ def simulate(F, th, S=256, seed=0):
     n = F["n"]
     ln = lambda sig, shape: np.exp(sig * rng.standard_normal(shape) - 0.5 * sig ** 2)
     eff = lambda pre: np.exp(sum(p.get(f"{pre}_{k}", 0.0) * F[f"s_{k}"] for k in STRATA))
+    reg = lambda pre: np.exp(np.array([p.get(f"{pre}_{r}", 0.0) for r in GRADED]
+                                      + [np.mean([p.get(f"{pre}_{r}", 0.0) for r in GRADED])])[F["ridx"]])
     m = np.exp(np.array([p[f"log_m_{r}"] for r in GRADED] + [np.mean([p[f"log_m_{r}"] for r in GRADED])]))[F["ridx"]]
     # roads: TIGER S1100+S1200 length vs Overture named length
     inc = lambda q, L: np.where(rng.random((S, n)) < SIG(p[q]), 1.0, 0.0) * L[None, :]
-    G = (F["L_route"] + p["beta_bnd"] * F["bnd"])[None, :] + inc("logit_q_fm", F["L_fm"]) + inc("logit_q_cty", F["L_cty"]) \
+    route = np.clip(F["L_route"] + p.get("w_local", 0.0) * F["L_loc"] - p.get("w_inter", 0.0) * F["L_int"], 0, None)
+    G = (route + p["beta_bnd"] * F["bnd"])[None, :] + inc("logit_q_fm", F["L_fm"]) + inc("logit_q_cty", F["L_cty"]) \
         + inc("logit_q_unr", F["L_unr"])
     has = G > 1.0
     T = (m * eff("gr"))[None, :] * G * ln(np.exp(p["log_sigma_t"]), (S, n))
@@ -458,18 +534,22 @@ def simulate(F, th, S=256, seed=0):
     dT = has | surprise
     t = np.where(dT, 1 - np.minimum(1, F["N"][None, :] / np.maximum(T, 1e-9)), 0.0)
     # buildings: Microsoft count = kappa * USFS count * noise
-    MS = (np.exp(p["log_kappa"]) * F["U_b"])[None, :] * ln(np.exp(p["log_sigma_b"]), (S, n))
+    MS = (np.exp(p["log_kappa"]) * F["U_b"] * reg("gbr"))[None, :] * ln(np.exp(p["log_sigma_b"]), (S, n))
     dB = MS > 0.5
     b = np.where(dB, 1 - np.minimum(1, F["O_b"][None, :] / np.maximum(MS, 1e-9)), 0.0)
     # facilities: reference = Bin(Overture primary, a) + Bin(weak evidence, x) + Poisson(unseen)
-    fac = eff("gf") * np.exp(p["ge_fac"] * F["z_effort"])
+    fac = eff("gf") * np.exp(p["ge_fac"] * F["z_effort"]) * reg("gfr")
     gs, ds, H_ems, types = [], [], None, {}
     for k in ["fire", "ems", "sch"]:
         r = SIG(p[f"logit_r_{k}"])
         lam = F[f"mu_{k}"] * (1 - r) / r * fac
-        H = (rng.binomial(np.broadcast_to(F[f"O_{k}"], (S, n)), SIG(p[f"logit_a_{k}"]))
-             + rng.binomial(np.broadcast_to(F[f"X_{k}"], (S, n)), SIG(p[f"logit_x_{k}"]))
-             + rng.poisson(np.broadcast_to(lam, (S, n))))
+        if "log_sigma_loc" in p and F.get("pts") is not None:
+            H = (point_counts(rng, F["pts"][k], SIG(p[f"logit_a_{k}"]), SIG(p[f"logit_x_{k}"]), np.exp(p["log_sigma_loc"]), S)
+                 + rng.poisson(np.broadcast_to(lam, (S, n))))
+        else:
+            H = (rng.binomial(np.broadcast_to(F[f"O_{k}"], (S, n)), SIG(p[f"logit_a_{k}"]))
+                 + rng.binomial(np.broadcast_to(F[f"X_{k}"], (S, n)), SIG(p[f"logit_x_{k}"]))
+                 + rng.poisson(np.broadcast_to(lam, (S, n))))
         if k == "ems":
             H_ems = H
             types["ems_binding"] = ((H >= 1) & (F["O_ems"][None, :] < H)).mean(0)
@@ -483,7 +563,7 @@ def simulate(F, th, S=256, seed=0):
     dH = nd > 0
     h = np.where(dH, (gs[0] + gs[1] + gs[2]) / np.maximum(nd, 1), 0.0)
     # establishments: CBP = eps * population * registry intensity * noise
-    cm = np.exp(p["log_eps"]) * F["pop"] * np.exp(p["a_bq"] * F["z_bq"])
+    cm = np.exp(p["log_eps"]) * F["pop"] * np.exp(p["a_bq"] * F["z_bq"]) * reg("gcr")
     CBP = cm[None, :] * ln(np.exp(p["log_sigma_c"]), (S, n))
     dC = CBP >= 0.5
     c = np.where(dC, 1 - np.minimum(1, F["n_poi"][None, :] / np.maximum(CBP, 1e-9)), 0.0)
@@ -897,8 +977,8 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     log(f"  scorecard ratios (zero-score leaders: rural 2.23-2.38, tribal 2.79-2.97): {rat}")
     report["aggregate_fit"] = dict(report.get("aggregate_fit", {}), hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])],
                                    est_public_refit=est_final, best_scored=dict(file=best[1], rmse=best[0]), ratios=rat)
-    if os.path.exists("physics_lb.csv"):
-        lb_phys = pd.read_csv("physics_lb.csv", dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
+    if TRANSFER > 0 and os.path.exists(TRANSFER_SOURCE):
+        lb_phys = pd.read_csv(TRANSFER_SOURCE, dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
         final = np.round(transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report, choice[1]), 6)
         rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
         report["aggregate_fit"]["ratios_after_transfer"] = rat
@@ -992,10 +1072,11 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.0      # no new bet this round (was 0.10; step along the unscored part of the label-calibrated physics. Its coefficient has been +0.68 and
-                    # -0.86 (z 14 and 8): informative but of unpredictable sign. A small step costs at most ~0.0001 now
-                    # and its score still measures the direction fully, so the next file can take the measured optimum.
-TRANSFER_PRIOR_SD = 0.8   # prior sd of a calibrated-physics direction's coefficient (spread of the measured +0.68, -0.86)
+TRANSFER = 0.20     # bet along the unscored part of the newest label-calibrated physics (TRANSFER_SOURCE). Measured so
+                    # far: first calibrated physics +0.5 (curvature-corrected); a plain recalibration about 0. The
+                    # structural physics fits the score moments far better (chi-square 106 vs 175), like the first.
+TRANSFER_SOURCE = "physics_lb_struct.csv"
+CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
 
 class LabelTargets(Targets):
@@ -1016,7 +1097,7 @@ class LabelTargets(Targets):
         return np.r_[super().sd(sim), np.sqrt(np.diag(self.N))]
 
 
-def calibrate_physics_on_labels(df, groups, report, S=512):
+def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, structural=False):
     """Stage 10: refit the physics model's 41 parameters (stratum effects included) to the published statistics,
     the public scorecard and every scored file's moment, starting from the scorecard-calibrated physics. Its part
     outside the scored span is the physics extrapolation of everything the scores have measured."""
@@ -1026,9 +1107,10 @@ def calibrate_physics_on_labels(df, groups, report, S=512):
     names = [n for n in L.s if n not in ("probe_zeros.csv", "e06_r2f_only_eastern-wa.csv")]
     best = min((s_, n) for n, s_ in L.s.items() if not n.startswith("probe_"))
     _, parts, _ = eb_posterior(L, names, L.V[best[1]][g])
-    set_priors(True)
+    set_priors(True, regional, structural)
     with open("physics_scorecard_report.json") as f:
-        th0 = np.array([p["posterior"] for p in json.load(f)["calibration"]["parameters"]])
+        start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
+    th0 = np.array([start.get(n, c0) for n, c0 in zip(NAMES, THETA0)])   # new mechanisms start at their prior centres
     X, _ = context_matrix(df)
     mu = {t: cross_fit(df, X, t, cap)[0] for t, cap in AUX_TARGETS}
     F = inputs(df, mu)
@@ -1043,12 +1125,13 @@ def calibrate_physics_on_labels(df, groups, report, S=512):
         f"{parts['Q'].shape[1]} score moments {chi(m0, sd0)[k0:].sum():.1f} -> {chi(m, sd)[k0:].sum():.1f}")
     sim = predict(F, th)
     pred = np.clip(sim["Ey"], 0, 1)
-    pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv("physics_lb.csv", index=False)
+    out_csv = "physics_lb" + ("_struct" if structural else "") + ("_regional" if regional else "") + ".csv"
+    pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out_csv, index=False)
     v = L.V[best[1]].copy()
     v[g] = pred[pos][g]
     est = estimate(L, v)
     ratios = {k: round(float(pred[h].mean() / pred[l].mean()), 3) for k, (h, l) in groups.items()}
-    log(f"  label-calibrated physics: mean {pred[df['graded'].to_numpy()].mean():.4f}; estimated public RMSE {est:.6f}; "
+    log(f"  label-calibrated physics ({out_csv}): mean {pred[df['graded'].to_numpy()].mean():.4f}; estimated public RMSE {est:.6f}; "
         f"scorecard ratios {ratios}")
     report.update(parameters=[dict(parameter=n, start=float(a), fitted=float(b)) for n, a, b in zip(NAMES, th0, th)],
                   targets=[dict(target=n, observed=float(x), start=float(y), fitted=float(z))
@@ -1133,9 +1216,9 @@ def transfer_step(L, base, physics_lb, report, base_rmse):
     out = base.copy()
     out[g] = np.clip(base[g] + TRANSFER * u, 0, 1)
     size = float(np.sqrt(w @ u ** 2))
-    outcomes = {f"coef_{b:.1f}": float(np.sqrt(max(base_rmse ** 2 + size ** 2 * (TRANSFER ** 2 - 2 * TRANSFER * b), 0)))
-                for b in (0.0, 0.2, 0.4, 0.6)}
-    log(f"  transfer step: {TRANSFER} x the unscored part of physics_lb.csv (RMS {size:.4f}); expected public RMSE by the "
+    outcomes = {f"coef_{b:+.1f}": float(np.sqrt(max(base_rmse ** 2 + size ** 2 * (CURVATURE * TRANSFER ** 2 - 2 * TRANSFER * b), 0)))
+                for b in (-0.3, 0.0, 0.3, 0.5)}
+    log(f"  transfer step: {TRANSFER} x the unscored part of {TRANSFER_SOURCE} (RMS {size:.4f}); expected public RMSE by the "
         f"truth's coefficient along it: " + ", ".join(f"{k[5:]} -> {v:.6f}" for k, v in outcomes.items()))
     report["transfer"] = dict(share=TRANSFER, unscored_rms=size, expected=outcomes)
     return out
@@ -1154,6 +1237,8 @@ def main():
     ap.add_argument("--fit-only", action="store_true", help="stage 8 only, reading the physics model from physics.csv")
     ap.add_argument("--probes", type=int, default=0, metavar="K", help="write K probe files to probes/ and exit")
     ap.add_argument("--calibrate-physics", action="store_true", help="stage 10: physics calibrated on the labels -> physics_lb.csv")
+    ap.add_argument("--regional", action="store_true", help="with --calibrate-physics: add per-region multipliers")
+    ap.add_argument("--structural", action="store_true", help="with --calibrate-physics: facility leakage and road-frame mechanisms")
     args = ap.parse_args()
     if args.add_label:
         add_label(*args.add_label)
@@ -1168,10 +1253,11 @@ def main():
         df, groups = load()
         log("10 physics calibrated on the aggregate labels (published statistics + scorecard + score moments)")
         rep = {}
-        calibrate_physics_on_labels(df, groups, rep)
-        with open("physics_lb_report.json", "w") as f:
+        calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural)
+        name = "physics_lb" + ("_struct" if args.structural else "") + ("_regional" if args.regional else "")
+        with open(f"{name}_report.json", "w") as f:
             json.dump(rep, f, indent=2, default=float)
-        log(f"Wrote physics_lb.csv and physics_lb_report.json ({clock()})")
+        log(f"Wrote {name}.csv and {name}_report.json ({clock()})")
         return
     if args.probes:
         df, _ = load()
