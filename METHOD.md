@@ -335,6 +335,30 @@ the file would have scored 0.059808, as predicted.
   physics' new part (RMS 0.0057).
 - **Expected:** 0.05933–0.05941.
 
+**Result and correction.**
+
+- **The miss:** the file scored **0.060747**. That is not explained by the small bet (±0.0001) or by clipping:
+  the three transfer files lie in the two-direction plane up to RMS 0.0015.
+- **The cause:** the quadratic term. The public rows' mean of each move's square was larger than the weighted
+  estimate. Solved from the three scores, the curvature scale is 1.38, the same under uniform weights.
+- **What it means:** large moves along these directions are concentrated in tracts that the public 30% happens
+  to over-represent. Under the correct curvature, the second direction's optimum is about 0, not −2.1, and the
+  first direction's about 3.3×, not 4.5×.
+
+**Curvature-aware local update (current stage 8).**
+
+- **Directions:** the main directions are the displacements' new parts with RMS ≥ 0.002.
+- **Priors:** the public curvature along them gets log-normal scales (sd 0.4) and correlations N(0, 0.3²).
+- **Fit:** each prior draw fits the linear terms to all transfer scores by weighted least squares. A file's noise
+  is set by its part outside the main directions, so the first two files count as exact. Each draw is then
+  weighted by its fit.
+- **Choice:** the update minimises the posterior expected MSE, `x* = E[C]⁻¹ E[G]`.
+- **Result:** 3.32 × the first direction, 0 × the second, expected **0.060156 ± 0.000062**. It interpolates
+  between the scored points.
+- **Retro-check:** given only the first two transfer scores, the method's 5–95% band for the third file was
+  0.0578–0.0623, which contains the actual 0.0607 (81st percentile).
+- **No new bet this round** (`TRANSFER = 0`).
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

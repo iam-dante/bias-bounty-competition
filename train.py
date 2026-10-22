@@ -878,13 +878,17 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     for tu in transfer_updates(L):
         v = tu["vector"].copy()
         v[~g] = final[~g]
-        e = estimate(L, v)
-        for p_ in tu["parts"]:
-            log(f"  new part of {p_['label']} (RMS {p_['rms']:.5f}): optimum {p_['t_measured']:+.2f} +- {p_['sd']:.2f} x the step taken, "
-                f"posterior {p_['t_posterior']:+.2f}")
-        log(f"  local update around {tu['anchor']}: estimated public RMSE {e:.6f}")
-        cands.append((f"local update around {tu['anchor']}", e, v))
-        report["transfer_parts"] = tu["parts"]
+        log(f"  local Bayesian update around {tu['anchor']} ({tu['directions']} directions, curvature scales "
+            + ", ".join(f"{x:.2f}" for x in tu["curvature_scale"]) + "): coordinates "
+            + ", ".join(f"{x:+.2f}" for x in tu["coordinates"])
+            + f"; expected public RMSE {tu['expected_rmse']:.6f} +- {tu['sd_rmse']:.6f}, P(beats best) {tu['p_beats_best']:.2f}")
+        if tu["p_beats_best"] >= 0.9:
+            cands.append((f"local Bayesian update around {tu['anchor']}", tu["expected_rmse"], v))
+        report["transfer_update"] = {k_: v_ for k_, v_ in tu.items() if k_ != "vector"}
+    if any(label_group(n) == "transfer" for n in L.s):
+        # Large in-span refits are scored by the same public-curvature assumption that failed: keep them out once
+        # transfer files exist, and trust the measured local update or the best scored file.
+        cands = [c_ for c_ in cands if c_[0] != "refit"]
     choice = min(cands, key=lambda c: c[1])
     final = choice[2]
     rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
@@ -988,7 +992,7 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.10     # step along the unscored part of the label-calibrated physics. Its coefficient has been +0.68 and
+TRANSFER = 0.0      # no new bet this round (was 0.10; step along the unscored part of the label-calibrated physics. Its coefficient has been +0.68 and
                     # -0.86 (z 14 and 8): informative but of unpredictable sign. A small step costs at most ~0.0001 now
                     # and its score still measures the direction fully, so the next file can take the measured optimum.
 TRANSFER_PRIOR_SD = 0.8   # prior sd of a calibrated-physics direction's coefficient (spread of the measured +0.68, -0.86)
@@ -1054,13 +1058,18 @@ def calibrate_physics_on_labels(df, groups, report, S=512):
     return pred
 
 
-def transfer_updates(L):
-    """Local Bayesian update around the anchor (the best file scored before the first transfer label). Every transfer
-    file is a deliberate displacement D_k from the anchor; its score gives <D_k, y - anchor> on the public rows
-    exactly. The displacements are made orthogonal in order (each file's new part), the target's projection on each
-    new part is measured from the scores, and each new part's coefficient on its physics direction gets a prior
-    N(0, TRANSFER_PRIOR_SD^2). Transfer labels are named tr_<model>_<step x 100>.csv. The update is the anchor plus
-    the posterior multiples of the new parts."""
+def transfer_updates(L, draws=200000, min_rms=0.002, proj_scale=0.005, seed=0):
+    """Local Bayesian update around the anchor (the best file scored before the first transfer label).
+
+    Every transfer file is a displacement D_k from the anchor, and its public MSE is exactly
+        MSE_k = MSE_anchor + pub(D_k^2) - 2 pub(D_k (y - anchor)).
+    The linear terms are what the scores measure. The quadratic term is the mean of D_k^2 over the unknown public rows.
+    Estimated weights get it wrong for large, concentrated moves: the third transfer file showed the public curvature
+    1.4x the estimate. So the curvature along the main directions (each displacement's new part with RMS >= min_rms)
+    gets a prior: log-normal scales (sd 0.4) and correlations N(0, 0.3^2). Each prior draw fits the linear terms to
+    all transfer scores by weighted least squares and is weighted by how well it reproduces them. A file's score is
+    exact except for its part outside the main directions (a small bet, clipping): its noise is
+    2 x proj_scale x RMS(that part) in MSE units. The update minimises the posterior expected MSE: x* = E[C]^-1 E[G]."""
     g = L.graded
     order = list(L.s)
     names = [n for n in order if label_group(n) == "transfer"]
@@ -1068,28 +1077,48 @@ def transfer_updates(L):
         return []
     anchor = min([n for n in order[:order.index(names[0])] if not n.startswith("probe_")], key=L.s.get)
     a, ma = L.V[anchor][g], L.s[anchor] ** 2
-    unit = L.s[anchor] * np.sqrt((1 - P_PUBLIC) / (P_PUBLIC * g.sum()))
     w = L.pi / L.pi.sum()
-    E, gE, parts = [], [], []
-    for name in names:
-        D = L.V[name][g] - a
-        gD = (ma + L.AP(D ** 2) - L.s[name] ** 2) / 2
-        c = [(w @ (D * e)) / (w @ e ** 2) for e in E]
-        e = D - sum((cj * ej for cj, ej in zip(c, E)), np.zeros_like(D))
-        ge = gD - sum(cj * gj for cj, gj in zip(c, gE))
-        size2 = L.AP(e ** 2)
-        if size2 < 1e-12:
-            continue
-        t_hat, sd = ge / size2, unit / np.sqrt(size2)
-        step = int(name.split("_")[-1].split(".")[0]) / 100          # tr_<model>_<step x 100>.csv
-        prior_sd = TRANSFER_PRIOR_SD / step                          # prior N(0, 0.8^2) on the direction's coefficient
-        t_post = t_hat * prior_sd ** 2 / (prior_sd ** 2 + sd ** 2)
-        E.append(e)
-        gE.append(ge)
-        parts.append(dict(label=name, rms=float(np.sqrt(size2)), t_measured=float(t_hat), sd=float(sd), t_posterior=float(t_post)))
+    Ds = [L.V[n][g] - a for n in names]
+    E = []
+    for D in Ds:
+        e = D - sum(((w @ (D * q)) / (w @ q ** 2) * q for q in E), np.zeros_like(D))
+        if np.sqrt(w @ e ** 2) >= min_rms:
+            E.append(e)
+    K = len(E)
+    X = np.array([[(w @ (D * e)) / (w @ e ** 2) for e in E] for D in Ds])            # coordinates of each file
+    M = np.array([L.s[n] ** 2 for n in names])
+    rest = [D - sum((xj * e for xj, e in zip(xk, E)), np.zeros_like(D)) for D, xk in zip(Ds, X)]
+    sd = np.array([2 * proj_scale * np.sqrt(w @ r_ ** 2) + 1e-7 for r_ in rest])        # per-file noise (MSE units)
+    c = np.array([[L.AP(ei * ej) for ej in E] for ei in E])
+    rng = np.random.default_rng(seed)
+    k = np.exp(rng.normal(0, 0.4, (draws, K)))
+    R = np.tile(np.eye(K), (draws, 1, 1))
+    iu = np.triu_indices(K, 1)
+    corr = rng.normal(0, 0.3, (draws, len(iu[0])))
+    R[:, iu[0], iu[1]] = corr
+    R[:, iu[1], iu[0]] = corr
+    sq = np.sqrt(np.diag(c))
+    C = R * (k[:, :, None] * k[:, None, :]) ** 0.5 * np.outer(sq, sq)[None]             # draw x K x K
+    q = np.einsum("nk,dkl,nl->dn", X, C, X)                                               # draw x files
+    rhs = (q - (M - ma)[None]) / 2                                                        # = X G
+    Wf = 1 / sd ** 2
+    P = np.linalg.solve(X.T @ (X * Wf[:, None]), (X * Wf[:, None]).T)                    # K x files, weighted LS
+    G = rhs @ P.T
+    res = rhs - G @ X.T
+    logw = -0.5 * np.sum((2 * res / sd[None]) ** 2, axis=1)
+    wt = np.exp(logw - logw.max())
+    wt /= wt.sum()
+    EC, EG = np.einsum("d,dkl->kl", wt, C), wt @ G
+    x = np.linalg.solve(EC, EG)
+    mse = ma + np.einsum("k,dkl,l->d", x, C, x) - 2 * G @ x
+    best_scored = min(L.s[n] for n in order if not n.startswith("probe_"))
+    exp_mse = float(wt @ mse)
     v = L.V[anchor].copy()
-    v[g] = np.clip(a + sum(p_["t_posterior"] * e for p_, e in zip(parts, E)), 0, 1)
-    return [dict(anchor=anchor, parts=parts, vector=np.round(v, 6))]
+    v[g] = np.clip(a + sum(xi * e for xi, e in zip(x, E)), 0, 1)
+    return [dict(anchor=anchor, directions=K, coordinates=x.tolist(), expected_rmse=float(np.sqrt(exp_mse)),
+                 sd_rmse=float(np.sqrt(wt @ (mse - exp_mse) ** 2) / (2 * np.sqrt(exp_mse))),
+                 p_beats_best=float(wt @ (mse < best_scored ** 2)), effective_draws=float(1 / (wt ** 2).sum()),
+                 curvature_scale=(wt @ k).tolist(), vector=np.round(v, 6))]
 
 
 def transfer_step(L, base, physics_lb, report, base_rmse):

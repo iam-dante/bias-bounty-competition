@@ -15,8 +15,8 @@ python train.py
 | stage 8 refit with 67 labels | posterior after the probe | **0.061348 (scored; best)**, estimated 0.061355 |
 | best + 0.15 × unscored part of `physics_lb.csv` (68 labels) | first transfer step | **0.060742 (scored; best)**; implies the truth follows that direction at 0.68 ± 0.05 |
 | local update + 0.4 × the 69-label physics' new part | second transfer step | **0.060353 (scored; best)**; the new part runs the other way: optimum −2.14 ± 0.27 × that step |
-| `physics_lb.csv` | stage 10 recalibrated on 70 labels | 0.0635 on its own (estimated) |
-| `submission.csv` | local update (4.49× first part, −2.11× second; est. 0.059359) + small bet 0.1 × the 70-label physics' new part | 0.05933–0.05941 depending on the bet's sign |
+| local update (4.38×, −1.96×) + 0.1 bet | third transfer file | 0.060747 (scored): missed the 0.0594 prediction because the public curvature is 1.4× the estimate |
+| `submission.csv` | curvature-aware local update: 3.32 × the first direction, 0 × the second (interpolates between scored points) | **0.06016 ± 0.00006** (expected) |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
@@ -136,6 +136,17 @@ Stage 8 now compares three candidates and keeps the one with the lowest estimate
 - **a 1-D update for each transfer label.** A transfer file is a deliberate step from the best file scored before
   it. The two scored points on that line, and its known curvature, give the optimum multiple of the step; the
   prior is N(1, 1).
+
+**Lesson from the third transfer file:** the public mean of a large, concentrated move's square was 1.4× the
+weighted estimate. That curvature error made the previous update overshoot one direction and wrongly reverse the
+other. The local update now treats curvature as uncertain:
+
+- **Priors:** log-normal scales (sd 0.4) and correlations N(0, 0.3²).
+- **Weighting:** each prior draw is weighted by how well it reproduces every transfer score.
+- **Choice:** the update takes the point with the lowest posterior expected score.
+
+Retro-check: with only two transfer scores, it gave the third file a 5–95% band of 0.0578–0.0623, which contains
+the actual 0.0607. The old method had predicted 0.0593 with no band.
 
 With several transfer files, the update is local around their anchor:
 
