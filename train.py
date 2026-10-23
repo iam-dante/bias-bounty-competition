@@ -479,6 +479,9 @@ FLEX_F = ["bph", "log_area", "log_density", "ruca", "pct_urban", "places_pc", "m
           "log_bld", "fire_weak_share", "has_route", "detail"]
 FLEX_SD = 0.1
 FLEX_PRIORS = lambda sd: [(f"ft_{k}", 0.0, sd) for k in FLEX_T] + [(f"ff_{k}", 0.0, sd) for k in FLEX_F]
+# per-region deviations from each flexible effect (the same feature can act differently in each region's map)
+FLEX_REGIONAL_PRIORS = ([(f"ftr_{k}_{r}", 0.0, 0.1) for k in FLEX_T for r in GRADED]
+                        + [(f"ffr_{k}_{r}", 0.0, 0.1) for k in FLEX_F for r in GRADED])
 # per-region log-multipliers of the unseen-facility rate, establishments per resident and the building scale
 REGIONAL_PRIORS = [(f"{pre}_{r}", 0.0, 0.3) for pre in ("gfr", "gcr", "gbr") for r in GRADED]
 NAMES, THETA0, PRIOR_SD = [], np.zeros(0), np.zeros(0)
@@ -488,13 +491,15 @@ def flex_suffix(sd):
     return "_flex" if sd == FLEX_SD else f"_flex{round(sd * 100)}"
 
 
-def set_priors(use_scorecard, regional=False, structural=False, unmatched=False, covariates=False, flex=False):
+def set_priors(use_scorecard, regional=False, structural=False, unmatched=False, covariates=False, flex=False,
+               flex_regional=False):
     """Stratum effects are free only when the public scorecard is used to calibrate them; regional multipliers only
     in the regional physics model."""
     global NAMES, THETA0, PRIOR_SD
     pri = (CORE_PRIORS + (STRATA_PRIORS if use_scorecard else []) + (STRUCT_PRIORS if structural else [])
            + (UNMATCHED_PRIORS if unmatched else []) + (REGIONAL_PRIORS if regional else [])
-           + (COVAR_PRIORS if covariates else []) + (FLEX_PRIORS(flex) if flex else []))
+           + (COVAR_PRIORS if covariates else []) + (FLEX_PRIORS(flex) if flex else [])
+           + (FLEX_REGIONAL_PRIORS if flex_regional else []))
     NAMES, THETA0, PRIOR_SD = [p[0] for p in pri], np.array([p[1] for p in pri]), np.array([p[2] for p in pri])
 
 
@@ -587,6 +592,8 @@ def simulate(F, th, S=256, seed=0):
     eff = lambda pre: np.exp(sum(p.get(f"{pre}_{k}", 0.0) * F[f"s_{k}"] for k in STRATA))
     reg = lambda pre: np.exp(np.array([p.get(f"{pre}_{r}", 0.0) for r in GRADED]
                                       + [np.mean([p.get(f"{pre}_{r}", 0.0) for r in GRADED])])[F["ridx"]])
+    regk = lambda pre, k: np.array([p.get(f"{pre}_{k}_{r}", 0.0) for r in GRADED]
+                                   + [np.mean([p.get(f"{pre}_{k}_{r}", 0.0) for r in GRADED])])[F["ridx"]]
     m = np.exp(np.array([p[f"log_m_{r}"] for r in GRADED] + [np.mean([p[f"log_m_{r}"] for r in GRADED])]))[F["ridx"]]
     # roads: TIGER S1100+S1200 length vs Overture named length
     inc = lambda q, L: np.where(rng.random((S, n)) < SIG(p[q]), 1.0, 0.0) * L[None, :]
@@ -596,7 +603,8 @@ def simulate(F, th, S=256, seed=0):
         + inc("logit_q_unr", F["L_unr"])
     has = G > 1.0
     cov_t = np.exp(p.get("gt_inter", 0.0) * F["z_inter"] + p.get("gt_detail", 0.0) * F["z_detail"] + p.get("gt_fm", 0.0) * F["z_fm"]
-                   + sum(p[f"ft_{k}"] * F[f"zf_{k}"] for k in FLEX_T if f"ft_{k}" in p))
+                   + sum(p[f"ft_{k}"] * F[f"zf_{k}"] for k in FLEX_T if f"ft_{k}" in p)
+                   + sum(regk("ftr", k) * F[f"zf_{k}"] for k in FLEX_T if f"ftr_{k}_{GRADED[0]}" in p))
     T = (m * eff("gr") * cov_t)[None, :] * G * ln(np.exp(p["log_sigma_t"]), (S, n))
     surprise = ~has & (rng.random((S, n)) < SIG(p["logit_p_surprise"]))
     T = np.where(surprise, 400.0 * ln(1.0, (S, n)), T)
@@ -608,7 +616,8 @@ def simulate(F, th, S=256, seed=0):
     dB = MS > 0.5
     b = np.where(dB, 1 - np.minimum(1, F["O_b"][None, :] / np.maximum(MS, 1e-9)), 0.0)
     # facilities: reference = Bin(Overture primary, a) + Bin(weak evidence, x) + Poisson(unseen)
-    fac = eff("gf") * np.exp(p["ge_fac"] * F["z_effort"] + sum(p[f"ff_{k}"] * F[f"zf_{k}"] for k in FLEX_F if f"ff_{k}" in p)) * reg("gfr")
+    fac = eff("gf") * np.exp(p["ge_fac"] * F["z_effort"] + sum(p[f"ff_{k}"] * F[f"zf_{k}"] for k in FLEX_F if f"ff_{k}" in p)
+                                                   + sum(regk("ffr", k) * F[f"zf_{k}"] for k in FLEX_F if f"ffr_{k}_{GRADED[0]}" in p)) * reg("gfr")
     gs, ds, H_ems, types = [], [], None, {}
     for k in ["fire", "ems", "sch"]:
         r = SIG(p[f"logit_r_{k}"])
@@ -1029,16 +1038,17 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     log(f"  estimated public RMSE {est_final:.6f}; best scored file {best[1]} {best[0]:.6f} "
         f"(RMS difference {np.sqrt(w @ change ** 2):.5f}); in-span by construction, so the estimate credits all of it")
     cands = [("refit", est_final, final), (f"best scored file {best[1]}", best[0], np.round(L.V[best[1]].copy(), 6))]
+    report["transfer_update"] = []
     for tu in transfer_updates(L):
         v = tu["vector"].copy()
         v[~g] = final[~g]
-        log(f"  local Bayesian update around {tu['anchor']} ({tu['directions']} directions, curvature scales "
+        log(f"  {tu['label']} ({tu['directions']} directions, curvature scales "
             + ", ".join(f"{x:.2f}" for x in tu["curvature_scale"]) + "): coordinates "
             + ", ".join(f"{x:+.2f}" for x in tu["coordinates"])
             + f"; expected public RMSE {tu['expected_rmse']:.6f} +- {tu['sd_rmse']:.6f}, P(beats best) {tu['p_beats_best']:.2f}")
         if tu["p_beats_best"] >= 0.75:
-            cands.append((f"local Bayesian update around {tu['anchor']}", tu["expected_rmse"], v))
-        report["transfer_update"] = {k_: v_ for k_, v_ in tu.items() if k_ != "vector"}
+            cands.append((tu["label"], tu["expected_rmse"], v))
+        report["transfer_update"].append({k_: v_ for k_, v_ in tu.items() if k_ != "vector"})
     if any(label_group(n) == "transfer" for n in L.s):
         # Large in-span refits are scored by the same public-curvature assumption that failed: keep them out once
         # transfer files exist, and trust the measured local update or the best scored file.
@@ -1147,9 +1157,9 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.3      # flexible-effects directions measured coefficients of about 0.5 and 0.4 (0.058987, 0.058912); the wider
-                    # flexible model (prior sd 0.2) recalibrated on 78 labels has a new unscored part (RMS 0.0037): bet 0.3 x it.
-TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex20.csv"
+TRANSFER = 0.3      # flexible directions measured coefficients of about 0.5, 0.4 and 0.85; the region-specific flexible model
+                    # (200 parameters, 78 labels) has a new unscored part (RMS 0.0046) nearly orthogonal to them: bet 0.3 x it.
+TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex20_rflex.csv"
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
 
@@ -1172,7 +1182,7 @@ class LabelTargets(Targets):
 
 
 def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, structural=False, unmatched=False, covariates=False,
-                                flex=False):
+                                flex=False, flex_regional=False):
     """Stage 10: refit the physics model's 41 parameters (stratum effects included) to the published statistics,
     the public scorecard and every scored file's moment, starting from the scorecard-calibrated physics. Its part
     outside the scored span is the physics extrapolation of everything the scores have measured."""
@@ -1182,12 +1192,13 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     names = [n for n in L.s if n not in ("probe_zeros.csv", "e06_r2f_only_eastern-wa.csv")]
     best = min((s_, n) for n, s_ in L.s.items() if not n.startswith("probe_"))
     _, parts, _ = eb_posterior(L, names, L.V[best[1]][g])
-    set_priors(True, regional, structural, unmatched, covariates, flex)
+    set_priors(True, regional, structural, unmatched, covariates, flex, flex_regional)
     with open("physics_scorecard_report.json") as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
     warm = ["physics_lb_struct_report.json", "physics_lb_struct_unmatched_report.json", "physics_lb_struct_regional_report.json",
             "physics_lb_struct_unmatched_regional_report.json"] + (["physics_lb_struct_unmatched_regional_flex_report.json",
                                                          f"physics_lb_struct_unmatched_regional{flex_suffix(flex)}_report.json"] if flex else [])
+    warm += [f"physics_lb_struct_unmatched_regional{flex_suffix(flex)}_rflex_report.json"] if flex and flex_regional else []
     for wf in warm if structural else []:
         if os.path.exists(wf):
             with open(wf) as f:                                           # warm start from the fitted smaller models
@@ -1208,7 +1219,8 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     sim = predict(F, th)
     pred = np.clip(sim["Ey"], 0, 1)
     out_csv = ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "")
-               + ("_regional" if regional else "") + ("_covar" if covariates else "") + (flex_suffix(flex) if flex else "") + ".csv")
+               + ("_regional" if regional else "") + ("_covar" if covariates else "") + (flex_suffix(flex) if flex else "")
+               + ("_rflex" if flex_regional else "") + ".csv")
     pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out_csv, index=False)
     v = L.V[best[1]].copy()
     v[g] = pred[pos][g]
@@ -1224,7 +1236,7 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     return pred
 
 
-def transfer_updates(L, draws=200000, min_rms=0.002, proj_scale=0.005, seed=0, k_median=None, k_sd=0.35):
+def transfer_updates(L, draws=200000, min_rms=0.001, proj_scale=0.005, seed=0, k_median=None, k_sd=0.35, coord_sd=3.0):
     """Local Bayesian update around the anchor (the best file scored before the first transfer label).
 
     Every transfer file is a displacement D_k from the anchor, and its public MSE is exactly
@@ -1272,19 +1284,43 @@ def transfer_updates(L, draws=200000, min_rms=0.002, proj_scale=0.005, seed=0, k
     G = rhs @ P.T
     res = rhs - G @ X.T
     logw = -0.5 * np.sum((2 * res / sd[None]) ** 2, axis=1)
+    if coord_sd is not None:
+        # prior on each coordinate, x ~ N(0, coord_sd^2 I), so G = C x ~ N(0, coord_sd^2 C C) in each draw: a direction measured
+        # by one small step is shrunk instead of extrapolated. Draws are weighted by the marginal likelihood of the scores.
+        Sg = coord_sd ** 2 * C @ C                                                       # draw x K x K
+        Sr = X @ Sg @ X.T + np.diag(sd ** 2 / 4)[None]                                   # draw x files x files
+        Lc = np.linalg.cholesky(Sr)
+        z = np.linalg.solve(Lc, rhs[:, :, None])[:, :, 0]
+        logw = -0.5 * np.sum(z ** 2, axis=1) - np.log(np.diagonal(Lc, axis1=1, axis2=2)).sum(1)
+        G = np.einsum("dkl,nl,dn->dk", Sg, X, np.linalg.solve(Sr, rhs[:, :, None])[:, :, 0])
     wt = np.exp(logw - logw.max())
     wt /= wt.sum()
     EC, EG = np.einsum("d,dkl->kl", wt, C), wt @ G
     x = np.linalg.solve(EC, EG)
-    mse = ma + np.einsum("k,dkl,l->d", x, C, x) - 2 * G @ x
-    best_scored = min(L.s[n] for n in order if not n.startswith("probe_"))
-    exp_mse = float(wt @ mse)
+    best_name = min((n for n in order if not n.startswith("probe_")), key=L.s.get)
+    best_scored = L.s[best_name]
+
+    def outcome(x, label, v):
+        mse = ma + np.einsum("k,dkl,l->d", x, C, x) - 2 * G @ x
+        exp_mse = float(wt @ mse)
+        return dict(label=label, anchor=anchor, directions=K, coordinates=x.tolist(), expected_rmse=float(np.sqrt(exp_mse)),
+                    sd_rmse=float(np.sqrt(wt @ (mse - exp_mse) ** 2) / (2 * np.sqrt(exp_mse))),
+                    p_beats_best=float(wt @ (mse < best_scored ** 2)), effective_draws=float(1 / (wt ** 2).sum()),
+                    curvature_scale=(wt @ k).tolist(), vector=np.round(v, 6))
+
     v = L.V[anchor].copy()
     v[g] = np.clip(a + sum(xi * e for xi, e in zip(x, E)), 0, 1)
-    return [dict(anchor=anchor, directions=K, coordinates=x.tolist(), expected_rmse=float(np.sqrt(exp_mse)),
-                 sd_rmse=float(np.sqrt(wt @ (mse - exp_mse) ** 2) / (2 * np.sqrt(exp_mse))),
-                 p_beats_best=float(wt @ (mse < best_scored ** 2)), effective_draws=float(1 / (wt ** 2).sum()),
-                 curvature_scale=(wt @ k).tolist(), vector=np.round(v, 6))]
+    out = [outcome(x, f"local Bayesian update around {anchor}", v)]
+    if best_name in names:
+        # the best scored file with only the newest direction moved to its optimum (the others held where they were scored):
+        # exploits the latest measurement without leaning on weakly measured old directions
+        xb = X[names.index(best_name)].copy()
+        xn = xb.copy()
+        xn[-1] = (EG[-1] - EC[-1, :-1] @ xb[:-1]) / EC[-1, -1]
+        v = L.V[best_name].copy()
+        v[g] = np.clip(v[g] + (xn[-1] - xb[-1]) * E[-1], 0, 1)
+        out.append(outcome(xn, f"{best_name} with the newest direction at {xn[-1]:.2f}x", v))
+    return out
 
 
 def transfer_step(L, base, physics_lb, report, base_rmse):
@@ -1327,6 +1363,7 @@ def main():
     ap.add_argument("--covariates", action="store_true", help="with --calibrate-physics: screened covariate effects on TIGER length and buildings")
     ap.add_argument("--flex", action="store_true", help="with --calibrate-physics: flexible context effects on TIGER length and unseen facilities")
     ap.add_argument("--flex-sd", type=float, default=FLEX_SD, help="with --flex: prior sd of the flexible effects")
+    ap.add_argument("--flex-regional", action="store_true", help="with --flex: per-region deviations of the flexible effects")
     args = ap.parse_args()
     if args.add_label:
         add_label(*args.add_label)
@@ -1342,9 +1379,11 @@ def main():
         log("10 physics calibrated on the aggregate labels (published statistics + scorecard + score moments)")
         rep = {}
         calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural, unmatched=args.unmatched,
-                                    covariates=args.covariates, flex=args.flex and args.flex_sd)
+                                    covariates=args.covariates, flex=args.flex and args.flex_sd,
+                                    flex_regional=args.flex and args.flex_regional)
         name = ("physics_lb" + ("_struct" if args.structural else "") + ("_unmatched" if args.unmatched else "")
-                + ("_regional" if args.regional else "") + ("_covar" if args.covariates else "") + (flex_suffix(args.flex_sd) if args.flex else ""))
+                + ("_regional" if args.regional else "") + ("_covar" if args.covariates else "") + (flex_suffix(args.flex_sd) if args.flex else "")
+                + ("_rflex" if args.flex and args.flex_regional else ""))
         with open(f"{name}_report.json", "w") as f:
             json.dump(rep, f, indent=2, default=float)
         log(f"Wrote {name}.csv and {name}_report.json ({clock()})")

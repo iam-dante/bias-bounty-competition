@@ -29,7 +29,9 @@ python train.py
 | best file + 0.2 × the flexible model's unscored part | ninth transfer file | **0.058987 (scored; best)**: the truth follows the flexible model's direction at about +0.5 |
 | local update over all five measured directions (1.74× along the flexible one) + 0.3 × the 77-label flexible model's new unscored part (RMS 0.0043) | tenth transfer file | **0.058912 (scored; best)**: the new part's coefficient is about +0.4 |
 | `physics_lb_struct_unmatched_regional_flex20.csv` | flexible model with prior sd 0.2 (`--flex --flex-sd 0.2`), 78 labels | estimated 0.0611 on its own (the best physics model); unscored part RMS 0.0037 |
-| `submission.csv` | best file + 0.3 × the wider flexible model's unscored part | 0.05889 (coefficient +0.5) … 0.05893 (0) … 0.05895 (−0.3) |
+| best file + 0.3 × the wider flexible model's unscored part | eleventh transfer file | **0.058866 (scored; best)**: coefficient about +0.85 |
+| `physics_lb_struct_unmatched_regional_flex20_rflex.csv` | + per-region deviations of the 28 flexible effects (`--flex-regional`, 200 parameters) | estimated **0.0610** on its own (best physics model); unscored part RMS 0.0046, nearly orthogonal to the earlier ones |
+| `submission.csv` | best file with the newest direction at 2.15× (0.058848 ± 0.00001) + 0.3 × the region-specific model's unscored part | 0.05882 (coefficient +0.5) … 0.05887 (0) … 0.05890 (−0.3) |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 
@@ -185,6 +187,7 @@ python train.py --calibrate-physics          # stage 10: physics refitted on all
 python train.py --calibrate-physics --structural   # + facility leakage and road-frame mechanisms -> physics_lb_struct.csv
 python train.py --calibrate-physics --regional     # + per-region multipliers -> physics_lb_regional.csv
 python train.py --calibrate-physics --structural --unmatched --regional --flex   # + 28 flexible context effects
+python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2 --flex-regional   # + per-region deviations
 ```
 
 ## Rules

@@ -574,6 +574,38 @@ part at about +0.5, the same range as the earlier calibrated-physics directions.
 - **Diminishing returns again.** Each recalibration leaves a smaller unscored part (0.0146 → 0.0043 → 0.0037), so
   the next big step needs a model with more capacity, not another refit.
 
+**Result:** it scored **0.058866**, beyond the +0.5 case: the wider flexible direction measured about **+0.85**.
+
+**Small bets now count as directions.** The last three bets moved RMS 0.0011–0.0013, below the update's 0.002
+cut-off, so their measurements were unused. The local-update files themselves move at most 0.00025 outside the
+plane (clipping), so the cut-off is now 0.001. Lowering it alone gave a −10× coordinate on the old
+curvature-miss direction (expected 0.0558 ± 0.0094: meaningless). So each coordinate now gets a prior,
+x ~ N(0, 3²), and each curvature draw is weighted by the scores' marginal likelihood. Two candidates are compared:
+
+| Candidate | Expected | P(beats 0.058866) |
+|---|---:|---:|
+| Full update over 8 directions | 0.05883 ± 0.00007 | 0.72 |
+| **Best file, newest direction at 2.15×** (others where scored) | **0.058848 ± 0.00001** | **0.97** |
+
+Stage 8 takes the lower estimate among candidates with P ≥ 0.75: the second.
+
+**Region-specific flexible effects (`--flex-regional`).** Each of the 28 flexible effects gets a per-region
+deviation (prior sd 0.1): 200 parameters in all.
+
+- **Fit:** warm-started from the wider flexible fit, moment chi-square 71.9 → 63.5. Estimated **0.0610** on its
+  own, the best physics model.
+- **Largest deviations** are on unseen facilities: places per resident in Maricopa −0.07, buildings per housing
+  in Texas −0.07, weak fire evidence and SVI in Oklahoma −0.05.
+- **Unscored part:** RMS 0.0046, nearly orthogonal to the earlier flexible directions (+0.09, +0.06).
+- **Next file.** `submission.csv` = the chosen candidate + 0.3 × that part:
+
+  | Truth's coefficient | Expected public RMSE |
+  |---:|---:|
+  | +0.5 | 0.05882 |
+  | +0.3 | 0.05884 |
+  | 0 | 0.05887 |
+  | −0.3 | 0.05890 |
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

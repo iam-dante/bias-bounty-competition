@@ -1,0 +1,1139 @@
+{
+  "parameters": [
+    {
+      "parameter": "log_m_eastern-ok",
+      "start": 0.27680802855220804,
+      "fitted": 0.2756283307335892
+    },
+    {
+      "parameter": "log_m_maricopa-az",
+      "start": -0.08828087216357719,
+      "fitted": -0.10131718378233841
+    },
+    {
+      "parameter": "log_m_northern-ca",
+      "start": 0.3186577310165817,
+      "fitted": 0.29279473834106723
+    },
+    {
+      "parameter": "log_m_south-central-tx",
+      "start": 0.07119499348277336,
+      "fitted": 0.07589009333491668
+    },
+    {
+      "parameter": "log_sigma_t",
+      "start": -0.8918326078216003,
+      "fitted": -0.897646464808986
+    },
+    {
+      "parameter": "beta_bnd",
+      "start": 1.0949676835878805,
+      "fitted": 1.077974051367764
+    },
+    {
+      "parameter": "logit_q_fm",
+      "start": -2.706202999784973,
+      "fitted": -2.481781196991491
+    },
+    {
+      "parameter": "logit_q_cty",
+      "start": -2.7793614861324065,
+      "fitted": -2.452837364904094
+    },
+    {
+      "parameter": "logit_q_unr",
+      "start": -4.295262267371448,
+      "fitted": -4.296914955747935
+    },
+    {
+      "parameter": "logit_p_surprise",
+      "start": -4.95461458969124,
+      "fitted": -5.025414672612493
+    },
+    {
+      "parameter": "log_kappa",
+      "start": -0.5194294547254541,
+      "fitted": -0.5322349302128909
+    },
+    {
+      "parameter": "log_sigma_b",
+      "start": -1.9770258629326993,
+      "fitted": -1.9779081934596325
+    },
+    {
+      "parameter": "logit_r_fire",
+      "start": 0.9817946886481935,
+      "fitted": 0.9852896297158094
+    },
+    {
+      "parameter": "logit_r_ems",
+      "start": 3.56986218592596,
+      "fitted": 3.55689843578494
+    },
+    {
+      "parameter": "logit_r_sch",
+      "start": 4.309218100471755,
+      "fitted": 4.188511903320537
+    },
+    {
+      "parameter": "logit_a_fire",
+      "start": 2.261099013246999,
+      "fitted": 2.478799225565446
+    },
+    {
+      "parameter": "logit_x_fire",
+      "start": -0.4736320898991347,
+      "fitted": -0.5015076226432477
+    },
+    {
+      "parameter": "logit_a_ems",
+      "start": 0.6752305186307744,
+      "fitted": 0.6292893675739875
+    },
+    {
+      "parameter": "logit_x_ems",
+      "start": -3.3123407332397687,
+      "fitted": -3.2948294430437164
+    },
+    {
+      "parameter": "logit_a_sch",
+      "start": -0.4261078650048663,
+      "fitted": -0.369650941368574
+    },
+    {
+      "parameter": "logit_x_sch",
+      "start": -3.7644823163188237,
+      "fitted": -3.729129090627453
+    },
+    {
+      "parameter": "ge_fac",
+      "start": -0.46381471272267694,
+      "fitted": -0.4853805441743971
+    },
+    {
+      "parameter": "log_eps",
+      "start": -5.5747868528202424,
+      "fitted": -5.5352663655588215
+    },
+    {
+      "parameter": "log_sigma_c",
+      "start": -0.784112900125168,
+      "fitted": -0.7782809761801901
+    },
+    {
+      "parameter": "a_bq",
+      "start": 0.5060924509999647,
+      "fitted": 0.4753216792552711
+    },
+    {
+      "parameter": "gf_rural",
+      "start": 0.012975363736631596,
+      "fitted": 0.007121867825346353
+    },
+    {
+      "parameter": "gf_tribal",
+      "start": 0.17939974563929004,
+      "fitted": 0.1460567683773778
+    },
+    {
+      "parameter": "gf_svi",
+      "start": 0.02293198095202904,
+      "fitted": 0.024762156969762708
+    },
+    {
+      "parameter": "gf_cvi",
+      "start": 0.010656919257914092,
+      "fitted": -0.005923031702222013
+    },
+    {
+      "parameter": "gf_sdrought",
+      "start": -0.17596984222344286,
+      "fitted": -0.14721980855126565
+    },
+    {
+      "parameter": "gf_wdrought",
+      "start": -0.10995274694472118,
+      "fitted": -0.15755042666284935
+    },
+    {
+      "parameter": "gf_wildfire",
+      "start": 0.13109110376682578,
+      "fitted": 0.12004066269416026
+    },
+    {
+      "parameter": "gf_heat",
+      "start": -0.21873278664112222,
+      "fitted": -0.23405717597432962
+    },
+    {
+      "parameter": "gr_rural",
+      "start": 0.05736673251685082,
+      "fitted": 0.05745757379792454
+    },
+    {
+      "parameter": "gr_tribal",
+      "start": 0.10965126528329451,
+      "fitted": 0.10910445281877412
+    },
+    {
+      "parameter": "gr_svi",
+      "start": -0.02280696974244637,
+      "fitted": -0.020690930879800475
+    },
+    {
+      "parameter": "gr_cvi",
+      "start": 0.06512378541493316,
+      "fitted": 0.0637650146389443
+    },
+    {
+      "parameter": "gr_sdrought",
+      "start": 0.09168256069439155,
+      "fitted": 0.09506292119624397
+    },
+    {
+      "parameter": "gr_wdrought",
+      "start": 0.15140422018719174,
+      "fitted": 0.1533648077888834
+    },
+    {
+      "parameter": "gr_wildfire",
+      "start": 0.12391023039973122,
+      "fitted": 0.13313556065775142
+    },
+    {
+      "parameter": "gr_heat",
+      "start": 0.1403981137219824,
+      "fitted": 0.13990656278430122
+    },
+    {
+      "parameter": "log_sigma_loc",
+      "start": 3.000268988456035,
+      "fitted": 3.0152629944468683
+    },
+    {
+      "parameter": "w_local",
+      "start": 0.1976799871945223,
+      "fitted": 0.193579675353668
+    },
+    {
+      "parameter": "w_inter",
+      "start": 0.2963556156819673,
+      "fitted": 0.28564892066624065
+    },
+    {
+      "parameter": "w_multi",
+      "start": 0.20598090366490987,
+      "fitted": 0.20076180455528522
+    },
+    {
+      "parameter": "logit_a_col",
+      "start": -2.9017180201114963,
+      "fitted": -2.881856339459783
+    },
+    {
+      "parameter": "logit_a_k12",
+      "start": -2.7721764910459585,
+      "fitted": -2.848304655389188
+    },
+    {
+      "parameter": "logit_a_er",
+      "start": -3.678907460080948,
+      "fitted": -3.7674881456045237
+    },
+    {
+      "parameter": "gfr_eastern-ok",
+      "start": -0.18376351150576278,
+      "fitted": -0.14321751216225923
+    },
+    {
+      "parameter": "gfr_maricopa-az",
+      "start": -0.019952498893558303,
+      "fitted": -0.10133378864573829
+    },
+    {
+      "parameter": "gfr_northern-ca",
+      "start": -0.07926729932287245,
+      "fitted": -0.05319979983128481
+    },
+    {
+      "parameter": "gfr_south-central-tx",
+      "start": -0.21070585693510044,
+      "fitted": -0.21995927143897226
+    },
+    {
+      "parameter": "gcr_eastern-ok",
+      "start": -0.0011584099137936284,
+      "fitted": 1.354849065922458e-05
+    },
+    {
+      "parameter": "gcr_maricopa-az",
+      "start": -0.15052650842548201,
+      "fitted": -0.1313242676445961
+    },
+    {
+      "parameter": "gcr_northern-ca",
+      "start": -0.006829399441898388,
+      "fitted": 1.97257703121944e-05
+    },
+    {
+      "parameter": "gcr_south-central-tx",
+      "start": -0.12085642251061374,
+      "fitted": -0.13699590952050178
+    },
+    {
+      "parameter": "gbr_eastern-ok",
+      "start": -0.07578966727989593,
+      "fitted": -0.07664034374118257
+    },
+    {
+      "parameter": "gbr_maricopa-az",
+      "start": -0.13879347614804471,
+      "fitted": -0.1517317840468916
+    },
+    {
+      "parameter": "gbr_northern-ca",
+      "start": -0.01426172084779805,
+      "fitted": -0.016872576965484797
+    },
+    {
+      "parameter": "gbr_south-central-tx",
+      "start": -0.29037378217810134,
+      "fitted": -0.288564668953829
+    },
+    {
+      "parameter": "ft_bph",
+      "start": 0.006261486587310526,
+      "fitted": 0.009601292400756174
+    },
+    {
+      "parameter": "ft_unr_share",
+      "start": -0.02258399607747159,
+      "fitted": -0.028537694239444467
+    },
+    {
+      "parameter": "ft_loc_share",
+      "start": 0.07740040027570354,
+      "fitted": 0.07126241613666132
+    },
+    {
+      "parameter": "ft_multi_share",
+      "start": 0.05609226172976759,
+      "fitted": 0.05653224771813686
+    },
+    {
+      "parameter": "ft_tert_share",
+      "start": 0.05878599925445691,
+      "fitted": 0.06018816409814038
+    },
+    {
+      "parameter": "ft_cty_share",
+      "start": 0.08740548410862702,
+      "fitted": 0.03609107549027676
+    },
+    {
+      "parameter": "ft_log_area",
+      "start": -0.09788467018691623,
+      "fitted": -0.09737408024543902
+    },
+    {
+      "parameter": "ft_log_density",
+      "start": 0.08638805422054675,
+      "fitted": 0.08572842789781566
+    },
+    {
+      "parameter": "ft_ruca",
+      "start": -0.025983674526155128,
+      "fitted": -0.025839724305533236
+    },
+    {
+      "parameter": "ft_pct_urban",
+      "start": 0.026214099171784383,
+      "fitted": 0.02615508864733252
+    },
+    {
+      "parameter": "ft_named_over_route",
+      "start": -0.010496176830862073,
+      "fitted": -0.0074773011124947076
+    },
+    {
+      "parameter": "ft_c_unr_share",
+      "start": 0.041405668755262796,
+      "fitted": 0.04072767791340186
+    },
+    {
+      "parameter": "ft_svi",
+      "start": 0.005571653959836669,
+      "fitted": 0.00532727434513863
+    },
+    {
+      "parameter": "ft_tribal",
+      "start": 0.02455596953324153,
+      "fitted": 0.02445441748362242
+    },
+    {
+      "parameter": "ff_bph",
+      "start": -0.05417592025538794,
+      "fitted": -0.07206124194903613
+    },
+    {
+      "parameter": "ff_log_area",
+      "start": 0.07617516750216372,
+      "fitted": 0.07617662982475333
+    },
+    {
+      "parameter": "ff_log_density",
+      "start": -0.09013909472837238,
+      "fitted": -0.09211204689673348
+    },
+    {
+      "parameter": "ff_ruca",
+      "start": 0.08153244224556638,
+      "fitted": 0.07351763494464347
+    },
+    {
+      "parameter": "ff_pct_urban",
+      "start": -0.13051413342050885,
+      "fitted": -0.1284907478823567
+    },
+    {
+      "parameter": "ff_places_pc",
+      "start": 0.035825283455002625,
+      "fitted": 0.026325153824563886
+    },
+    {
+      "parameter": "ff_meta_share",
+      "start": 0.036989745452189596,
+      "fitted": 0.03543115622591917
+    },
+    {
+      "parameter": "ff_bq_share",
+      "start": 0.008803349119611965,
+      "fitted": 0.00967919366660966
+    },
+    {
+      "parameter": "ff_svi",
+      "start": 0.13139270614213705,
+      "fitted": 0.1432127634010828
+    },
+    {
+      "parameter": "ff_tribal",
+      "start": 0.03520316936664884,
+      "fitted": 0.03726779777462769
+    },
+    {
+      "parameter": "ff_log_bld",
+      "start": -0.049224617117330526,
+      "fitted": -0.044538451064505546
+    },
+    {
+      "parameter": "ff_fire_weak_share",
+      "start": 0.09589812957173088,
+      "fitted": 0.07532314206503297
+    },
+    {
+      "parameter": "ff_has_route",
+      "start": 0.24917876610082143,
+      "fitted": 0.2888058182458249
+    },
+    {
+      "parameter": "ff_detail",
+      "start": -0.06059532371654173,
+      "fitted": 0.003451813738705152
+    },
+    {
+      "parameter": "ftr_bph_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.003936238171939549
+    },
+    {
+      "parameter": "ftr_bph_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.028404017545921513
+    },
+    {
+      "parameter": "ftr_bph_northern-ca",
+      "start": 0.0,
+      "fitted": 0.018920868696189894
+    },
+    {
+      "parameter": "ftr_bph_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.006063348336487387
+    },
+    {
+      "parameter": "ftr_unr_share_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.00021748165143479906
+    },
+    {
+      "parameter": "ftr_unr_share_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.010059359590911381
+    },
+    {
+      "parameter": "ftr_unr_share_northern-ca",
+      "start": 0.0,
+      "fitted": 0.0015562799335685946
+    },
+    {
+      "parameter": "ftr_unr_share_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.008484947702427628
+    },
+    {
+      "parameter": "ftr_loc_share_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.01855881993169883
+    },
+    {
+      "parameter": "ftr_loc_share_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.010682734729360203
+    },
+    {
+      "parameter": "ftr_loc_share_northern-ca",
+      "start": 0.0,
+      "fitted": -0.024751894336956428
+    },
+    {
+      "parameter": "ftr_loc_share_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.005647626132988945
+    },
+    {
+      "parameter": "ftr_multi_share_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.005064425791718529
+    },
+    {
+      "parameter": "ftr_multi_share_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.009081942901338604
+    },
+    {
+      "parameter": "ftr_multi_share_northern-ca",
+      "start": 0.0,
+      "fitted": -0.015003874272698182
+    },
+    {
+      "parameter": "ftr_multi_share_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.006050138951217689
+    },
+    {
+      "parameter": "ftr_tert_share_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.0024360871843592054
+    },
+    {
+      "parameter": "ftr_tert_share_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.003843010360770113
+    },
+    {
+      "parameter": "ftr_tert_share_northern-ca",
+      "start": 0.0,
+      "fitted": 0.012975617737131654
+    },
+    {
+      "parameter": "ftr_tert_share_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.0005635002334072183
+    },
+    {
+      "parameter": "ftr_cty_share_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.0018358428298703852
+    },
+    {
+      "parameter": "ftr_cty_share_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.0013146097681412464
+    },
+    {
+      "parameter": "ftr_cty_share_northern-ca",
+      "start": 0.0,
+      "fitted": 0.0128546666995244
+    },
+    {
+      "parameter": "ftr_cty_share_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.02012425646004535
+    },
+    {
+      "parameter": "ftr_log_area_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.0014338367582648755
+    },
+    {
+      "parameter": "ftr_log_area_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.01860315697697328
+    },
+    {
+      "parameter": "ftr_log_area_northern-ca",
+      "start": 0.0,
+      "fitted": 0.0256551619078695
+    },
+    {
+      "parameter": "ftr_log_area_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.00949270759175061
+    },
+    {
+      "parameter": "ftr_log_density_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.0016089669515279709
+    },
+    {
+      "parameter": "ftr_log_density_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.0222939349338225
+    },
+    {
+      "parameter": "ftr_log_density_northern-ca",
+      "start": 0.0,
+      "fitted": -0.02595592977700079
+    },
+    {
+      "parameter": "ftr_log_density_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.010148265831436742
+    },
+    {
+      "parameter": "ftr_ruca_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.0008053343359703539
+    },
+    {
+      "parameter": "ftr_ruca_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.025378561761725333
+    },
+    {
+      "parameter": "ftr_ruca_northern-ca",
+      "start": 0.0,
+      "fitted": 0.012237918849621042
+    },
+    {
+      "parameter": "ftr_ruca_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.011616254974113461
+    },
+    {
+      "parameter": "ftr_pct_urban_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.0015594724904534232
+    },
+    {
+      "parameter": "ftr_pct_urban_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.02053822292107169
+    },
+    {
+      "parameter": "ftr_pct_urban_northern-ca",
+      "start": 0.0,
+      "fitted": -0.02585545323733755
+    },
+    {
+      "parameter": "ftr_pct_urban_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.008826194315849542
+    },
+    {
+      "parameter": "ftr_named_over_route_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.00023607360113189098
+    },
+    {
+      "parameter": "ftr_named_over_route_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.01794240238554312
+    },
+    {
+      "parameter": "ftr_named_over_route_northern-ca",
+      "start": 0.0,
+      "fitted": 0.005079244063564096
+    },
+    {
+      "parameter": "ftr_named_over_route_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.002077101964504939
+    },
+    {
+      "parameter": "ftr_c_unr_share_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.0011863377819195688
+    },
+    {
+      "parameter": "ftr_c_unr_share_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.012559742403309199
+    },
+    {
+      "parameter": "ftr_c_unr_share_northern-ca",
+      "start": 0.0,
+      "fitted": -0.009165839509896034
+    },
+    {
+      "parameter": "ftr_c_unr_share_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.0017871883838599242
+    },
+    {
+      "parameter": "ftr_svi_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.014178693574184
+    },
+    {
+      "parameter": "ftr_svi_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.008287092285427015
+    },
+    {
+      "parameter": "ftr_svi_northern-ca",
+      "start": 0.0,
+      "fitted": -0.021037965658562117
+    },
+    {
+      "parameter": "ftr_svi_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.004439005980256725
+    },
+    {
+      "parameter": "ftr_tribal_eastern-ok",
+      "start": 0.0,
+      "fitted": -8.310511721422513e-05
+    },
+    {
+      "parameter": "ftr_tribal_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.01710876843015668
+    },
+    {
+      "parameter": "ftr_tribal_northern-ca",
+      "start": 0.0,
+      "fitted": -0.0006892307898314962
+    },
+    {
+      "parameter": "ftr_tribal_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.009240557075030006
+    },
+    {
+      "parameter": "ffr_bph_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.005477969378419924
+    },
+    {
+      "parameter": "ffr_bph_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.0041384049538475435
+    },
+    {
+      "parameter": "ffr_bph_northern-ca",
+      "start": 0.0,
+      "fitted": -0.008839782271231751
+    },
+    {
+      "parameter": "ffr_bph_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.06908864437706094
+    },
+    {
+      "parameter": "ffr_log_area_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.007590071910181006
+    },
+    {
+      "parameter": "ffr_log_area_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.025234873697622295
+    },
+    {
+      "parameter": "ffr_log_area_northern-ca",
+      "start": 0.0,
+      "fitted": -0.016400323558269012
+    },
+    {
+      "parameter": "ffr_log_area_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.02526965118203153
+    },
+    {
+      "parameter": "ffr_log_density_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.003694118613695557
+    },
+    {
+      "parameter": "ffr_log_density_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.0012838681815610787
+    },
+    {
+      "parameter": "ffr_log_density_northern-ca",
+      "start": 0.0,
+      "fitted": 0.02090605802112084
+    },
+    {
+      "parameter": "ffr_log_density_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.01565002041314898
+    },
+    {
+      "parameter": "ffr_ruca_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.017887298923319597
+    },
+    {
+      "parameter": "ffr_ruca_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.008415896467206896
+    },
+    {
+      "parameter": "ffr_ruca_northern-ca",
+      "start": 0.0,
+      "fitted": 0.03139877676515833
+    },
+    {
+      "parameter": "ffr_ruca_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.016130383826361006
+    },
+    {
+      "parameter": "ffr_pct_urban_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.0032705823213650975
+    },
+    {
+      "parameter": "ffr_pct_urban_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.007537567615454323
+    },
+    {
+      "parameter": "ffr_pct_urban_northern-ca",
+      "start": 0.0,
+      "fitted": 0.03033167560637571
+    },
+    {
+      "parameter": "ffr_pct_urban_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.0032758477879014794
+    },
+    {
+      "parameter": "ffr_places_pc_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.041359351276426634
+    },
+    {
+      "parameter": "ffr_places_pc_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.07133710897796404
+    },
+    {
+      "parameter": "ffr_places_pc_northern-ca",
+      "start": 0.0,
+      "fitted": 0.04227147942597757
+    },
+    {
+      "parameter": "ffr_places_pc_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.04143306445127085
+    },
+    {
+      "parameter": "ffr_meta_share_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.010401289136479619
+    },
+    {
+      "parameter": "ffr_meta_share_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.014534600414615148
+    },
+    {
+      "parameter": "ffr_meta_share_northern-ca",
+      "start": 0.0,
+      "fitted": -0.028255085612887306
+    },
+    {
+      "parameter": "ffr_meta_share_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.006688174277209109
+    },
+    {
+      "parameter": "ffr_bq_share_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.01494433883137827
+    },
+    {
+      "parameter": "ffr_bq_share_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.007655574408969385
+    },
+    {
+      "parameter": "ffr_bq_share_northern-ca",
+      "start": 0.0,
+      "fitted": 0.019716101574252975
+    },
+    {
+      "parameter": "ffr_bq_share_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.0073388004361035365
+    },
+    {
+      "parameter": "ffr_svi_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.04854874244171489
+    },
+    {
+      "parameter": "ffr_svi_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.005549953374708991
+    },
+    {
+      "parameter": "ffr_svi_northern-ca",
+      "start": 0.0,
+      "fitted": 0.0034326438218687974
+    },
+    {
+      "parameter": "ffr_svi_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.01301277544228428
+    },
+    {
+      "parameter": "ffr_tribal_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.010175312467591876
+    },
+    {
+      "parameter": "ffr_tribal_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.006803391959817873
+    },
+    {
+      "parameter": "ffr_tribal_northern-ca",
+      "start": 0.0,
+      "fitted": 0.022394331446404733
+    },
+    {
+      "parameter": "ffr_tribal_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.04770014167239242
+    },
+    {
+      "parameter": "ffr_log_bld_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.022419424203607503
+    },
+    {
+      "parameter": "ffr_log_bld_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.01211528001520837
+    },
+    {
+      "parameter": "ffr_log_bld_northern-ca",
+      "start": 0.0,
+      "fitted": -0.009653045552247642
+    },
+    {
+      "parameter": "ffr_log_bld_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.011566954221766772
+    },
+    {
+      "parameter": "ffr_fire_weak_share_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.0488479055652108
+    },
+    {
+      "parameter": "ffr_fire_weak_share_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.004217346431507505
+    },
+    {
+      "parameter": "ffr_fire_weak_share_northern-ca",
+      "start": 0.0,
+      "fitted": 0.002089895643672299
+    },
+    {
+      "parameter": "ffr_fire_weak_share_south-central-tx",
+      "start": 0.0,
+      "fitted": 0.044556797951210744
+    },
+    {
+      "parameter": "ffr_has_route_eastern-ok",
+      "start": 0.0,
+      "fitted": -0.02088258942014139
+    },
+    {
+      "parameter": "ffr_has_route_maricopa-az",
+      "start": 0.0,
+      "fitted": 0.022243614448493897
+    },
+    {
+      "parameter": "ffr_has_route_northern-ca",
+      "start": 0.0,
+      "fitted": 0.010487085557424078
+    },
+    {
+      "parameter": "ffr_has_route_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.0044315044542248775
+    },
+    {
+      "parameter": "ffr_detail_eastern-ok",
+      "start": 0.0,
+      "fitted": 0.01530232552031283
+    },
+    {
+      "parameter": "ffr_detail_maricopa-az",
+      "start": 0.0,
+      "fitted": -0.0009583005861172857
+    },
+    {
+      "parameter": "ffr_detail_northern-ca",
+      "start": 0.0,
+      "fitted": 0.04418763808815954
+    },
+    {
+      "parameter": "ffr_detail_south-central-tx",
+      "start": 0.0,
+      "fitted": -0.020646084461628335
+    }
+  ],
+  "targets": [
+    {
+      "target": "undefined_share[eastern-ok]",
+      "observed": 0.21,
+      "start": 0.20873531879194632,
+      "fitted": 0.20873531879194632
+    },
+    {
+      "target": "undefined_share[maricopa-az]",
+      "observed": 0.55,
+      "start": 0.5360843828468299,
+      "fitted": 0.5363614740269931
+    },
+    {
+      "target": "undefined_share[northern-ca]",
+      "observed": 0.37,
+      "start": 0.3385119236463621,
+      "fitted": 0.3368562288494078
+    },
+    {
+      "target": "undefined_share[south-central-tx]",
+      "observed": 0.28,
+      "start": 0.2769982196401799,
+      "fitted": 0.2755311797226387
+    },
+    {
+      "target": "road_ratio[min region]",
+      "observed": 0.71,
+      "start": 0.6959597891054133,
+      "fitted": 0.6772563154574444
+    },
+    {
+      "target": "road_ratio[max region]",
+      "observed": 1.59,
+      "start": 1.5435959885103483,
+      "fitted": 1.5591440465336244
+    },
+    {
+      "target": "ems_ratio",
+      "observed": 1.0,
+      "start": 1.0026324237560194,
+      "fitted": 1.0422960414848284
+    },
+    {
+      "target": "ems_binding_share",
+      "observed": 0.01,
+      "start": 0.025619069197142554,
+      "fitted": 0.02367219153161318
+    },
+    {
+      "target": "schools_per_tract",
+      "observed": 1.5,
+      "start": 1.1811658275802324,
+      "fitted": 1.2170494755570958
+    },
+    {
+      "target": "fire_stations_per_tract",
+      "observed": 0.6,
+      "start": 0.7907684387994456,
+      "fitted": 0.7295887088175712
+    },
+    {
+      "target": "establishments_per_resident",
+      "observed": 0.025,
+      "start": 0.0035806514880849564,
+      "fitted": 0.0036635876418889667
+    },
+    {
+      "target": "scorecard[rural]",
+      "observed": 2.336,
+      "start": 2.332837528150487,
+      "fitted": 2.330987544215824
+    },
+    {
+      "target": "scorecard[tribal]",
+      "observed": 2.884,
+      "start": 2.8830335152147866,
+      "fitted": 2.870852975931821
+    },
+    {
+      "target": "scorecard[svi]",
+      "observed": 1.231,
+      "start": 1.2231157835976258,
+      "fitted": 1.221505622626533
+    },
+    {
+      "target": "scorecard[cvi]",
+      "observed": 1.554,
+      "start": 1.553647962940296,
+      "fitted": 1.5394307574646284
+    },
+    {
+      "target": "scorecard[sdrought]",
+      "observed": 0.999,
+      "start": 0.9969980444717229,
+      "fitted": 1.00268010810606
+    },
+    {
+      "target": "scorecard[wdrought]",
+      "observed": 1.36,
+      "start": 1.366611604819881,
+      "fitted": 1.3560432912081333
+    },
+    {
+      "target": "scorecard[wildfire]",
+      "observed": 1.767,
+      "start": 1.7546457157936435,
+      "fitted": 1.7440467286879384
+    },
+    {
+      "target": "scorecard[heat]",
+      "observed": 0.618,
+      "start": 0.6246776357086529,
+      "fitted": 0.6219858445639217
+    },
+    {
+      "target": "scorecard[hv]",
+      "observed": 1.219,
+      "start": 1.217057148018222,
+      "fitted": 1.2223078002328007
+    }
+  ],
+  "est_public": 0.06095816464028804,
+  "ratios": {
+    "rural": 2.328,
+    "tribal": 2.87,
+    "svi": 1.221,
+    "cvi": 1.538,
+    "sdrought": 1.001,
+    "wdrought": 1.354,
+    "wildfire": 1.74,
+    "heat": 0.622,
+    "hv": 1.221
+  },
+  "cost": 141.65024323833973
+}
