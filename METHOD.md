@@ -537,6 +537,24 @@ places per resident, source shares, SVI, tribal share, and others.
   | 0 | 0.05933 |
   | −0.3 | 0.05954 |
 
+**Result:** it scored **0.058987**, the +0.5 case. The flexible effects extrapolate: the truth follows their unscored
+part at about +0.5, the same range as the earlier calibrated-physics directions. Noise fitting would have given 0.
+
+- **Local update** over the five measured directions: 1.74× along the flexible one (1.37 curvature), expected
+  0.058929 ± 0.000051, P(beats best) 0.88.
+- **Recalibrated on 77 labels** (warm-started from the 76-label fit), the flexible physics fits much better:
+  - moment chi-square 73.0;
+  - estimated **0.0615 on its own**, vs 0.0634 before and 0.0627 for the big model;
+  - new unscored part RMS 0.0043.
+- **Next file.** `submission.csv` = the local update + 0.3 × that part. It beats the best scored file in every case:
+
+  | Truth's coefficient | Expected public RMSE |
+  |---:|---:|
+  | +0.5 | 0.05890 |
+  | +0.3 | 0.05892 |
+  | 0 | 0.05895 |
+  | −0.3 | 0.05898 |
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

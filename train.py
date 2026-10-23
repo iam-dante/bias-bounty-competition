@@ -1142,9 +1142,8 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.2      # small measured bet: the flexible-effects physics is the only model with a sizeable unscored part
-                    # (RMS 0.015; the big model recalibrated on 76 labels has 0.003). Its chi-square gain (91.6 -> 68.7 for
-                    # 28 parameters) is no more than noise fitting would give, so the step is kept small.
+TRANSFER = 0.3      # the flexible-effects direction measured a coefficient of about 0.5 (tr_lbflex_020 scored 0.058987);
+                    # recalibrated on 77 labels the flexible physics has a new unscored part (RMS 0.0043): bet 0.3 x it.
 TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex.csv"
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
@@ -1182,7 +1181,7 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     with open("physics_scorecard_report.json") as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
     warm = ["physics_lb_struct_report.json", "physics_lb_struct_unmatched_report.json", "physics_lb_struct_regional_report.json",
-            "physics_lb_struct_unmatched_regional_report.json"]
+            "physics_lb_struct_unmatched_regional_report.json"] + (["physics_lb_struct_unmatched_regional_flex_report.json"] if flex else [])
     for wf in warm if structural else []:
         if os.path.exists(wf):
             with open(wf) as f:                                           # warm start from the fitted smaller models

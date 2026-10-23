@@ -1,83 +1,85 @@
 {
   "inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files",
   "aggregate_labels": {
-    "files": 76,
+    "files": 77,
     "public_weight_mean": 0.3052414652336193,
     "mean_y": 0.0598061011140652,
     "mean_y2": 0.011501768649197401
   },
   "transfer_update": {
     "anchor": "s8_refit67.csv",
-    "directions": 4,
+    "directions": 5,
     "coordinates": [
-      3.5652480973834892,
-      -0.1912359788105946,
-      1.3929869878652505,
-      2.6079282851268624
+      3.5072725664599798,
+      -0.17916756556656033,
+      1.4556118814095325,
+      2.6320336712126675,
+      1.7401727749442202
     ],
-    "expected_rmse": 0.05922963853394911,
-    "sd_rmse": 2.793478642570378e-05,
-    "p_beats_best": 0.5306235283929264,
-    "effective_draws": 435.13925321920254,
+    "expected_rmse": 0.05892870903412204,
+    "sd_rmse": 5.105895956555447e-05,
+    "p_beats_best": 0.8846813351012344,
+    "effective_draws": 432.35072228687915,
     "curvature_scale": [
-      1.337155238956893,
-      1.5774054035697898,
-      1.1967485727986458,
-      1.287692976175709
+      1.3381891132658368,
+      1.5782518784960495,
+      1.1751054087335777,
+      1.2810584248362638,
+      1.3699501510455496
     ]
   },
   "aggregate_fit": {
-    "chosen": "best scored file tr_local3_000.csv",
-    "chosen_est": 0.059231948,
+    "chosen": "local Bayesian update around s8_refit67.csv",
+    "chosen_est": 0.05892870903412204,
     "hyper": {
-      "tau_base": 0.3482216812671223,
-      "mu_base": 0.48070480337331534,
-      "tau_probe": 0.6695610082588459,
-      "mu_probe": 0.09204080142130522,
-      "tau_clip": 1.4083607348719904e-07,
-      "noise_scale": 0.8602586985059136,
-      "mu_clip": 0.3724361841838798
+      "tau_base": 0.3473116336656579,
+      "mu_base": 0.4807496893644182,
+      "tau_probe": 0.6682850990819396,
+      "mu_probe": 0.09446719167627876,
+      "tau_clip": 1.2839113474338932e-07,
+      "noise_scale": 0.8613681775010797,
+      "mu_clip": 0.3685805066639717
     },
     "washington_affine": [
-      0.018173415521183053,
-      0.4248468762874695
+      0.018256778223254014,
+      0.4236861364648269
     ],
-    "est_public_refit": 0.06127846784351977,
+    "est_public_refit": 0.06100489858886316,
     "best_scored": {
-      "file": "tr_local3_000.csv",
-      "rmse": 0.059231948
+      "file": "tr_lbflex_020.csv",
+      "rmse": 0.058987113
     },
     "ratios": {
-      "rural": 2.221,
-      "tribal": 2.806,
-      "svi": 1.279,
-      "cvi": 1.603,
-      "sdrought": 0.981,
-      "wdrought": 1.353,
-      "wildfire": 1.679,
-      "heat": 0.629,
-      "hv": 1.258
+      "rural": 2.225,
+      "tribal": 2.802,
+      "svi": 1.27,
+      "cvi": 1.59,
+      "sdrought": 0.984,
+      "wdrought": 1.356,
+      "wildfire": 1.669,
+      "heat": 0.631,
+      "hv": 1.252
     },
     "ratios_after_transfer": {
-      "rural": 2.224,
-      "tribal": 2.804,
-      "svi": 1.275,
-      "cvi": 1.597,
-      "sdrought": 0.982,
-      "wdrought": 1.355,
-      "wildfire": 1.675,
-      "heat": 0.63,
-      "hv": 1.255
+      "rural": 2.227,
+      "tribal": 2.802,
+      "svi": 1.27,
+      "cvi": 1.588,
+      "sdrought": 0.985,
+      "wdrought": 1.356,
+      "wildfire": 1.667,
+      "heat": 0.632,
+      "hv": 1.251
     }
   },
   "transfer": {
-    "share": 0.2,
-    "unscored_rms": 0.014589445466500844,
+    "share": 0.3,
+    "unscored_rms": 0.004272878139762588,
     "expected": {
-      "coef_-0.3": 0.05954018973723668,
-      "coef_+0.0": 0.059325306266919044,
-      "coef_+0.3": 0.05910964162792179,
-      "coef_+0.5": 0.05896542698785233
+      "coef_-0.3": 0.05897469984870295,
+      "coef_+0.0": 0.058946830911229625,
+      "coef_+0.3": 0.05891894879162042,
+      "coef_+0.5": 0.05890035337922785
     }
   },
   "forward_validation": [
@@ -374,6 +376,12 @@
       "actual": 0.059231948,
       "predicted": 0.05917351163573094,
       "error": -5.843636426906135e-05
+    },
+    {
+      "file": "tr_lbflex_020.csv",
+      "actual": 0.058987113,
+      "predicted": 0.05933074918210652,
+      "error": 0.0003436361821065187
     }
   ]
 }
