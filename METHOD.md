@@ -555,6 +555,25 @@ part at about +0.5, the same range as the earlier calibrated-physics directions.
   | 0 | 0.05895 |
   | −0.3 | 0.05898 |
 
+**Result:** it scored **0.058912**, between the +0.3 and +0.5 cases: the second flexible direction measured about
++0.4. Refitted on 78 labels, the local update's optimum is the scored file itself (P(beats best) 0.44).
+
+- **Recalibrated on 78 labels:** the standard flexible model (sd 0.1) estimates 0.0613 on its own, unscored RMS
+  0.0027. A wider version (`--flex-sd 0.2`, warm-started) estimates **0.0611**, the best physics model so far,
+  with unscored RMS 0.0037. The two unscored parts agree +0.53.
+- **Next file.** `submission.csv` = the best file + 0.3 × the wider model's unscored part (RMS change 0.0011).
+  Break-even coefficient about 0.2:
+
+  | Truth's coefficient | Expected public RMSE |
+  |---:|---:|
+  | +0.5 | 0.05889 |
+  | +0.3 | 0.05890 |
+  | 0 | 0.05893 |
+  | −0.3 | 0.05895 |
+
+- **Diminishing returns again.** Each recalibration leaves a smaller unscored part (0.0146 → 0.0043 → 0.0037), so
+  the next big step needs a model with more capacity, not another refit.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined

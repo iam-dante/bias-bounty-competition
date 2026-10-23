@@ -27,7 +27,9 @@ python train.py
 | local Bayesian update over all four measured directions (2.45× along the last one), curvature prior median 1.3 | eighth transfer file | **0.059232 (scored; best)**, predicted 0.05926 ± 0.00016 |
 | `physics_lb_struct_unmatched_regional_flex.csv` | the largest model plus 28 flexible context effects on TIGER length and unseen facilities (88 parameters) | moment chi-square 68.7 (no better than noise fitting); unscored part RMS 0.0146 |
 | best file + 0.2 × the flexible model's unscored part | ninth transfer file | **0.058987 (scored; best)**: the truth follows the flexible model's direction at about +0.5 |
-| `submission.csv` | local update over all five measured directions (1.74× along the flexible one) + 0.3 × the 77-label flexible model's new unscored part (RMS 0.0043) | 0.05890 (coefficient +0.5) … 0.05895 (0) … 0.05898 (−0.3) |
+| local update over all five measured directions (1.74× along the flexible one) + 0.3 × the 77-label flexible model's new unscored part (RMS 0.0043) | tenth transfer file | **0.058912 (scored; best)**: the new part's coefficient is about +0.4 |
+| `physics_lb_struct_unmatched_regional_flex20.csv` | flexible model with prior sd 0.2 (`--flex --flex-sd 0.2`), 78 labels | estimated 0.0611 on its own (the best physics model); unscored part RMS 0.0037 |
+| `submission.csv` | best file + 0.3 × the wider flexible model's unscored part | 0.05889 (coefficient +0.5) … 0.05893 (0) … 0.05895 (−0.3) |
 | `probes/q02`–`q05` | stage 9: unscored probes (establishments, roads, buildings) | ≈ 0.0613–0.0615 each |
 | `submission_report.json`, `physics_report.json` | every parameter, target, validation table and diagnostic | – |
 

@@ -477,10 +477,15 @@ FLEX_T = ["bph", "unr_share", "loc_share", "multi_share", "tert_share", "cty_sha
           "pct_urban", "named_over_route", "c_unr_share", "svi", "tribal"]
 FLEX_F = ["bph", "log_area", "log_density", "ruca", "pct_urban", "places_pc", "meta_share", "bq_share", "svi", "tribal",
           "log_bld", "fire_weak_share", "has_route", "detail"]
-FLEX_PRIORS = [(f"ft_{k}", 0.0, 0.1) for k in FLEX_T] + [(f"ff_{k}", 0.0, 0.1) for k in FLEX_F]
+FLEX_SD = 0.1
+FLEX_PRIORS = lambda sd: [(f"ft_{k}", 0.0, sd) for k in FLEX_T] + [(f"ff_{k}", 0.0, sd) for k in FLEX_F]
 # per-region log-multipliers of the unseen-facility rate, establishments per resident and the building scale
 REGIONAL_PRIORS = [(f"{pre}_{r}", 0.0, 0.3) for pre in ("gfr", "gcr", "gbr") for r in GRADED]
 NAMES, THETA0, PRIOR_SD = [], np.zeros(0), np.zeros(0)
+
+
+def flex_suffix(sd):
+    return "_flex" if sd == FLEX_SD else f"_flex{round(sd * 100)}"
 
 
 def set_priors(use_scorecard, regional=False, structural=False, unmatched=False, covariates=False, flex=False):
@@ -489,7 +494,7 @@ def set_priors(use_scorecard, regional=False, structural=False, unmatched=False,
     global NAMES, THETA0, PRIOR_SD
     pri = (CORE_PRIORS + (STRATA_PRIORS if use_scorecard else []) + (STRUCT_PRIORS if structural else [])
            + (UNMATCHED_PRIORS if unmatched else []) + (REGIONAL_PRIORS if regional else [])
-           + (COVAR_PRIORS if covariates else []) + (FLEX_PRIORS if flex else []))
+           + (COVAR_PRIORS if covariates else []) + (FLEX_PRIORS(flex) if flex else []))
     NAMES, THETA0, PRIOR_SD = [p[0] for p in pri], np.array([p[1] for p in pri]), np.array([p[2] for p in pri])
 
 
@@ -1142,9 +1147,9 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.3      # the flexible-effects direction measured a coefficient of about 0.5 (tr_lbflex_020 scored 0.058987);
-                    # recalibrated on 77 labels the flexible physics has a new unscored part (RMS 0.0043): bet 0.3 x it.
-TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex.csv"
+TRANSFER = 0.3      # flexible-effects directions measured coefficients of about 0.5 and 0.4 (0.058987, 0.058912); the wider
+                    # flexible model (prior sd 0.2) recalibrated on 78 labels has a new unscored part (RMS 0.0037): bet 0.3 x it.
+TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex20.csv"
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
 
@@ -1181,7 +1186,8 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     with open("physics_scorecard_report.json") as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
     warm = ["physics_lb_struct_report.json", "physics_lb_struct_unmatched_report.json", "physics_lb_struct_regional_report.json",
-            "physics_lb_struct_unmatched_regional_report.json"] + (["physics_lb_struct_unmatched_regional_flex_report.json"] if flex else [])
+            "physics_lb_struct_unmatched_regional_report.json"] + (["physics_lb_struct_unmatched_regional_flex_report.json",
+                                                         f"physics_lb_struct_unmatched_regional{flex_suffix(flex)}_report.json"] if flex else [])
     for wf in warm if structural else []:
         if os.path.exists(wf):
             with open(wf) as f:                                           # warm start from the fitted smaller models
@@ -1202,7 +1208,7 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     sim = predict(F, th)
     pred = np.clip(sim["Ey"], 0, 1)
     out_csv = ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "")
-               + ("_regional" if regional else "") + ("_covar" if covariates else "") + ("_flex" if flex else "") + ".csv")
+               + ("_regional" if regional else "") + ("_covar" if covariates else "") + (flex_suffix(flex) if flex else "") + ".csv")
     pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out_csv, index=False)
     v = L.V[best[1]].copy()
     v[g] = pred[pos][g]
@@ -1320,6 +1326,7 @@ def main():
     ap.add_argument("--unmatched", action="store_true", help="with --calibrate-physics: reference facilities outside the category match")
     ap.add_argument("--covariates", action="store_true", help="with --calibrate-physics: screened covariate effects on TIGER length and buildings")
     ap.add_argument("--flex", action="store_true", help="with --calibrate-physics: flexible context effects on TIGER length and unseen facilities")
+    ap.add_argument("--flex-sd", type=float, default=FLEX_SD, help="with --flex: prior sd of the flexible effects")
     args = ap.parse_args()
     if args.add_label:
         add_label(*args.add_label)
@@ -1335,9 +1342,9 @@ def main():
         log("10 physics calibrated on the aggregate labels (published statistics + scorecard + score moments)")
         rep = {}
         calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural, unmatched=args.unmatched,
-                                    covariates=args.covariates, flex=args.flex)
+                                    covariates=args.covariates, flex=args.flex and args.flex_sd)
         name = ("physics_lb" + ("_struct" if args.structural else "") + ("_unmatched" if args.unmatched else "")
-                + ("_regional" if args.regional else "") + ("_covar" if args.covariates else "") + ("_flex" if args.flex else ""))
+                + ("_regional" if args.regional else "") + ("_covar" if args.covariates else "") + (flex_suffix(args.flex_sd) if args.flex else ""))
         with open(f"{name}_report.json", "w") as f:
             json.dump(rep, f, indent=2, default=float)
         log(f"Wrote {name}.csv and {name}_report.json ({clock()})")
