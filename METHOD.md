@@ -500,6 +500,43 @@ strongest direction found.
   moment chi-square 94.6 → 89.3 (64 parameters). The fitted effects are small: buildings per housing −0.12,
   Farm-to-Market −0.06, the others about 0. The unscored part is RMS 0.0045, too small for a worthwhile bet.
 
+**Result of the local update:** it scored **0.059232**, inside its band (predicted 0.05926 ± 0.00016). With that
+second point on the concurrent-route line, the four measured directions are exhausted: the update's optimum
+(2.61×) is expected to gain 0.000002.
+
+**What was tested next (76 labels), and the result:**
+
+| Test | Result |
+|---|---|
+| Big model recalibrated on 76 labels | moment chi-square 91.6; unscored part RMS 0.0029: nothing worth a bet |
+| TIGER records per route number and alternate name (distinct refs, 3+ refs, alternate / official names, bridges) | in-span correlations ≤ 0.19, mostly already in span |
+| Facility evidence from Overture buildings (fire-station and school buildings in tracts without the place) | correlations ≤ 0.10: no signal |
+| County-level mapping quality (unrouted arterial share, fire stations per resident) | ≤ 0.17, 76–81% in span |
+| Linear feature correction learned through the moments (98 features, ridge) | **worse** on held-out moments at every penalty (last 12: chi-square 19.5 → 20.2–44.5) |
+| Flexible context effects inside the physics (`--flex`, 28 log-effects, prior sd 0.1) | see below |
+
+**Flexible physics (`--flex`).** Fourteen context features act on the TIGER length (`ft_`), and fourteen on the
+unseen-facility rate (`ff_`): buildings per housing unit, route-type shares, area, density, RUCA, urban share,
+places per resident, source shares, SVI, tribal share, and others.
+
+- **Held-out check** (linearised refit on the published statistics plus the first k moments, predicting the
+  rest): it is better on the last 8 moments (chi-square 39.0 → 33.8–36.7) but worse on the last 12 and 20.
+  Leave-one-moment-out is better at prior sd 0.1 (236.6 → 219.3) and worse at 0.2.
+- **Full calibration:** moment chi-square 91.6 → 68.7, published + scorecard 23.8 → 18.1. A total drop of 28.6
+  for 28 parameters is what fitting noise alone gives, so this is no proof of a mechanism. The largest effects
+  are on unseen facilities: urban share −0.18, density −0.16, a route in the tract +0.15.
+- **Unscored part:** RMS **0.0146**, five times the big model's (correlation +0.20 with it). It is the only
+  sizeable unmeasured direction left.
+- **Bet.** `submission.csv` = the best file + 0.2 × that part (RMS change 0.0029). Break-even coefficient about
+  0.13; calibrated-physics directions have measured 0.25–1.0 so far:
+
+  | Truth's coefficient | Expected public RMSE |
+  |---:|---:|
+  | +0.5 | 0.05897 |
+  | +0.3 | 0.05911 |
+  | 0 | 0.05933 |
+  | −0.3 | 0.05954 |
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
@@ -522,7 +559,9 @@ strongest direction found.
 - `--fit-only`: stage 8 only, reading `physics.csv`.
 - `--probes K`: stage 9, which writes K probe files and `probes/manifest.json`.
 - `--add-label NAME FILE RMSE`: record a scored file as a new label.
-- `--calibrate-physics`: stage 10, which writes `physics_lb.csv` and its report.
+- `--calibrate-physics`: stage 10, which writes `physics_lb.csv` and its report. With `--structural`,
+  `--unmatched`, `--regional`, `--covariates` and `--flex` it adds the mechanisms of §8c; each adds a suffix to
+  the output name.
 - `--scorecard`: a physics variant that also calibrates 16 stratum effects on the public Bias Scorecard (the
   rank-1 entry's 9 ratios, tolerance 0.03). Writes `physics_scorecard.csv`, which scored 0.086862 and is one
   of the aggregate labels.
