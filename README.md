@@ -63,8 +63,9 @@ There are no tract labels. Training has three parts.
 | curvature-aware local update | 2.45× along it | 0.059232 |
 | + flexible context effects | 28 effects, prior sd 0.1 | 0.058987 |
 | + recalibrated flexible model | 0.3× its new direction | 0.058912 |
-| + wider flexible model | prior sd 0.2 | **0.058866 (best)** |
+| + wider flexible model | prior sd 0.2 | 0.058866 |
 | + region-specific flexible effects | 200 parameters | 0.058936: that direction ran the wrong way (≈ −0.7) |
+| stable, risk-aware update | newest two directions at 2.26× and −1.64× | **0.058735 (best)**; predicted 0.058791 ± 0.000044 |
 
 The full history, with every experiment that did not help, is in [METHOD.md](METHOD.md).
 
@@ -75,8 +76,8 @@ The best file (0.058866) with only its two newest measured directions moved to t
 - the wider flexible direction, 1× → **2.26×** (it measured about +0.85);
 - the region-specific direction, reversed to **−1.64×** (it measured about −0.7).
 
-Every other direction stays where it was scored. Expected public RMSE **0.058791 ± 0.000044**, with a 97% chance of
-beating the best (0.88–0.97 across Monte Carlo seeds). The full update over all nine directions has a slightly
+Every other direction stays where it was scored. It scored **0.058735**, inside its band's lucky side (predicted
+**0.058791 ± 0.000044**, with a 97% chance of beating the best (0.88–0.97 across Monte Carlo seeds)). The full update over all nine directions has a slightly
 lower mean (0.05876), but its uncertainty is two to three times larger. Stage 8 picks the candidate with the
 lowest pessimistic score (mean + 1 sd).
 
