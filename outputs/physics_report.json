@@ -1,0 +1,882 @@
+{
+  "inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files",
+  "mechanism_check": {
+    "eastern-ok": {
+      "published_undefined": 0.21,
+      "no_overture_route": 0.222
+    },
+    "maricopa-az": {
+      "published_undefined": 0.55,
+      "no_overture_route": 0.564
+    },
+    "northern-ca": {
+      "published_undefined": 0.37,
+      "no_overture_route": 0.365
+    },
+    "south-central-tx": {
+      "published_undefined": 0.28,
+      "no_overture_route": 0.306
+    }
+  },
+  "auxiliary_models": {
+    "features": [
+      "log_pop",
+      "log_housing",
+      "log_area",
+      "log_buildings_usfs",
+      "log_road_km",
+      "road_detail",
+      "log_transit",
+      "log_rail_km",
+      "pct_urban",
+      "ruca",
+      "svi",
+      "tribal_pct",
+      "region_eastern-ok",
+      "region_maricopa-az",
+      "region_northern-ca",
+      "region_south-central-tx",
+      "region_eastern-wa"
+    ],
+    "results": [
+      {
+        "target": "E_fire",
+        "cv_deviance": {
+          "poisson_glm": 1.0078705909828674,
+          "poisson_gbm": 0.9827185420058726
+        },
+        "null_deviance": 1.3702903566827984,
+        "chosen": "poisson_gbm",
+        "explained": 0.2828391900933759
+      },
+      {
+        "target": "E_ems",
+        "cv_deviance": {
+          "poisson_glm": 0.8858766857381882,
+          "poisson_gbm": 0.8795308996677389
+        },
+        "null_deviance": 1.0384455103034815,
+        "chosen": "poisson_gbm",
+        "explained": 0.15303124628012543
+      },
+      {
+        "target": "E_sch",
+        "cv_deviance": {
+          "poisson_glm": 2.8291172830137716,
+          "poisson_gbm": 2.7073466262673618
+        },
+        "null_deviance": 3.7520618463758266,
+        "chosen": "poisson_gbm",
+        "explained": 0.27843763319561776
+      },
+      {
+        "target": "n_poi_bq",
+        "cv_deviance": {
+          "poisson_glm": 24.466730047734856,
+          "poisson_gbm": 22.352205204990177
+        },
+        "null_deviance": 45.22585144062348,
+        "chosen": "poisson_gbm",
+        "explained": 0.5057648558737221
+      }
+    ]
+  },
+  "calibration": {
+    "targets": [
+      {
+        "target": "undefined_share[eastern-ok]",
+        "published": 0.21,
+        "prior_centre": 0.1895661834102349,
+        "calibrated": 0.2089384962248322,
+        "pull": -0.08845864793064855
+      },
+      {
+        "target": "undefined_share[maricopa-az]",
+        "published": 0.55,
+        "prior_centre": 0.48272471359070934,
+        "calibrated": 0.5353401600753296,
+        "pull": -1.2216533270558716
+      },
+      {
+        "target": "undefined_share[northern-ca]",
+        "published": 0.37,
+        "prior_centre": 0.3026054885786802,
+        "calibrated": 0.33946700507614214,
+        "pull": -2.5444162436548217
+      },
+      {
+        "target": "undefined_share[south-central-tx]",
+        "published": 0.28,
+        "prior_centre": 0.23423965100782942,
+        "calibrated": 0.2645217104989172,
+        "pull": -1.2898574584235682
+      },
+      {
+        "target": "road_ratio[min region]",
+        "published": 0.71,
+        "prior_centre": 1.0759499510937263,
+        "calibrated": 0.7228865046739891,
+        "pull": 0.3221626168497277
+      },
+      {
+        "target": "road_ratio[max region]",
+        "published": 1.59,
+        "prior_centre": 1.6673377969064553,
+        "calibrated": 1.5959272567003007,
+        "pull": 0.14818141750751468
+      },
+      {
+        "target": "ems_ratio",
+        "published": 1.0,
+        "prior_centre": 0.6921431213742761,
+        "calibrated": 1.0619461619744097,
+        "pull": 0.4129744131627315
+      },
+      {
+        "target": "ems_binding_share",
+        "published": 0.01,
+        "prior_centre": 0.05662042528521164,
+        "calibrated": 0.021264468826633968,
+        "pull": 1.1264468826633967
+      },
+      {
+        "target": "schools_per_tract",
+        "published": 1.5,
+        "prior_centre": 2.8054290586016633,
+        "calibrated": 1.8059221815358781,
+        "pull": 0.7648054538396953
+      },
+      {
+        "target": "fire_stations_per_tract",
+        "published": 0.6,
+        "prior_centre": 0.7837062436693677,
+        "calibrated": 0.6545673845825781,
+        "pull": 0.27283692291289074
+      },
+      {
+        "target": "establishments_per_resident",
+        "published": 0.025,
+        "prior_centre": 0.020952221116666378,
+        "calibrated": 0.023546057737707012,
+        "pull": -0.1453942262292989
+      }
+    ],
+    "parameters": [
+      {
+        "parameter": "log_m_eastern-ok",
+        "prior_centre": 0.0,
+        "prior_sd": 0.4,
+        "posterior": 0.40518895667694405,
+        "posterior_sd": 0.047124152635032564,
+        "identified": true
+      },
+      {
+        "parameter": "log_m_maricopa-az",
+        "prior_centre": 0.0,
+        "prior_sd": 0.4,
+        "posterior": 0.13728678525555194,
+        "posterior_sd": 0.31351251182607826,
+        "identified": false
+      },
+      {
+        "parameter": "log_m_northern-ca",
+        "prior_centre": 0.0,
+        "prior_sd": 0.4,
+        "posterior": 0.0,
+        "posterior_sd": 0.4,
+        "identified": false
+      },
+      {
+        "parameter": "log_m_south-central-tx",
+        "prior_centre": 0.0,
+        "prior_sd": 0.4,
+        "posterior": 0.13270601766264478,
+        "posterior_sd": 0.2625080165745941,
+        "identified": false
+      },
+      {
+        "parameter": "log_sigma_t",
+        "prior_centre": -1.2039728043259361,
+        "prior_sd": 0.4,
+        "posterior": -1.2047684498293603,
+        "posterior_sd": 0.3999996989832124,
+        "identified": false
+      },
+      {
+        "parameter": "beta_bnd",
+        "prior_centre": 0.5,
+        "prior_sd": 0.3,
+        "posterior": 0.558096880111368,
+        "posterior_sd": 0.29822675993747183,
+        "identified": false
+      },
+      {
+        "parameter": "logit_q_fm",
+        "prior_centre": -1.0986122886681098,
+        "prior_sd": 1.0,
+        "posterior": -1.499658182020932,
+        "posterior_sd": 0.5858064087195081,
+        "identified": false
+      },
+      {
+        "parameter": "logit_q_cty",
+        "prior_centre": -2.197224577336219,
+        "prior_sd": 1.0,
+        "posterior": -2.892194661355945,
+        "posterior_sd": 0.9600475056868472,
+        "identified": false
+      },
+      {
+        "parameter": "logit_q_unr",
+        "prior_centre": -2.197224577336219,
+        "prior_sd": 1.0,
+        "posterior": -4.299859336667871,
+        "posterior_sd": 0.5184492724508656,
+        "identified": false
+      },
+      {
+        "parameter": "logit_p_surprise",
+        "prior_centre": -3.8918202981106265,
+        "prior_sd": 1.0,
+        "posterior": -5.1414251559775295,
+        "posterior_sd": 0.8806680238941993,
+        "identified": false
+      },
+      {
+        "parameter": "log_kappa",
+        "prior_centre": 0.0,
+        "prior_sd": 0.3,
+        "posterior": 0.0,
+        "posterior_sd": 0.3,
+        "identified": false
+      },
+      {
+        "parameter": "log_sigma_b",
+        "prior_centre": -1.8971199848858813,
+        "prior_sd": 0.5,
+        "posterior": -1.8971199848858813,
+        "posterior_sd": 0.5,
+        "identified": false
+      },
+      {
+        "parameter": "logit_r_fire",
+        "prior_centre": 0.4054651081081642,
+        "prior_sd": 1.0,
+        "posterior": 0.7394199146885289,
+        "posterior_sd": 0.47588622944627385,
+        "identified": true
+      },
+      {
+        "parameter": "logit_r_ems",
+        "prior_centre": 2.1972245773362196,
+        "prior_sd": 1.0,
+        "posterior": 3.366911301229321,
+        "posterior_sd": 0.5640817649133417,
+        "identified": false
+      },
+      {
+        "parameter": "logit_r_sch",
+        "prior_centre": 1.7346010553881064,
+        "prior_sd": 1.0,
+        "posterior": 2.66484845985429,
+        "posterior_sd": 0.6402210170208971,
+        "identified": false
+      },
+      {
+        "parameter": "logit_a_fire",
+        "prior_centre": 2.1972245773362196,
+        "prior_sd": 1.0,
+        "posterior": 2.147084593145179,
+        "posterior_sd": 0.9807720212564487,
+        "identified": false
+      },
+      {
+        "parameter": "logit_x_fire",
+        "prior_centre": -0.8472978603872036,
+        "prior_sd": 1.0,
+        "posterior": -0.9036519806711861,
+        "posterior_sd": 0.9762785630975688,
+        "identified": false
+      },
+      {
+        "parameter": "logit_a_ems",
+        "prior_centre": 0.8472978603872034,
+        "prior_sd": 1.0,
+        "posterior": 0.710071327630955,
+        "posterior_sd": 0.8666158198585971,
+        "identified": false
+      },
+      {
+        "parameter": "logit_x_ems",
+        "prior_centre": -2.197224577336219,
+        "prior_sd": 1.0,
+        "posterior": -3.028098116208996,
+        "posterior_sd": 0.8784473093859224,
+        "identified": false
+      },
+      {
+        "parameter": "logit_a_sch",
+        "prior_centre": 0.8472978603872034,
+        "prior_sd": 1.0,
+        "posterior": 0.11169656509864236,
+        "posterior_sd": 0.8785803314606874,
+        "identified": false
+      },
+      {
+        "parameter": "logit_x_sch",
+        "prior_centre": -2.197224577336219,
+        "prior_sd": 1.0,
+        "posterior": -2.573776208695829,
+        "posterior_sd": 0.7898581034455412,
+        "identified": false
+      },
+      {
+        "parameter": "ge_fac",
+        "prior_centre": -0.3,
+        "prior_sd": 0.3,
+        "posterior": -0.19689693766469796,
+        "posterior_sd": 0.2955554452558313,
+        "identified": false
+      },
+      {
+        "parameter": "log_eps",
+        "prior_centre": -3.912023005428146,
+        "prior_sd": 0.7,
+        "posterior": -3.8018168358425273,
+        "posterior_sd": 0.40972883901999785,
+        "identified": false
+      },
+      {
+        "parameter": "log_sigma_c",
+        "prior_centre": -0.6931471805599453,
+        "prior_sd": 0.4,
+        "posterior": -0.6924747892073833,
+        "posterior_sd": 0.39999892039612817,
+        "identified": false
+      },
+      {
+        "parameter": "a_bq",
+        "prior_centre": 0.5,
+        "prior_sd": 0.5,
+        "posterior": 0.5189542491903114,
+        "posterior_sd": 0.4899617293514654,
+        "identified": false
+      }
+    ]
+  },
+  "leave_one_target_out": [
+    {
+      "target": "undefined_share[eastern-ok]",
+      "published": 0.21,
+      "held_out_prediction": 0.2098739477848945,
+      "prior_prediction": 0.1895661834102349,
+      "error_held_out": -0.00012605221510550435,
+      "error_prior": -0.02043381658976509
+    },
+    {
+      "target": "undefined_share[maricopa-az]",
+      "published": 0.55,
+      "held_out_prediction": 0.5400660755295171,
+      "prior_prediction": 0.48272471359070934,
+      "error_held_out": -0.009933924470482913,
+      "error_prior": -0.0672752864092907
+    },
+    {
+      "target": "undefined_share[northern-ca]",
+      "published": 0.37,
+      "held_out_prediction": 0.33350153201575095,
+      "prior_prediction": 0.3026054885786802,
+      "error_held_out": -0.03649846798424905,
+      "error_prior": -0.0673945114213198
+    },
+    {
+      "target": "undefined_share[south-central-tx]",
+      "published": 0.28,
+      "held_out_prediction": 0.24864155199282065,
+      "prior_prediction": 0.23423965100782942,
+      "error_held_out": -0.03135844800717938,
+      "error_prior": -0.0457603489921706
+    },
+    {
+      "target": "road_ratio[min region]",
+      "published": 0.71,
+      "held_out_prediction": 1.2700967570047044,
+      "prior_prediction": 1.0759499510937263,
+      "error_held_out": 0.5600967570047044,
+      "error_prior": 0.3659499510937263
+    },
+    {
+      "target": "road_ratio[max region]",
+      "published": 1.59,
+      "held_out_prediction": 1.933305250061806,
+      "prior_prediction": 1.6673377969064553,
+      "error_held_out": 0.3433052500618059,
+      "error_prior": 0.07733779690645526
+    },
+    {
+      "target": "ems_ratio",
+      "published": 1.0,
+      "held_out_prediction": 1.0836819587923434,
+      "prior_prediction": 0.6921431213742761,
+      "error_held_out": 0.08368195879234341,
+      "error_prior": -0.30785687862572386
+    },
+    {
+      "target": "ems_binding_share",
+      "published": 0.01,
+      "held_out_prediction": 0.055942326885199345,
+      "prior_prediction": 0.05662042528521164,
+      "error_held_out": 0.04594232688519934,
+      "error_prior": 0.04662042528521164
+    },
+    {
+      "target": "schools_per_tract",
+      "published": 1.5,
+      "held_out_prediction": 3.4051566674088782,
+      "prior_prediction": 2.8054290586016633,
+      "error_held_out": 1.9051566674088782,
+      "error_prior": 1.3054290586016633
+    },
+    {
+      "target": "fire_stations_per_tract",
+      "published": 0.6,
+      "held_out_prediction": 0.8794800011672822,
+      "prior_prediction": 0.7837062436693677,
+      "error_held_out": 0.2794800011672822,
+      "error_prior": 0.18370624366936772
+    },
+    {
+      "target": "establishments_per_resident",
+      "published": 0.025,
+      "held_out_prediction": 0.020449061526808233,
+      "prior_prediction": 0.020952221116666378,
+      "error_held_out": -0.004550938473191768,
+      "error_prior": -0.004047778883333623
+    }
+  ],
+  "prior_sensitivity": [
+    {
+      "parameter": "log_kappa",
+      "rms_change": 0.06805513197252373,
+      "mean_change": 0.06281268418007417
+    },
+    {
+      "parameter": "log_eps",
+      "rms_change": 0.04821289493849129,
+      "mean_change": 0.0359363886784038
+    },
+    {
+      "parameter": "a_bq",
+      "rms_change": 0.02639205709681242,
+      "mean_change": 0.002836198525547293
+    },
+    {
+      "parameter": "log_m_south-central-tx",
+      "rms_change": 0.02217329160497668,
+      "mean_change": 0.010372577531890892
+    },
+    {
+      "parameter": "log_m_eastern-ok",
+      "rms_change": 0.019515897627659814,
+      "mean_change": 0.005597153585499856
+    },
+    {
+      "parameter": "logit_r_fire",
+      "rms_change": 0.011115042593842639,
+      "mean_change": -0.008850142167927448
+    },
+    {
+      "parameter": "log_m_maricopa-az",
+      "rms_change": 0.010972542449353102,
+      "mean_change": 0.002048451811698816
+    },
+    {
+      "parameter": "ge_fac",
+      "rms_change": 0.00869626819632076,
+      "mean_change": -0.00026333048873076163
+    },
+    {
+      "parameter": "logit_x_sch",
+      "rms_change": 0.008606527610548151,
+      "mean_change": 0.004246013758699898
+    },
+    {
+      "parameter": "log_sigma_b",
+      "rms_change": 0.008005131360562696,
+      "mean_change": 0.0070669512694352555
+    },
+    {
+      "parameter": "logit_r_sch",
+      "rms_change": 0.00794368457619039,
+      "mean_change": -0.004914614463734618
+    },
+    {
+      "parameter": "beta_bnd",
+      "rms_change": 0.007567327607317715,
+      "mean_change": 0.002235587619174965
+    },
+    {
+      "parameter": "log_sigma_c",
+      "rms_change": 0.007454873168242107,
+      "mean_change": 0.0002975165915078028
+    },
+    {
+      "parameter": "log_m_northern-ca",
+      "rms_change": 0.007349118821405767,
+      "mean_change": 0.0010116096115526693
+    },
+    {
+      "parameter": "logit_q_fm",
+      "rms_change": 0.006744717005616746,
+      "mean_change": 0.001992624965191859
+    },
+    {
+      "parameter": "logit_x_fire",
+      "rms_change": 0.0046201270330841655,
+      "mean_change": 0.0012189980689554566
+    },
+    {
+      "parameter": "logit_a_sch",
+      "rms_change": 0.004001935906238199,
+      "mean_change": 0.0012824079011376352
+    },
+    {
+      "parameter": "log_sigma_t",
+      "rms_change": 0.0037139492199581934,
+      "mean_change": 0.0008211970740827788
+    },
+    {
+      "parameter": "logit_x_ems",
+      "rms_change": 0.002302716351475617,
+      "mean_change": 0.0008902398524069727
+    },
+    {
+      "parameter": "logit_r_ems",
+      "rms_change": 0.002301265316320328,
+      "mean_change": -0.00044115956507830234
+    },
+    {
+      "parameter": "logit_q_cty",
+      "rms_change": 0.0011001518936129189,
+      "mean_change": 0.00012289099369652555
+    },
+    {
+      "parameter": "logit_a_ems",
+      "rms_change": 0.0008004123642958464,
+      "mean_change": -0.00013451250034788142
+    },
+    {
+      "parameter": "logit_q_unr",
+      "rms_change": 0.000728983346506461,
+      "mean_change": 0.00033410560326076167
+    },
+    {
+      "parameter": "logit_a_fire",
+      "rms_change": 0.0006391093361054841,
+      "mean_change": 0.00012875955313881355
+    },
+    {
+      "parameter": "logit_p_surprise",
+      "rms_change": 0.00040869081457751294,
+      "mean_change": -5.875367031265416e-05
+    }
+  ],
+  "physics": {
+    "file": "physics.csv",
+    "mean_graded": 0.09551965940602195,
+    "components": {
+      "road_defined": 0.6929,
+      "building_defined": 0.9998,
+      "poi_defined": 0.998,
+      "road_gap": 0.0912,
+      "building_gap": 0.0495,
+      "facility_gap": 0.3093,
+      "establishment_gap": 0.0864,
+      "fire_defined": 0.4069,
+      "fire_gap": 0.7576,
+      "ems_defined": 0.071,
+      "ems_gap": 0.8419,
+      "sch_defined": 0.7305,
+      "sch_gap": 0.2655
+    },
+    "scorecard_ratios": {
+      "rural": 1.284,
+      "tribal": 1.569,
+      "svi": 0.876,
+      "cvi": 0.993,
+      "sdrought": 0.973,
+      "wdrought": 1.075,
+      "wildfire": 1.168,
+      "heat": 0.871,
+      "hv": 0.866
+    },
+    "mc_stability_rms": 0.0016110455390863515
+  },
+  "aggregate_labels": {
+    "files": 65,
+    "public_weight_mean": 0.3052414652336193,
+    "mean_y": 0.0598061011140652,
+    "mean_y2": 0.011501768649197401
+  },
+  "aggregate_fit": {
+    "hyper": {
+      "tau_base": 0.36681114342306825,
+      "mu_base": 0.48991659152033296,
+      "tau_probe": 0.7201608126117396,
+      "mu_probe": 0.055459553365431624,
+      "tau_clip": 0.14068675238434808,
+      "noise_scale": 0.7635420755161341,
+      "mu_clip": 0.4667870430678046
+    },
+    "washington_affine": [
+      0.01956960421631709,
+      0.4111697864565358
+    ],
+    "est_public": 0.06162927929436858,
+    "best_scored": {
+      "file": "r33_u29_push.csv",
+      "rmse": 0.062090669
+    },
+    "ratios": {
+      "rural": 2.227,
+      "tribal": 2.814,
+      "svi": 1.279,
+      "cvi": 1.581,
+      "sdrought": 0.981,
+      "wdrought": 1.366,
+      "wildfire": 1.68,
+      "heat": 0.633,
+      "hv": 1.258
+    }
+  },
+  "forward_validation": [
+    {
+      "file": "p12_01_route_ratio.csv",
+      "actual": 0.064583076,
+      "predicted": 0.06413784156336523,
+      "error": -0.0004452344366347727
+    },
+    {
+      "file": "p13_02_boundary_leak.csv",
+      "actual": 0.063780455,
+      "predicted": 0.06405568688402143,
+      "error": 0.0002752318840214263
+    },
+    {
+      "file": "p14_04_gmm_route.csv",
+      "actual": 0.063801619,
+      "predicted": 0.06377693276186586,
+      "error": -2.4686238134147276e-05
+    },
+    {
+      "file": "r14_route_boundary_corrected.csv",
+      "actual": 0.063433173,
+      "predicted": 0.06345359267494105,
+      "error": 2.041967494105512e-05
+    },
+    {
+      "file": "p14_02_tiger_multiplicity.csv",
+      "actual": 0.063591517,
+      "predicted": 0.06353440695537371,
+      "error": -5.711004462628788e-05
+    },
+    {
+      "file": "p15_01_county_s1200.csv",
+      "actual": 0.063466552,
+      "predicted": 0.06355836305488692,
+      "error": 9.181105488692554e-05
+    },
+    {
+      "file": "p15_02_unrouted_s1200.csv",
+      "actual": 0.063373747,
+      "predicted": 0.06355228089205413,
+      "error": 0.0001785338920541335
+    },
+    {
+      "file": "p15_03_tertiary_vs_named.csv",
+      "actual": 0.063190463,
+      "predicted": 0.06354633045559722,
+      "error": 0.00035586745559722244
+    },
+    {
+      "file": "p15_04_poi_share_brightquery.csv",
+      "actual": 0.063752599,
+      "predicted": 0.0635626069827319,
+      "error": -0.00018999201726808967
+    },
+    {
+      "file": "p15_05_poi_share_meta.csv",
+      "actual": 0.063449447,
+      "predicted": 0.06341866572030812,
+      "error": -3.0781279691888264e-05
+    },
+    {
+      "file": "p16_01_tertiary_s1200.csv",
+      "actual": 0.063349242,
+      "predicted": 0.06312263609181974,
+      "error": -0.00022660590818025794
+    },
+    {
+      "file": "p16_02_tertiary_vs_named_maricopa-az.csv",
+      "actual": 0.063360383,
+      "predicted": 0.0631329056452751,
+      "error": -0.00022747735472490593
+    },
+    {
+      "file": "p16_03_tertiary_vs_named_northern-ca.csv",
+      "actual": 0.063072465,
+      "predicted": 0.06307840420857004,
+      "error": 5.939208570046595e-06
+    },
+    {
+      "file": "p16_04_tertiary_vs_named_eastern-ok.csv",
+      "actual": 0.063093421,
+      "predicted": 0.06310150883148918,
+      "error": 8.087831489186903e-06
+    },
+    {
+      "file": "p16_05_log_land_area.csv",
+      "actual": 0.063314542,
+      "predicted": 0.063123435420302,
+      "error": -0.00019110657969800826
+    },
+    {
+      "file": "p17_01_unrouted_s1200_maricopa-az.csv",
+      "actual": 0.062696319,
+      "predicted": 0.06288058022593652,
+      "error": 0.0001842612259365245
+    },
+    {
+      "file": "p17_02_unrouted_s1200_south-central-tx.csv",
+      "actual": 0.062768729,
+      "predicted": 0.06292240179171284,
+      "error": 0.00015367279171284165
+    },
+    {
+      "file": "p17_03_log_land_area_maricopa-az.csv",
+      "actual": 0.062675344,
+      "predicted": 0.0627904516882043,
+      "error": 0.00011510768820430228
+    },
+    {
+      "file": "p17_04_route_ratio_maricopa-az.csv",
+      "actual": 0.062781719,
+      "predicted": 0.06287518578320299,
+      "error": 9.346678320298896e-05
+    },
+    {
+      "file": "p17_05_fire_vs_expected.csv",
+      "actual": 0.06284496,
+      "predicted": 0.06276937718472785,
+      "error": -7.558281527215993e-05
+    },
+    {
+      "file": "p18_01_building_coverage.csv",
+      "actual": 0.062725943,
+      "predicted": 0.0627707983887436,
+      "error": 4.48553887435893e-05
+    },
+    {
+      "file": "p18_02_tiger_noise.csv",
+      "actual": 0.062561554,
+      "predicted": 0.06274591703631834,
+      "error": 0.00018436303631833018
+    },
+    {
+      "file": "p18_03_poi_per_person.csv",
+      "actual": 0.062957426,
+      "predicted": 0.0627688643361688,
+      "error": -0.0001885616638312021
+    },
+    {
+      "file": "r19b_backward_selection.csv",
+      "actual": 0.062455004,
+      "predicted": 0.06247142619630231,
+      "error": 1.642219630230979e-05
+    },
+    {
+      "file": "p19_64_school_region_specialist.csv",
+      "actual": 0.062474294,
+      "predicted": 0.06248937352613828,
+      "error": 1.5079526138279953e-05
+    },
+    {
+      "file": "p20_02_multiref_share.csv",
+      "actual": 0.062438801,
+      "predicted": 0.062484663067833776,
+      "error": 4.5862067833774e-05
+    },
+    {
+      "file": "r22_ridge_eb_blend.csv",
+      "actual": 0.062343029,
+      "predicted": 0.06237361563619321,
+      "error": 3.058663619320834e-05
+    },
+    {
+      "file": "r23_ridge_eb_blend.csv",
+      "actual": 0.062327384,
+      "predicted": 0.062328179340008776,
+      "error": 7.953400087759577e-07
+    },
+    {
+      "file": "r24_scorecard_joint.csv",
+      "actual": 0.062185147,
+      "predicted": 0.06268631819769195,
+      "error": 0.0005011711976919478
+    },
+    {
+      "file": "r25_scorecard_step.csv",
+      "actual": 0.062147723,
+      "predicted": 0.06212182541842157,
+      "error": -2.5897581578435136e-05
+    },
+    {
+      "file": "r26_nn_half.csv",
+      "actual": 0.062236918,
+      "predicted": 0.06225033132029575,
+      "error": 1.3413320295745101e-05
+    },
+    {
+      "file": "r27_joint_min_change.csv",
+      "actual": 0.062113403,
+      "predicted": 0.0621415208495164,
+      "error": 2.8117849516402782e-05
+    },
+    {
+      "file": "r28b_push.csv",
+      "actual": 0.062097808,
+      "predicted": 0.06208661291357689,
+      "error": -1.119508642311029e-05
+    },
+    {
+      "file": "r29_correlated_scorecard.csv",
+      "actual": 0.062094756,
+      "predicted": 0.06209667645752713,
+      "error": 1.920457527129771e-06
+    },
+    {
+      "file": "r32_t1_multi_leader.csv",
+      "actual": 0.062092322,
+      "predicted": 0.06209092626970519,
+      "error": -1.3957302948050532e-06
+    },
+    {
+      "file": "r33_u29_push.csv",
+      "actual": 0.062090669,
+      "predicted": 0.062090188268359214,
+      "error": -4.80731640786769e-07
+    },
+    {
+      "file": "fs_physics.csv",
+      "actual": 0.101340334,
+      "predicted": 0.10291151803320508,
+      "error": 0.0015711840332050808
+    },
+    {
+      "file": "fs_physics_scorecard.csv",
+      "actual": 0.086861829,
+      "predicted": 0.09111908539007318,
+      "error": 0.004257256390073183
+    }
+  ]
+}

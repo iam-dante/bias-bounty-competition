@@ -1,5 +1,3 @@
 data/
 __pycache__/
 .DS_Store
-research/r32/msm_fit.npz
-research/r32/discovery_tracts.csv

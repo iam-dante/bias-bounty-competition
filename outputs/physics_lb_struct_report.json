@@ -1,0 +1,359 @@
+{
+  "parameters": [
+    {
+      "parameter": "log_m_eastern-ok",
+      "start": -0.6695425204806901,
+      "fitted": 0.09130677393486483
+    },
+    {
+      "parameter": "log_m_maricopa-az",
+      "start": 0.37448476881833814,
+      "fitted": -0.4389505009928631
+    },
+    {
+      "parameter": "log_m_northern-ca",
+      "start": 0.07482189705202748,
+      "fitted": 0.04953936799087599
+    },
+    {
+      "parameter": "log_m_south-central-tx",
+      "start": -0.8849369674382623,
+      "fitted": -0.34170926762645903
+    },
+    {
+      "parameter": "log_sigma_t",
+      "start": -1.1492036735532074,
+      "fitted": -0.6974925509373526
+    },
+    {
+      "parameter": "beta_bnd",
+      "start": 0.6810017232245994,
+      "fitted": 1.6325100709609204
+    },
+    {
+      "parameter": "logit_q_fm",
+      "start": -0.36417866272416166,
+      "fitted": -3.2808194932390937
+    },
+    {
+      "parameter": "logit_q_cty",
+      "start": -5.334947429774295,
+      "fitted": -2.805443855637715
+    },
+    {
+      "parameter": "logit_q_unr",
+      "start": -3.0427673662472077,
+      "fitted": -4.123282405482794
+    },
+    {
+      "parameter": "logit_p_surprise",
+      "start": -7.184776091134291,
+      "fitted": -4.400183968959809
+    },
+    {
+      "parameter": "log_kappa",
+      "start": -1.1371264613179546,
+      "fitted": -0.4270097380345933
+    },
+    {
+      "parameter": "log_sigma_b",
+      "start": -2.1319121915907653,
+      "fitted": -1.979871574570365
+    },
+    {
+      "parameter": "logit_r_fire",
+      "start": 1.4680518158284888,
+      "fitted": 1.4568403709219195
+    },
+    {
+      "parameter": "logit_r_ems",
+      "start": 3.5123316102642015,
+      "fitted": 3.2486103210335684
+    },
+    {
+      "parameter": "logit_r_sch",
+      "start": 3.930617782377102,
+      "fitted": 4.582299939899825
+    },
+    {
+      "parameter": "logit_a_fire",
+      "start": 4.538589134661288,
+      "fitted": 2.4151625218866655
+    },
+    {
+      "parameter": "logit_x_fire",
+      "start": 1.257580043733347,
+      "fitted": -0.3921816644934317
+    },
+    {
+      "parameter": "logit_a_ems",
+      "start": -0.5153479956424291,
+      "fitted": -0.0789186452346304
+    },
+    {
+      "parameter": "logit_x_ems",
+      "start": -2.773572071982818,
+      "fitted": -2.9672269358831143
+    },
+    {
+      "parameter": "logit_a_sch",
+      "start": -0.612537718297986,
+      "fitted": 0.11400113026267361
+    },
+    {
+      "parameter": "logit_x_sch",
+      "start": -0.10030981285578275,
+      "fitted": -3.237560303651735
+    },
+    {
+      "parameter": "ge_fac",
+      "start": -0.5609142337012539,
+      "fitted": -0.6810938114636229
+    },
+    {
+      "parameter": "log_eps",
+      "start": -7.677663538838222,
+      "fitted": -6.000155801435014
+    },
+    {
+      "parameter": "log_sigma_c",
+      "start": -0.7465341963420081,
+      "fitted": -0.6245316129332024
+    },
+    {
+      "parameter": "a_bq",
+      "start": 0.8386607884446818,
+      "fitted": 1.234643225637191
+    },
+    {
+      "parameter": "gf_rural",
+      "start": 0.11793110416627942,
+      "fitted": 0.5565983076965961
+    },
+    {
+      "parameter": "gf_tribal",
+      "start": 1.1301240977390175,
+      "fitted": 0.03436669881233772
+    },
+    {
+      "parameter": "gf_svi",
+      "start": -0.3346445541867751,
+      "fitted": -0.1364372509407845
+    },
+    {
+      "parameter": "gf_cvi",
+      "start": 0.22636329114789752,
+      "fitted": 0.5831352430798625
+    },
+    {
+      "parameter": "gf_sdrought",
+      "start": -0.4219738569240355,
+      "fitted": -0.1474121049894845
+    },
+    {
+      "parameter": "gf_wdrought",
+      "start": 0.06477258203437901,
+      "fitted": -0.09832710831764048
+    },
+    {
+      "parameter": "gf_wildfire",
+      "start": 0.4534800144329273,
+      "fitted": 0.03546896351913661
+    },
+    {
+      "parameter": "gf_heat",
+      "start": -1.2880928962997267,
+      "fitted": -0.40467427721675253
+    },
+    {
+      "parameter": "gr_rural",
+      "start": -0.2791752027660565,
+      "fitted": -0.2745467312912376
+    },
+    {
+      "parameter": "gr_tribal",
+      "start": 0.4528960464293906,
+      "fitted": 0.07694863610627461
+    },
+    {
+      "parameter": "gr_svi",
+      "start": 0.5144959260062137,
+      "fitted": 0.11278439673946519
+    },
+    {
+      "parameter": "gr_cvi",
+      "start": 0.373763293836533,
+      "fitted": -0.06469362920562731
+    },
+    {
+      "parameter": "gr_sdrought",
+      "start": -0.025186816787105066,
+      "fitted": 0.05930009464338153
+    },
+    {
+      "parameter": "gr_wdrought",
+      "start": 0.10223563326668966,
+      "fitted": 0.12771261622113453
+    },
+    {
+      "parameter": "gr_wildfire",
+      "start": 0.22720224752971047,
+      "fitted": 0.11644413542744045
+    },
+    {
+      "parameter": "gr_heat",
+      "start": 0.13856956685887953,
+      "fitted": 0.19134247092604986
+    },
+    {
+      "parameter": "log_sigma_loc",
+      "start": 4.0943445622221,
+      "fitted": 2.7334241599343385
+    },
+    {
+      "parameter": "w_local",
+      "start": 0.0,
+      "fitted": 0.9685253879412041
+    },
+    {
+      "parameter": "w_inter",
+      "start": 0.0,
+      "fitted": -0.13671228990280462
+    }
+  ],
+  "targets": [
+    {
+      "target": "undefined_share[eastern-ok]",
+      "observed": 0.21,
+      "start": 0.21334941275167785,
+      "fitted": 0.2083928665058725
+    },
+    {
+      "target": "undefined_share[maricopa-az]",
+      "observed": 0.55,
+      "start": 0.537370527306968,
+      "fitted": 0.532176906779661
+    },
+    {
+      "target": "undefined_share[northern-ca]",
+      "observed": 0.37,
+      "start": 0.344331641285956,
+      "fitted": 0.3362448445431472
+    },
+    {
+      "target": "undefined_share[south-central-tx]",
+      "observed": 0.28,
+      "start": 0.25309187853989673,
+      "fitted": 0.277906294248709
+    },
+    {
+      "target": "road_ratio[min region]",
+      "observed": 0.71,
+      "start": 0.5035439239997019,
+      "fitted": 0.623014033569714
+    },
+    {
+      "target": "road_ratio[max region]",
+      "observed": 1.59,
+      "start": 1.7211805749334177,
+      "fitted": 1.542444053124102
+    },
+    {
+      "target": "ems_ratio",
+      "observed": 1.0,
+      "start": 1.3319860901515648,
+      "fitted": 1.0744404397093303
+    },
+    {
+      "target": "ems_binding_share",
+      "observed": 0.01,
+      "start": 0.02834936260528841,
+      "fitted": 0.032914081658492376
+    },
+    {
+      "target": "schools_per_tract",
+      "observed": 1.5,
+      "start": 1.8936197639007357,
+      "fitted": 1.4775812320076767
+    },
+    {
+      "target": "fire_stations_per_tract",
+      "observed": 0.6,
+      "start": 0.7383666302377652,
+      "fitted": 0.6940671979955219
+    },
+    {
+      "target": "establishments_per_resident",
+      "observed": 0.025,
+      "start": 0.0005786619655563723,
+      "fitted": 0.004532575216796629
+    },
+    {
+      "target": "scorecard[rural]",
+      "observed": 2.336,
+      "start": 2.1964816218678576,
+      "fitted": 2.3161281933176108
+    },
+    {
+      "target": "scorecard[tribal]",
+      "observed": 2.884,
+      "start": 2.7564115178219426,
+      "fitted": 2.8912708833283087
+    },
+    {
+      "target": "scorecard[svi]",
+      "observed": 1.231,
+      "start": 1.2623079461922884,
+      "fitted": 1.2274218857783072
+    },
+    {
+      "target": "scorecard[cvi]",
+      "observed": 1.554,
+      "start": 1.5470156749827284,
+      "fitted": 1.5477691043120536
+    },
+    {
+      "target": "scorecard[sdrought]",
+      "observed": 0.999,
+      "start": 1.0738913663362115,
+      "fitted": 0.9786063341765153
+    },
+    {
+      "target": "scorecard[wdrought]",
+      "observed": 1.36,
+      "start": 1.4245234265193214,
+      "fitted": 1.3477556825900152
+    },
+    {
+      "target": "scorecard[wildfire]",
+      "observed": 1.767,
+      "start": 1.7484799678769463,
+      "fitted": 1.7607148439493845
+    },
+    {
+      "target": "scorecard[heat]",
+      "observed": 0.618,
+      "start": 0.682820760906641,
+      "fitted": 0.5976998742795657
+    },
+    {
+      "target": "scorecard[hv]",
+      "observed": 1.219,
+      "start": 1.3008617671411469,
+      "fitted": 1.2181311665468095
+    }
+  ],
+  "est_public": 0.06404086750050933,
+  "ratios": {
+    "rural": 2.312,
+    "tribal": 2.889,
+    "svi": 1.228,
+    "cvi": 1.546,
+    "sdrought": 0.977,
+    "wdrought": 1.346,
+    "wildfire": 1.758,
+    "heat": 0.598,
+    "hv": 1.219
+  },
+  "cost": 211.97045010898623
+}
