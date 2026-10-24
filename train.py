@@ -4,9 +4,11 @@ Bias Bounty Mapping Equity Challenge: coverage-gap model trained from scratch.
     pip install -r requirements.txt
     python train.py                  # data -> features -> physics model -> aggregate-label posterior -> submission.csv
     python train.py --rebuild        # recompute the cached features in data/features/
-    python train.py --physics-only   # stop after the physics model (physics.csv)
-    python train.py --scorecard      # physics variant also calibrated on the public Bias Scorecard (physics_scorecard.csv)
-    python train.py --discovery      # Best Bias Discovery tables (write-up only, not used for the submission)
+    python train.py --physics-only   # stop after the physics model (outputs/physics.csv)
+    python train.py --scorecard      # physics variant also calibrated on the public Bias Scorecard (outputs/physics_scorecard.csv)
+    python train.py --discovery      # Best Bias Discovery tables in outputs/ (write-up only, not used for the submission)
+
+Everything except submission.csv is written to outputs/ (models, reports, tables).
 
 Inputs: the permitted challenge data (Overture release 2026-08-19.0 roads / unfiltered roads / rail /
 infrastructure / buildings / places, ACS housing units, the strata tables and the tract boundaries), statistics
@@ -62,6 +64,8 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 DATA = os.environ.get("BB_DATA", "data")
 FEAT = os.path.join(DATA, "features")
+OUT = "outputs"                         # generated models, reports and tables (submission.csv stays at the top level)
+out = lambda name: os.path.join(OUT, name)
 REGIONS = ["eastern-ok", "maricopa-az", "northern-ca", "south-central-tx", "eastern-wa"]
 GRADED = REGIONS[:4]                    # eastern-wa is in the submission but not scored
 STATE = {"eastern-ok": "OK", "maricopa-az": "AZ", "northern-ca": "CA", "south-central-tx": "TX", "eastern-wa": "WA"}
@@ -841,9 +845,9 @@ def discovery(df, pred):
         f"{d.n_health_registry.sum() / d.n_health.sum():.0%}\n" + cells.round(3).to_string()
         + "\n  urban tracts, mean estimate by SVI half (rows) and Meta-share quartile (columns):\n" + svi.round(4).to_string()
         + "\n" + examples.round(3).to_string(index=False))
-    cells.to_csv("discovery.csv", index=False)
-    svi.to_csv("discovery_svi_control.csv")
-    examples.to_csv("discovery_examples.csv", index=False)
+    cells.to_csv(out("discovery.csv"), index=False)
+    svi.to_csv(out("discovery_svi_control.csv"))
+    examples.to_csv(out("discovery_examples.csv"), index=False)
 
 
 # ================================================================================================
@@ -1037,7 +1041,7 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     change = final[g] - L.V[best[1]][g]
     log(f"  estimated public RMSE {est_final:.6f}; best scored file {best[1]} {best[0]:.6f} "
         f"(RMS difference {np.sqrt(w @ change ** 2):.5f}); in-span by construction, so the estimate credits all of it")
-    cands = [("refit", est_final, final), (f"best scored file {best[1]}", best[0], np.round(L.V[best[1]].copy(), 6))]
+    cands = [("refit", est_final, final, 0.0), (f"best scored file {best[1]}", best[0], np.round(L.V[best[1]].copy(), 6), 0.0)]
     report["transfer_update"] = []
     for tu in transfer_updates(L):
         v = tu["vector"].copy()
@@ -1047,23 +1051,24 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
             + ", ".join(f"{x:+.2f}" for x in tu["coordinates"])
             + f"; expected public RMSE {tu['expected_rmse']:.6f} +- {tu['sd_rmse']:.6f}, P(beats best) {tu['p_beats_best']:.2f}")
         if tu["p_beats_best"] >= 0.75:
-            cands.append((tu["label"], tu["expected_rmse"], v))
+            cands.append((tu["label"], tu["expected_rmse"], v, tu["sd_rmse"]))
         report["transfer_update"].append({k_: v_ for k_, v_ in tu.items() if k_ != "vector"})
     if any(label_group(n) == "transfer" for n in L.s):
         # Large in-span refits are scored by the same public-curvature assumption that failed: keep them out once
         # transfer files exist, and trust the measured local update or the best scored file.
         cands = [c_ for c_ in cands if c_[0] != "refit"]
-    choice = min(cands, key=lambda c: c[1])
+    # the lowest pessimistic score (expected + 1 sd): a large move along weakly measured directions must earn its risk
+    choice = min(cands, key=lambda c: c[1] + c[3])
     final = choice[2]
     rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
-    log(f"  chosen: {choice[0]} (estimated public RMSE {choice[1]:.6f})")
+    log(f"  chosen: {choice[0]} (estimated public RMSE {choice[1]:.6f} +- {choice[3]:.6f})")
     report["aggregate_fit"] = dict(report.get("aggregate_fit", {}), chosen=choice[0], chosen_est=choice[1])
     log(f"  scorecard ratios (zero-score leaders: rural 2.23-2.38, tribal 2.79-2.97): {rat}")
     report["aggregate_fit"] = dict(report.get("aggregate_fit", {}), hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])],
                                    est_public_refit=est_final, best_scored=dict(file=best[1], rmse=best[0]), ratios=rat)
     sources = TRANSFER_SOURCE if isinstance(TRANSFER_SOURCE, list) else [TRANSFER_SOURCE]
-    if TRANSFER > 0 and all(os.path.exists(f_) for f_ in sources):
-        lb_phys = sum(pd.read_csv(f_, dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"] for f_ in sources) / len(sources)
+    if TRANSFER > 0 and all(os.path.exists(out(f_)) for f_ in sources):
+        lb_phys = sum(pd.read_csv(out(f_), dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"] for f_ in sources) / len(sources)
         final = np.round(transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report, choice[1]), 6)
         rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
         report["aggregate_fit"]["ratios_after_transfer"] = rat
@@ -1112,7 +1117,7 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
     sw = np.sqrt(w)[:, None]
     pos = pd.Series(np.arange(len(df)), index=df["GEOID"].to_numpy())[L.geoid].to_numpy()
     cands = {}
-    for tag, path, sc in [("physics", "physics_report.json", False), ("physics_scorecard", "physics_scorecard_report.json", True)]:
+    for tag, path, sc in [("physics", out("physics_report.json"), False), ("physics_scorecard", out("physics_scorecard_report.json"), True)]:
         contrib, ey = physics_contributions(df, path, sc)
         log(f"  {tag}: components rebuilt (sum matches the model to {np.abs(sum(contrib.values()) - ey).max():.1e})")
         for k, v in contrib.items():
@@ -1135,13 +1140,13 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
             resid[j] = resid[j] - (w @ (resid[j] * e)) * e
     best = min((s_, n) for n, s_ in L.s.items() if not n.startswith(("probe_", "p")))
     base = L.V[best[1]]
-    os.makedirs("probes", exist_ok=True)
+    os.makedirs(out("probes"), exist_ok=True)
     manifest = []
     for i, (k, e, size) in enumerate(chosen, 1):
         v = base.copy()
         v[g] = np.clip(base[g] + step * e, 0, 1)
         name = f"q{i:02d}_{k.replace(':', '_')}"
-        path = os.path.join("probes", f"{name}.csv")
+        path = os.path.join(out("probes"), f"{name}.csv")
         pd.DataFrame({"GEOID": L.geoid, "coverage_gap_score": np.round(v, 6)}).to_csv(path, index=False)
         no_signal = float(np.sqrt(best[0] ** 2 + L.AP((v[g] - base[g]) ** 2)))
         manifest.append(dict(file=path, label_name=f"{name}.csv", direction=k, base=best[1], base_rmse=best[0], step_rms=step,
@@ -1149,7 +1154,7 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
                              expected_rmse_if_like_physics=float(np.sqrt(max(best[0] ** 2 - 2 * step * 0.003 + step ** 2, 0)))))
         log(f"  {path}: {k} (new part RMS {size:.4f}); expected score {no_signal:.6f} if the direction is empty, "
             f"{manifest[-1]['expected_rmse_if_like_physics']:.6f} if it carries signal like the physics directions")
-    with open(os.path.join("probes", "manifest.json"), "w") as f:
+    with open(os.path.join(out("probes"), "manifest.json"), "w") as f:
         json.dump(manifest, f, indent=2)
     return manifest
 
@@ -1157,9 +1162,9 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.3      # flexible directions measured coefficients of about 0.5, 0.4 and 0.85; the region-specific flexible model
-                    # (200 parameters, 78 labels) has a new unscored part (RMS 0.0046) nearly orthogonal to them: bet 0.3 x it.
-TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex20_rflex.csv"
+TRANSFER = 0.0      # no bet: recalibrated on 80 labels the wider flexible model has little unscored left (RMS 0.0019, worth
+                    # about +-0.00001); the region-specific direction measured about -0.7 and is taken by the update instead
+TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex20.csv"   # in outputs/
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
 
@@ -1193,13 +1198,13 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     best = min((s_, n) for n, s_ in L.s.items() if not n.startswith("probe_"))
     _, parts, _ = eb_posterior(L, names, L.V[best[1]][g])
     set_priors(True, regional, structural, unmatched, covariates, flex, flex_regional)
-    with open("physics_scorecard_report.json") as f:
+    with open(out("physics_scorecard_report.json")) as f:
         start = {p["parameter"]: p["posterior"] for p in json.load(f)["calibration"]["parameters"]}
     warm = ["physics_lb_struct_report.json", "physics_lb_struct_unmatched_report.json", "physics_lb_struct_regional_report.json",
             "physics_lb_struct_unmatched_regional_report.json"] + (["physics_lb_struct_unmatched_regional_flex_report.json",
                                                          f"physics_lb_struct_unmatched_regional{flex_suffix(flex)}_report.json"] if flex else [])
     warm += [f"physics_lb_struct_unmatched_regional{flex_suffix(flex)}_rflex_report.json"] if flex and flex_regional else []
-    for wf in warm if structural else []:
+    for wf in map(out, warm) if structural else []:
         if os.path.exists(wf):
             with open(wf) as f:                                           # warm start from the fitted smaller models
                 start.update({p["parameter"]: p["fitted"] for p in json.load(f)["parameters"]})
@@ -1221,7 +1226,7 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     out_csv = ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "")
                + ("_regional" if regional else "") + ("_covar" if covariates else "") + (flex_suffix(flex) if flex else "")
                + ("_rflex" if flex_regional else "") + ".csv")
-    pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out_csv, index=False)
+    pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out(out_csv), index=False)
     v = L.V[best[1]].copy()
     v[g] = pred[pos][g]
     est = estimate(L, v)
@@ -1236,7 +1241,8 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
     return pred
 
 
-def transfer_updates(L, draws=200000, min_rms=0.001, proj_scale=0.005, seed=0, k_median=None, k_sd=0.35, coord_sd=3.0):
+def transfer_updates(L, draws=1000000, block=100000, min_rms=0.001, proj_scale=0.005, seed=0, k_median=None, k_sd=0.35,
+                     coord_sd=3.0):
     """Local Bayesian update around the anchor (the best file scored before the first transfer label).
 
     Every transfer file is a displacement D_k from the anchor, and its public MSE is exactly
@@ -1244,10 +1250,12 @@ def transfer_updates(L, draws=200000, min_rms=0.001, proj_scale=0.005, seed=0, k
     The linear terms are what the scores measure. The quadratic term is the mean of D_k^2 over the unknown public rows.
     Estimated weights get it wrong for large, concentrated moves: every measured direction has shown public curvature
     1.0-1.6x the estimate. So the curvature along the main directions (each displacement's new part with RMS >= min_rms)
-    gets a prior: log-normal scales with median CURVATURE and sd k_sd, and correlations N(0, 0.3^2). Each prior draw fits the linear terms to
-    all transfer scores by weighted least squares and is weighted by how well it reproduces them. A file's score is
-    exact except for its part outside the main directions (a small bet, clipping): its noise is
-    2 x proj_scale x RMS(that part) in MSE units. The update minimises the posterior expected MSE: x* = E[C]^-1 E[G]."""
+    gets a prior: log-normal scales with median CURVATURE and sd k_sd, and correlations N(0, 0.3^2). Each coordinate gets
+    a prior x ~ N(0, coord_sd^2), so a direction measured by one small step is shrunk instead of extrapolated. A file's
+    score is exact except for its part outside the main directions (a small bet, clipping): its noise is
+    2 x proj_scale x RMS(that part) in MSE units. Prior draws (in blocks, two passes with the same seeds) are weighted by
+    the marginal likelihood of all transfer scores. Candidates: the full update x* = E[C]^-1 E[G], and the best scored
+    file with only its newest one or two directions moved (the others held where they were scored)."""
     g = L.graded
     order = list(L.s)
     names = [n for n in order if label_group(n) == "transfer"]
@@ -1268,58 +1276,75 @@ def transfer_updates(L, draws=200000, min_rms=0.001, proj_scale=0.005, seed=0, k
     rest = [D - sum((xj * e for xj, e in zip(xk, E)), np.zeros_like(D)) for D, xk in zip(Ds, X)]
     sd = np.array([2 * proj_scale * np.sqrt(w @ r_ ** 2) + 1e-7 for r_ in rest])        # per-file noise (MSE units)
     c = np.array([[L.AP(ei * ej) for ej in E] for ei in E])
-    rng = np.random.default_rng(seed)
-    k = np.exp(rng.normal(np.log(CURVATURE if k_median is None else k_median), k_sd, (draws, K)))
-    R = np.tile(np.eye(K), (draws, 1, 1))
-    iu = np.triu_indices(K, 1)
-    corr = rng.normal(0, 0.3, (draws, len(iu[0])))
-    R[:, iu[0], iu[1]] = corr
-    R[:, iu[1], iu[0]] = corr
     sq = np.sqrt(np.diag(c))
-    C = R * (k[:, :, None] * k[:, None, :]) ** 0.5 * np.outer(sq, sq)[None]             # draw x K x K
-    q = np.einsum("nk,dkl,nl->dn", X, C, X)                                               # draw x files
-    rhs = (q - (M - ma)[None]) / 2                                                        # = X G
+    iu = np.triu_indices(K, 1)
     Wf = 1 / sd ** 2
     P = np.linalg.solve(X.T @ (X * Wf[:, None]), (X * Wf[:, None]).T)                    # K x files, weighted LS
-    G = rhs @ P.T
-    res = rhs - G @ X.T
-    logw = -0.5 * np.sum((2 * res / sd[None]) ** 2, axis=1)
-    if coord_sd is not None:
-        # prior on each coordinate, x ~ N(0, coord_sd^2 I), so G = C x ~ N(0, coord_sd^2 C C) in each draw: a direction measured
-        # by one small step is shrunk instead of extrapolated. Draws are weighted by the marginal likelihood of the scores.
-        Sg = coord_sd ** 2 * C @ C                                                       # draw x K x K
+
+    def chunk(i):
+        """One block of prior draws: curvature C, the projections G it implies, and the log weight of the draw."""
+        rng = np.random.default_rng([seed, i])
+        k = np.exp(rng.normal(np.log(CURVATURE if k_median is None else k_median), k_sd, (block, K)))
+        R = np.tile(np.eye(K), (block, 1, 1))
+        corr = rng.normal(0, 0.3, (block, len(iu[0])))
+        R[:, iu[0], iu[1]] = corr
+        R[:, iu[1], iu[0]] = corr
+        C = R * (k[:, :, None] * k[:, None, :]) ** 0.5 * np.outer(sq, sq)[None]         # draw x K x K
+        rhs = (np.einsum("nk,dkl,nl->dn", X, C, X) - (M - ma)[None]) / 2                # = X G
+        if coord_sd is None:
+            G = rhs @ P.T
+            logw = -0.5 * np.sum((2 * (rhs - G @ X.T) / sd[None]) ** 2, axis=1)
+            return k, C, G, logw
+        Sg = coord_sd ** 2 * C @ C                                                       # prior covariance of G = C x
         Sr = X @ Sg @ X.T + np.diag(sd ** 2 / 4)[None]                                   # draw x files x files
         Lc = np.linalg.cholesky(Sr)
         z = np.linalg.solve(Lc, rhs[:, :, None])[:, :, 0]
         logw = -0.5 * np.sum(z ** 2, axis=1) - np.log(np.diagonal(Lc, axis1=1, axis2=2)).sum(1)
         G = np.einsum("dkl,nl,dn->dk", Sg, X, np.linalg.solve(Sr, rhs[:, :, None])[:, :, 0])
-    wt = np.exp(logw - logw.max())
-    wt /= wt.sum()
-    EC, EG = np.einsum("d,dkl->kl", wt, C), wt @ G
-    x = np.linalg.solve(EC, EG)
+        return k, C, G, logw
+
+    nb = max(draws // block, 1)
+    acc = []
+    for i in range(nb):                                                                   # pass 1: posterior moments
+        k, C, G, logw = chunk(i)
+        m_ = logw.max()
+        wi = np.exp(logw - m_)
+        acc.append((m_, wi.sum(), (wi ** 2).sum(), np.einsum("d,dkl->kl", wi, C), wi @ G, wi @ k))
+    top = max(t[0] for t in acc)
+    sc = [np.exp(t[0] - top) for t in acc]
+    W0 = sum(s_ * t[1] for s_, t in zip(sc, acc))
+    EC, EG = (sum(s_ * t[3] for s_, t in zip(sc, acc)) / W0, sum(s_ * t[4] for s_, t in zip(sc, acc)) / W0)
+    Ek = sum(s_ * t[5] for s_, t in zip(sc, acc)) / W0
+    eff = float(W0 ** 2 / sum(s_ ** 2 * t[2] for s_, t in zip(sc, acc)))
     best_name = min((n for n in order if not n.startswith("probe_")), key=L.s.get)
     best_scored = L.s[best_name]
 
-    def outcome(x, label, v):
-        mse = ma + np.einsum("k,dkl,l->d", x, C, x) - 2 * G @ x
-        exp_mse = float(wt @ mse)
-        return dict(label=label, anchor=anchor, directions=K, coordinates=x.tolist(), expected_rmse=float(np.sqrt(exp_mse)),
-                    sd_rmse=float(np.sqrt(wt @ (mse - exp_mse) ** 2) / (2 * np.sqrt(exp_mse))),
-                    p_beats_best=float(wt @ (mse < best_scored ** 2)), effective_draws=float(1 / (wt ** 2).sum()),
-                    curvature_scale=(wt @ k).tolist(), vector=np.round(v, 6))
-
+    cands = []
+    x = np.linalg.solve(EC, EG)
     v = L.V[anchor].copy()
     v[g] = np.clip(a + sum(xi * e for xi, e in zip(x, E)), 0, 1)
-    out = [outcome(x, f"local Bayesian update around {anchor}", v)]
+    cands.append((f"local Bayesian update around {anchor}", x, v))
     if best_name in names:
-        # the best scored file with only the newest direction moved to its optimum (the others held where they were scored):
-        # exploits the latest measurement without leaning on weakly measured old directions
-        xb = X[names.index(best_name)].copy()
-        xn = xb.copy()
-        xn[-1] = (EG[-1] - EC[-1, :-1] @ xb[:-1]) / EC[-1, -1]
-        v = L.V[best_name].copy()
-        v[g] = np.clip(v[g] + (xn[-1] - xb[-1]) * E[-1], 0, 1)
-        out.append(outcome(xn, f"{best_name} with the newest direction at {xn[-1]:.2f}x", v))
+        xb = X[names.index(best_name)]
+        for nf in (1, 2):
+            f, h = np.arange(K - nf, K), np.arange(K - nf)
+            xn = xb.copy()
+            xn[f] = np.linalg.solve(EC[np.ix_(f, f)], EG[f] - EC[np.ix_(f, h)] @ xb[h])
+            v = L.V[best_name].copy()
+            v[g] = np.clip(v[g] + sum((xn[j] - xb[j]) * E[j] for j in f), 0, 1)
+            cands.append((f"{best_name} with its newest {nf} direction(s) at " + ", ".join(f"{xn[j]:.2f}x" for j in f), xn, v))
+    stats = np.zeros((len(cands), 3))
+    for i in range(nb):                                                                   # pass 2: outcomes of each candidate
+        k, C, G, logw = chunk(i)
+        wi = np.exp(logw - top)
+        for j, (_, xc, _) in enumerate(cands):
+            mse = ma + np.einsum("k,dkl,l->d", xc, C, xc) - 2 * G @ xc
+            stats[j] += [wi @ mse, wi @ mse ** 2, wi @ (mse < best_scored ** 2)]
+    out = []
+    for (label, xc, v), (s1, s2, pb) in zip(cands, stats / W0):
+        out.append(dict(label=label, anchor=anchor, directions=K, coordinates=xc.tolist(), expected_rmse=float(np.sqrt(s1)),
+                        sd_rmse=float(np.sqrt(max(s2 - s1 ** 2, 0)) / (2 * np.sqrt(s1))), p_beats_best=float(pb),
+                        effective_draws=eff, curvature_scale=Ek.tolist(), vector=np.round(v, 6)))
     return out
 
 
@@ -1354,9 +1379,9 @@ def main():
     ap.add_argument("--out", default="submission.csv", help="submission path")
     ap.add_argument("--draws", type=int, default=512, help="Monte Carlo draws per tract during calibration")
     ap.add_argument("--add-label", nargs=3, metavar=("NAME", "FILE", "RMSE"), help="append a scored file to the labels and exit")
-    ap.add_argument("--fit-only", action="store_true", help="stage 8 only, reading the physics model from physics.csv")
+    ap.add_argument("--fit-only", action="store_true", help="stage 8 only, reading the physics model from outputs/physics.csv")
     ap.add_argument("--probes", type=int, default=0, metavar="K", help="write K probe files to probes/ and exit")
-    ap.add_argument("--calibrate-physics", action="store_true", help="stage 10: physics calibrated on the labels -> physics_lb.csv")
+    ap.add_argument("--calibrate-physics", action="store_true", help="stage 10: physics calibrated on the labels -> outputs/physics_lb*.csv")
     ap.add_argument("--regional", action="store_true", help="with --calibrate-physics: add per-region multipliers")
     ap.add_argument("--structural", action="store_true", help="with --calibrate-physics: facility leakage and road-frame mechanisms")
     ap.add_argument("--unmatched", action="store_true", help="with --calibrate-physics: reference facilities outside the category match")
@@ -1368,7 +1393,8 @@ def main():
     if args.add_label:
         add_label(*args.add_label)
         return
-    physics_path = "physics_scorecard.csv" if args.scorecard else "physics.csv"
+    physics_path = out("physics_scorecard.csv" if args.scorecard else "physics.csv")
+    os.makedirs(OUT, exist_ok=True)
     set_priors(args.scorecard)
     t0 = time.time()
     clock = lambda: f"{time.time() - t0:.0f}s"
@@ -1384,9 +1410,9 @@ def main():
         name = ("physics_lb" + ("_struct" if args.structural else "") + ("_unmatched" if args.unmatched else "")
                 + ("_regional" if args.regional else "") + ("_covar" if args.covariates else "") + (flex_suffix(args.flex_sd) if args.flex else "")
                 + ("_rflex" if args.flex and args.flex_regional else ""))
-        with open(f"{name}_report.json", "w") as f:
+        with open(out(f"{name}_report.json"), "w") as f:
             json.dump(rep, f, indent=2, default=float)
-        log(f"Wrote {name}.csv and {name}_report.json ({clock()})")
+        log(f"Wrote {out(name)}.csv and {out(name)}_report.json ({clock()})")
         return
     if args.probes:
         df, _ = load()
@@ -1395,11 +1421,11 @@ def main():
         return
     if args.fit_only:
         df, groups = load()
-        phys = pd.read_csv("physics.csv", dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
+        phys = pd.read_csv(physics_path, dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
         pred = phys.loc[df["GEOID"]].to_numpy(float)
         log("8/8 aggregate labels (stage 8 only; physics model read from physics.csv)")
         aggregate_label_fit(df, groups, pred, args.out, report, do_forward=not args.no_forward)
-        with open("submission_report.json", "w") as f:
+        with open(out("submission_report.json"), "w") as f:
             json.dump(report, f, indent=2, default=float)
         log(f"Wrote {args.out} ({clock()})")
         return
@@ -1482,8 +1508,8 @@ def main():
     if not (args.physics_only or args.scorecard):
         log("8/8 aggregate labels (public RMSE of the scored files)")
         report8 = {}
-        final_l = aggregate_label_fit(df, groups, pred, args.out, report8, do_forward=not args.no_forward)
-        with open("submission_report.json", "w") as f:
+        final_l = aggregate_label_fit(df, groups, np.round(pred, 6), args.out, report8, do_forward=not args.no_forward)  # = physics.csv
+        with open(out("submission_report.json"), "w") as f:
             json.dump(report8, f, indent=2, default=float)
         final = pd.Series(final_l, index=AggregateLabels().geoid.to_numpy())[df["GEOID"].to_numpy()].to_numpy()
         log(f"Wrote {args.out} ({clock()})")

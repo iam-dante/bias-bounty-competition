@@ -1,7 +1,7 @@
 # Best Bias Discovery: the map is only as complete as its upstream feed
 
-Zindi user: **iam-dante**. Reproduce with `python train.py --discovery`, which writes `discovery.csv`,
-`discovery_svi_control.csv` and `discovery_examples.csv`. It uses challenge data only: Overture places with
+Zindi user: **iam-dante**. Reproduce with `python train.py --discovery`, which writes `outputs/discovery.csv`,
+`outputs/discovery_svi_control.csv` and `outputs/discovery_examples.csv`. It uses challenge data only: Overture places with
 their `sources` and `categories`, the strata tables and the tract boundaries. The gap estimates come from the
 final model in [METHOD.md](METHOD.md) (estimated public RMSE 0.0616). That model reproduces the official
 scorecard ratios within about 0.1.

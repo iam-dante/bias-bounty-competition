@@ -3,7 +3,7 @@
 Zindi user **iam-dante**. One script, [`train.py`](train.py), goes from the public challenge data to
 `submission.csv` in two parts:
 
-- **Stages 1–7, the physics model** (`physics.csv`). It uses only the permitted data and the organisers'
+- **Stages 1–7, the physics model** (`outputs/physics.csv`). It uses only the permitted data and the organisers'
   published statistics. Scored alone, it gets 0.101340.
 - **Stage 8, learning from aggregate labels** (`submission.csv`). The public RMSE of the 65 submitted files
   (`aggregate_labels.npz`) are treated as exact aggregate measurements of the hidden target, and one posterior
@@ -132,7 +132,7 @@ There are no labels, so validation checks what can be checked:
   - These are the choices to refine first.
 - **Monte Carlo stability:** RMS 0.0016 between two independent 4,096-draw runs, with fixed seeds.
 
-## 7. Physics prediction (stage 7, `physics.csv`)
+## 7. Physics prediction (stage 7, `outputs/physics.csv`)
 
 `E[score | data, θ_MAP]` with 4,096 draws per tract, clipped to [0, 1]. Scored 0.101340 public RMSE.
 
@@ -248,7 +248,7 @@ target's projection on that direction, to about ±0.001 (public-sampling noise).
 - If it carries signal like the physics directions did, it gains about the same.
 
 The scores enter stage 8 as labels, so the next fit re-weights each component by how strongly the truth agrees
-with it. The first batch (`probes/manifest.json`):
+with it. The first batch (`outputs/probes/manifest.json` when rerun; the probe files are no longer kept):
 
 | Probe | Component | New part (RMS) |
 |---|---|---:|
@@ -606,6 +606,27 @@ deviation (prior sd 0.1): 200 parameters in all.
   | 0 | 0.05887 |
   | −0.3 | 0.05890 |
 
+**Result:** it scored **0.058936**, worse than the best and beyond the −0.3 case. With prior sd 0.1 on 112
+per-region deviations, the region-specific model over-fitted: its unscored part runs against the truth (about
+−0.7). The wider global flexible model (+0.85) is the one that extrapolates.
+
+**The update is now stable and risk-aware.**
+
+- **Stability.** With 12 transfer scores, the posterior over the public curvature is sharp: only 20–130 of
+  200,000 prior draws carry weight. The previous file's estimate therefore had real Monte Carlo error. The update
+  now uses 1,000,000 draws in blocks, in two passes with the same seeds.
+- **Risk.** The candidates are the full update and the best scored file with its newest one or two directions
+  moved. Stage 8 now picks the lowest *pessimistic* score (mean + 1 sd), not the lowest mean:
+
+  | Candidate | Expected | P(beats 0.058866) |
+  |---|---:|---:|
+  | Full update over 9 directions | 0.05876 ± 0.00009 (0.05875–0.05879 across seeds, sd up to 0.00015) | 0.76–0.89 |
+  | Best, newest direction at −1.6× | 0.05881 ± 0.00004 | 0.87–0.93 |
+  | **Best, newest two at 2.26× and −1.64×** | **0.058791 ± 0.000044** | **0.88–0.97** |
+
+- **No new bet.** Recalibrated on 80 labels, the wider flexible model estimates 0.0609 on its own (the best physics
+  model), but its unscored part is only RMS 0.0019.
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
@@ -625,14 +646,14 @@ deviation (prior sd 0.1): 200 parameters in all.
 ## 10. Options
 
 - `--physics-only`: stop after stage 7.
-- `--fit-only`: stage 8 only, reading `physics.csv`.
-- `--probes K`: stage 9, which writes K probe files and `probes/manifest.json`.
+- `--fit-only`: stage 8 only, reading `outputs/physics.csv`.
+- `--probes K`: stage 9, which writes K probe files and a manifest to `outputs/probes/`.
 - `--add-label NAME FILE RMSE`: record a scored file as a new label.
-- `--calibrate-physics`: stage 10, which writes `physics_lb.csv` and its report. With `--structural`,
+- `--calibrate-physics`: stage 10, which writes `outputs/physics_lb*.csv` and its report. With `--structural`,
   `--unmatched`, `--regional`, `--covariates` and `--flex` it adds the mechanisms of §8c; each adds a suffix to
   the output name.
 - `--scorecard`: a physics variant that also calibrates 16 stratum effects on the public Bias Scorecard (the
-  rank-1 entry's 9 ratios, tolerance 0.03). Writes `physics_scorecard.csv`, which scored 0.086862 and is one
+  rank-1 entry's 9 ratios, tolerance 0.03). Writes `outputs/physics_scorecard.csv`, which scored 0.086862 and is one
   of the aggregate labels.
 - `--discovery`: writes the Best Bias Discovery tables ([BIAS_DISCOVERY.md](BIAS_DISCOVERY.md)).
 
