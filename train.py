@@ -1057,8 +1057,10 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
         # Large in-span refits are scored by the same public-curvature assumption that failed: keep them out once
         # transfer files exist, and trust the measured local update or the best scored file.
         cands = [c_ for c_ in cands if c_[0] != "refit"]
-    # the lowest pessimistic score (expected + 1 sd): a large move along weakly measured directions must earn its risk
-    choice = min(cands, key=lambda c: c[1] + c[3])
+    # the scored best file is never resubmitted (it measures nothing); among the moves whose mean beats it, take the lowest
+    # risk-adjusted score (mean + sd / 2): a large move along weakly measured directions must earn its risk
+    moves = [c_ for c_ in cands if not c_[0].startswith("best scored file") and c_[1] < best[0]]
+    choice = min(moves, key=lambda c: c[1] + c[3] / 2) if moves else cands[-1 if len(cands) == 1 else 0]
     final = choice[2]
     rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
     log(f"  chosen: {choice[0]} (estimated public RMSE {choice[1]:.6f} +- {choice[3]:.6f})")
@@ -1066,12 +1068,16 @@ def aggregate_label_fit(df, groups, physics, out_path, report, do_forward=True):
     log(f"  scorecard ratios (zero-score leaders: rural 2.23-2.38, tribal 2.79-2.97): {rat}")
     report["aggregate_fit"] = dict(report.get("aggregate_fit", {}), hyper=hyper, washington_affine=[float(a_b[0]), float(a_b[1])],
                                    est_public_refit=est_final, best_scored=dict(file=best[1], rmse=best[0]), ratios=rat)
-    sources = TRANSFER_SOURCE if isinstance(TRANSFER_SOURCE, list) else [TRANSFER_SOURCE]
+    sources = [lb_name(**LOOP_MODEL) + ".csv"]
+    bet = 0.0
     if TRANSFER > 0 and all(os.path.exists(out(f_)) for f_ in sources):
         lb_phys = sum(pd.read_csv(out(f_), dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"] for f_ in sources) / len(sources)
-        final = np.round(transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report, choice[1]), 6)
+        final, bet = transfer_step(L, final, lb_phys.loc[L.geoid].to_numpy(float), report, choice[1], sources[0])
+        final = np.round(final, 6)
         rat = {k: round(float(final[h].mean() / final[l].mean()), 3) for k, (h, l) in grp_l.items()}
         report["aggregate_fit"]["ratios_after_transfer"] = rat
+    n_loop = sum(n.startswith("tr_loop") for n in L.s) + 1
+    report["next_label"] = f"tr_loop{n_loop:02d}_{round(100 * bet):03d}.csv"
     if do_forward:
         fv = forward_validation(L)
         old_files = ~fv.file.str.startswith("fs_")
@@ -1162,9 +1168,11 @@ def make_probes(df, K=5, step=PROBE_STEP, min_rms=0.002):
 # ================================================================================================
 # 10. PHYSICS CALIBRATED ON THE AGGREGATE LABELS
 # ================================================================================================
-TRANSFER = 0.0      # no bet: recalibrated on 80 labels the wider flexible model has little unscored left (RMS 0.0019, worth
-                    # about +-0.00001); the region-specific direction measured about -0.7 and is taken by the update instead
-TRANSFER_SOURCE = "physics_lb_struct_unmatched_regional_flex20.csv"   # in outputs/
+LOOP_MODEL = dict(structural=True, unmatched=True, regional=True, flex=0.2)   # the physics model --round recalibrates
+TRANSFER = 0.3      # share of that model's unscored part added to the next file as a measured bet (flexible directions have
+                    # measured +0.5, +0.4, +0.85; the region-specific one -0.7, so it is not in the loop)
+MIN_BET_STEP = 0.0012   # the bet's step is at least this RMS, so the next update can measure it (its direction cut-off is 0.001)
+MAX_BET_SHARE = 0.5     # ... but never more than half the unscored part: smaller parts are skipped
 CURVATURE = 1.3     # public-row curvature scale measured from the transfer files (1.2-1.4), used for expected outcomes
 
 
@@ -1223,9 +1231,7 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
         f"{parts['Q'].shape[1]} score moments {chi(m0, sd0)[k0:].sum():.1f} -> {chi(m, sd)[k0:].sum():.1f}")
     sim = predict(F, th)
     pred = np.clip(sim["Ey"], 0, 1)
-    out_csv = ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "")
-               + ("_regional" if regional else "") + ("_covar" if covariates else "") + (flex_suffix(flex) if flex else "")
-               + ("_rflex" if flex_regional else "") + ".csv")
+    out_csv = lb_name(structural, unmatched, regional, covariates, flex, flex_regional) + ".csv"
     pd.DataFrame({"GEOID": df["GEOID"], "coverage_gap_score": np.round(pred, 6)}).to_csv(out(out_csv), index=False)
     v = L.V[best[1]].copy()
     v[g] = pred[pos][g]
@@ -1348,8 +1354,9 @@ def transfer_updates(L, draws=1000000, block=100000, min_rms=0.001, proj_scale=0
     return out
 
 
-def transfer_step(L, base, physics_lb, report, base_rmse):
-    """Add TRANSFER x the part of the label-calibrated physics that no scored file contains."""
+def transfer_step(L, base, physics_lb, report, base_rmse, source):
+    """Add TRANSFER x the part of the label-calibrated physics that no scored file contains, when it is large enough
+    to be measured by its step (at least MIN_BET_STEP RMS, at most MAX_BET_SHARE of it). Returns the file and the share."""
     g = L.graded
     w = L.pi / L.pi.sum()
     sw = np.sqrt(w)[:, None]
@@ -1357,16 +1364,43 @@ def transfer_step(L, base, physics_lb, report, base_rmse):
     Qx, _ = np.linalg.qr(X * sw)
     d = physics_lb[g] - base[g]
     u = d - (Qx @ (Qx.T @ (d[:, None] * sw)))[:, 0] / sw[:, 0]
-    out = base.copy()
-    out[g] = np.clip(base[g] + TRANSFER * u, 0, 1)
     size = float(np.sqrt(w @ u ** 2))
-    outcomes = {f"coef_{b:+.1f}": float(np.sqrt(max(base_rmse ** 2 + size ** 2 * (CURVATURE * TRANSFER ** 2 - 2 * TRANSFER * b), 0)))
+    share = max(TRANSFER, MIN_BET_STEP / max(size, 1e-12))
+    if share > MAX_BET_SHARE:
+        log(f"  no bet: the unscored part of {source} is RMS {size:.4f}, too small for a measurable step")
+        report["transfer"] = dict(share=0.0, unscored_rms=size)
+        return base, 0.0
+    out_ = base.copy()
+    out_[g] = np.clip(base[g] + share * u, 0, 1)
+    outcomes = {f"coef_{b:+.1f}": float(np.sqrt(max(base_rmse ** 2 + size ** 2 * (CURVATURE * share ** 2 - 2 * share * b), 0)))
                 for b in (-0.3, 0.0, 0.3, 0.5)}
-    log(f"  transfer step: {TRANSFER} x the unscored part of {' + '.join(TRANSFER_SOURCE) if isinstance(TRANSFER_SOURCE, list) else TRANSFER_SOURCE}"
-        f" (RMS {size:.4f}); expected public RMSE by the "
+    log(f"  transfer step: {share:.2f} x the unscored part of {source} (RMS {size:.4f}); expected public RMSE by the "
         f"truth's coefficient along it: " + ", ".join(f"{k[5:]} -> {v:.6f}" for k, v in outcomes.items()))
-    report["transfer"] = dict(share=TRANSFER, unscored_rms=size, expected=outcomes)
-    return out
+    report["transfer"] = dict(share=share, unscored_rms=size, expected=outcomes)
+    return out_, share
+
+
+def lb_name(structural=False, unmatched=False, regional=False, covariates=False, flex=False, flex_regional=False):
+    """File stem of a label-calibrated physics model (in outputs/)."""
+    return ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "") + ("_regional" if regional else "")
+            + ("_covar" if covariates else "") + (flex_suffix(flex) if flex else "") + ("_rflex" if flex_regional else ""))
+
+
+def file_md5(path):
+    import hashlib
+    with open(path, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()
+
+
+def write_stage8(df, groups, pred, out_path, report, do_forward):
+    """Stage 8, then the report: what was chosen, the next label's name and the file's checksum (so --round can check
+    that the scored file is the one stage 8 wrote)."""
+    final = aggregate_label_fit(df, groups, pred, out_path, report, do_forward=do_forward)
+    report["file"], report["file_md5"] = out_path, file_md5(out_path)
+    with open(out("submission_report.json"), "w") as f:
+        json.dump(report, f, indent=2, default=float)
+    log(f"  next label: when {out_path} is scored, run  python train.py --round <public RMSE>  (records it as {report['next_label']})")
+    return final
 
 
 def main():
@@ -1379,6 +1413,7 @@ def main():
     ap.add_argument("--out", default="submission.csv", help="submission path")
     ap.add_argument("--draws", type=int, default=512, help="Monte Carlo draws per tract during calibration")
     ap.add_argument("--add-label", nargs=3, metavar=("NAME", "FILE", "RMSE"), help="append a scored file to the labels and exit")
+    ap.add_argument("--round", type=float, metavar="RMSE", help="one loop round: record the score of the uploaded submission, recalibrate the loop physics model on all labels, write the next submission")
     ap.add_argument("--fit-only", action="store_true", help="stage 8 only, reading the physics model from outputs/physics.csv")
     ap.add_argument("--probes", type=int, default=0, metavar="K", help="write K probe files to probes/ and exit")
     ap.add_argument("--calibrate-physics", action="store_true", help="stage 10: physics calibrated on the labels -> outputs/physics_lb*.csv")
@@ -1400,19 +1435,32 @@ def main():
     clock = lambda: f"{time.time() - t0:.0f}s"
     report = {"inputs": "challenge data, organiser-published statistics, and (stage 8) the public RMSE of 65 submitted files"}
 
-    if args.calibrate_physics:
+    def stage10(model):
         df, groups = load()
         log("10 physics calibrated on the aggregate labels (published statistics + scorecard + score moments)")
         rep = {}
-        calibrate_physics_on_labels(df, groups, rep, regional=args.regional, structural=args.structural, unmatched=args.unmatched,
-                                    covariates=args.covariates, flex=args.flex and args.flex_sd,
-                                    flex_regional=args.flex and args.flex_regional)
-        name = ("physics_lb" + ("_struct" if args.structural else "") + ("_unmatched" if args.unmatched else "")
-                + ("_regional" if args.regional else "") + ("_covar" if args.covariates else "") + (flex_suffix(args.flex_sd) if args.flex else "")
-                + ("_rflex" if args.flex and args.flex_regional else ""))
+        calibrate_physics_on_labels(df, groups, rep, **model)
+        name = lb_name(**model)
         with open(out(f"{name}_report.json"), "w") as f:
             json.dump(rep, f, indent=2, default=float)
         log(f"Wrote {out(name)}.csv and {out(name)}_report.json ({clock()})")
+        return df, groups
+
+    if args.round is not None:
+        # one round of the loop: score -> label -> recalibrated physics -> stage 8 -> next submission
+        with open(out("submission_report.json")) as f:
+            last = json.load(f)
+        assert file_md5(args.out) == last["file_md5"], f"{args.out} is not the file stage 8 last wrote; record the score with --add-label"
+        add_label(last["next_label"], args.out, args.round)
+        df, groups = stage10(LOOP_MODEL)
+        phys = pd.read_csv(physics_path, dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
+        log("8/8 aggregate labels")
+        write_stage8(df, groups, phys.loc[df["GEOID"]].to_numpy(float), args.out, report, not args.no_forward)
+        log(f"Wrote {args.out} ({clock()})")
+        return
+    if args.calibrate_physics:
+        stage10(dict(regional=args.regional, structural=args.structural, unmatched=args.unmatched, covariates=args.covariates,
+                     flex=args.flex and args.flex_sd, flex_regional=args.flex and args.flex_regional))
         return
     if args.probes:
         df, _ = load()
@@ -1424,9 +1472,7 @@ def main():
         phys = pd.read_csv(physics_path, dtype={"GEOID": str}).set_index("GEOID")["coverage_gap_score"]
         pred = phys.loc[df["GEOID"]].to_numpy(float)
         log("8/8 aggregate labels (stage 8 only; physics model read from physics.csv)")
-        aggregate_label_fit(df, groups, pred, args.out, report, do_forward=not args.no_forward)
-        with open(out("submission_report.json"), "w") as f:
-            json.dump(report, f, indent=2, default=float)
+        write_stage8(df, groups, pred, args.out, report, not args.no_forward)
         log(f"Wrote {args.out} ({clock()})")
         return
 
@@ -1508,9 +1554,7 @@ def main():
     if not (args.physics_only or args.scorecard):
         log("8/8 aggregate labels (public RMSE of the scored files)")
         report8 = {}
-        final_l = aggregate_label_fit(df, groups, np.round(pred, 6), args.out, report8, do_forward=not args.no_forward)  # = physics.csv
-        with open(out("submission_report.json"), "w") as f:
-            json.dump(report8, f, indent=2, default=float)
+        final_l = write_stage8(df, groups, np.round(pred, 6), args.out, report8, not args.no_forward)   # = physics.csv
         final = pd.Series(final_l, index=AggregateLabels().geoid.to_numpy())[df["GEOID"].to_numpy()].to_numpy()
         log(f"Wrote {args.out} ({clock()})")
     if args.discovery:

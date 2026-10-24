@@ -71,25 +71,41 @@ The full history, with every experiment that did not help, is in [METHOD.md](MET
 
 ## The current `submission.csv`
 
-The best file (0.058866) with only its two newest measured directions moved to their optimum:
+The best file (0.058735) with its two newest measured directions moved further, to 2.68× (wider flexible) and
+−2.76× (region-specific, reversed), plus a measurable 0.45× bet on the recalibrated flexible model:
 
-- the wider flexible direction, 1× → **2.26×** (it measured about +0.85);
-- the region-specific direction, reversed to **−1.64×** (it measured about −0.7).
+| Bet direction's coefficient | Expected public RMSE |
+|---:|---:|
+| +0.5 | 0.058705 |
+| +0.3 | 0.058716 |
+| 0 | 0.058732 |
+| −0.3 | 0.058748 |
 
-Every other direction stays where it was scored. It scored **0.058735**, inside its band's lucky side (predicted
-**0.058791 ± 0.000044**, with a 97% chance of beating the best (0.88–0.97 across Monte Carlo seeds)). The full update over all nine directions has a slightly
-lower mean (0.05876), but its uncertainty is two to three times larger. Stage 8 picks the candidate with the
-lowest pessimistic score (mean + 1 sd).
+The move alone is expected at 0.058716 ± 0.000021 (P(beats best) 0.86). When it is scored, run
+`python train.py --round <score>`; it is recorded as `tr_loop01_045.csv`.
 
-There is no new bet: recalibrated on 80 labels, the wider flexible model has little unscored left (RMS 0.0019).
+## The loop: one command per score
 
-## After each score
+Upload `submission.csv`, then give the loop its public score:
 
 ```bash
-python train.py --add-label NAME submission.csv RMSE      # record the score as a label (copy the file first)
-python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2   # ~10 min
-python train.py --fit-only                                # stage 8 -> submission.csv
+python train.py --round 0.0587xxxxx
 ```
+
+That one command runs a full round (about 11 minutes):
+
+1. **Label.** It checks that `submission.csv` is the file stage 8 last wrote (checksum), then records it with its
+   score as the next label (the name is in `outputs/submission_report.json`).
+2. **Recalibrate.** It refits the loop physics model (the 88-parameter flexible model) on all labels.
+3. **Next file.** Stage 8 moves the measured directions to their optimum, and adds a 0.3× bet when the
+   recalibrated model has enough left unmeasured (RMS ≥ 0.003). It writes the next `submission.csv` and prints its
+   expected score.
+
+**Why each round needs a real score.** An expected score is only reliable one step past what has been measured.
+Re-running the prediction on its own output does not add information: the update is already at the optimum of what
+the scores know, and stepping further on the model's own guesses is how the one bad miss (0.060747) happened. Each
+upload measures one new direction exactly, and that measurement is what the next file exploits. The competition
+allows 5 uploads a day, so the loop can run up to 5 rounds a day.
 
 ## Options
 
@@ -100,7 +116,8 @@ python train.py --discovery           # Best Bias Discovery tables -> outputs/di
 python train.py --rebuild             # recompute the cached features
 python train.py --fit-only            # stage 8 only (reads outputs/physics.csv)
 python train.py --probes K            # stage 9: K probe files -> outputs/probes/
-python train.py --add-label NAME FILE RMSE
+python train.py --round RMSE          # one loop round (see above)
+python train.py --add-label NAME FILE RMSE   # record a score by hand
 python train.py --calibrate-physics [--structural --unmatched --regional --covariates --flex --flex-sd SD --flex-regional]
 ```
 
@@ -111,4 +128,4 @@ python train.py --calibrate-physics [--structural --unmatched --regional --covar
 - **Not used:** the withdrawn layers, any copy of them, and the participant-posted Paradise scores.
 - **Leaderboard:** stage 8 uses the leaderboard scores of our own files as aggregate labels. This is stated openly.
 - **Tooling:** open-source packages only (NumPy, pandas, SciPy, DuckDB, scikit-learn), fixed seeds, no AutoML.
-- The older chained pipeline is on the `main` branch.
+- `main` and `dev` hold the same tree; the older chained pipeline is in `main`'s history (merge 6090147).

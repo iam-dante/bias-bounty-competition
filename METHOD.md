@@ -627,6 +627,35 @@ per-region deviations, the region-specific model over-fitted: its unscored part 
 - **No new bet.** Recalibrated on 80 labels, the wider flexible model estimates 0.0609 on its own (the best physics
   model), but its unscored part is only RMS 0.0019.
 
+**Result:** it scored **0.058735**, better than predicted (0.058791 ± 0.000044). `main` was set to this state (tree
+identical to `dev`).
+
+**The loop (`--round RMSE`).** One command per score:
+
+1. It checks the uploaded file against the checksum stage 8 stored.
+2. It records the file as the next label.
+3. It recalibrates the loop model (structural + unmatched + regional + flexible, prior sd 0.2) on all labels.
+4. It runs stage 8.
+
+Two rules changed so that every round produces a useful file:
+
+- **Never resubmit the scored best.** Among moves whose mean beats it, stage 8 takes the lowest mean + sd / 2. The
+  previous mean + 1 sd rule would have returned the scored file itself this round.
+- **Bets are sized to be measurable.** The step is 0.3 × the unscored part, but at least RMS 0.0012 (the update's
+  direction cut-off is 0.001), and never more than half the part.
+
+**Round 81 → next file.** The loop model (81 labels) estimates 0.0609 on its own; its unscored part is RMS 0.0026.
+
+- Move: the best file's two newest directions to 2.68× and −2.76×. Expected 0.058716 ± 0.000021, P(beats best) 0.86.
+- Bet: 0.45 × the unscored part:
+
+  | Truth's coefficient | Expected public RMSE |
+  |---:|---:|
+  | +0.5 | 0.058705 |
+  | +0.3 | 0.058716 |
+  | 0 | 0.058732 |
+  | −0.3 | 0.058748 |
+
 ## 9. Edge cases
 
 - **Undefined components** are excluded per tract, so the divisor is 1–3. A tract with all three undefined
