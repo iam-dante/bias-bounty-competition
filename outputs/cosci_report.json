@@ -1,0 +1,196 @@
+{
+  "tournament": [
+    {
+      "hypothesis": "flexible linear effects, sd 0.2 (88)",
+      "elo": 1055.6,
+      "heldout_chi2": 21.37,
+      "heldout_moments": 10,
+      "model": {
+        "structural": true,
+        "unmatched": true,
+        "regional": true,
+        "flex": 0.2
+      }
+    },
+    {
+      "hypothesis": "neural context effects, MLP 21-6-2 (206)",
+      "elo": 983.1,
+      "heldout_chi2": 23.32,
+      "heldout_moments": 10,
+      "model": {
+        "structural": true,
+        "unmatched": true,
+        "regional": true,
+        "nn": true
+      }
+    },
+    {
+      "hypothesis": "base (60 parameters)",
+      "elo": 961.3,
+      "heldout_chi2": 25.67,
+      "heldout_moments": 10,
+      "model": {
+        "structural": true,
+        "unmatched": true,
+        "regional": true
+      }
+    }
+  ],
+  "A_bet": {
+    "source": "physics_lb_struct_unmatched_regional_flex20.csv",
+    "share": 0.3,
+    "unscored_rms": 0.004752049787497088,
+    "expected": {
+      "coef_-0.3": 0.05875451691155926,
+      "coef_+0.0": 0.058719915715349846,
+      "coef_+0.3": 0.05868529411807422,
+      "coef_+0.5": 0.05866220170146135
+    }
+  },
+  "private_robust": {
+    "best": "tr_refined083_d7469871.csv",
+    "anchor": "s8_refit67.csv",
+    "prior_mean": 1.0500000000000003,
+    "prior_sd": 1.6999999999999997,
+    "directions": [
+      {
+        "opened_by": "tr_lbphys_015.csv",
+        "rms": 0.0030412345731523193,
+        "public_se": 0.3607189984799381,
+        "best_coord": 3.492029724905691,
+        "public_optimum": 3.501689446382322,
+        "private_posterior": 3.396061326257811
+      },
+      {
+        "opened_by": "tr_lbphys2_040.csv",
+        "rms": 0.003519398443420293,
+        "public_se": 0.3117098296787128,
+        "best_coord": -0.10063764404971169,
+        "public_optimum": -0.10562518387968016,
+        "private_posterior": -0.0680363312544141
+      },
+      {
+        "opened_by": "tr_lbphys3_010.csv",
+        "rms": 0.001476160537632015,
+        "public_se": 0.7431651649012854,
+        "best_coord": 0.8026192018860444,
+        "public_optimum": 0.7473740722361938,
+        "private_posterior": 0.795928496004594
+      },
+      {
+        "opened_by": "tr_lbstruct_020.csv",
+        "rms": 0.0027124852422912367,
+        "public_se": 0.4044376250480184,
+        "best_coord": 1.4862550251327593,
+        "public_optimum": 1.4931295170365715,
+        "private_posterior": 1.4693925114658544
+      },
+      {
+        "opened_by": "tr_lbmulti_030.csv",
+        "rms": 0.0031345852183369263,
+        "public_se": 0.3499764762982272,
+        "best_coord": 2.6166851599400522,
+        "public_optimum": 2.6236499699292914,
+        "private_posterior": 2.559667475962653
+      },
+      {
+        "opened_by": "tr_lbflex_020.csv",
+        "rms": 0.0029284354265246225,
+        "public_se": 0.3746133786777704,
+        "best_coord": 1.7921681129235085,
+        "public_optimum": 1.8519909095691052,
+        "private_posterior": 1.8148506149704826
+      },
+      {
+        "opened_by": "tr_lbflex2_030.csv",
+        "rms": 0.001267334184749815,
+        "public_se": 0.8656210039711286,
+        "best_coord": 0.7964121109294399,
+        "public_optimum": 0.6513661317287684,
+        "private_posterior": 0.7334413301613416
+      },
+      {
+        "opened_by": "tr_lbflexw_030.csv",
+        "rms": 0.001109933221000511,
+        "public_se": 0.9883757586615757,
+        "best_coord": 2.792620430683041,
+        "public_optimum": 2.855084880270606,
+        "private_posterior": 2.3990685890817964
+      },
+      {
+        "opened_by": "tr_lbrflex_030.csv",
+        "rms": 0.0013742132902725547,
+        "public_se": 0.7982975402257149,
+        "best_coord": -2.9463940108801907,
+        "public_optimum": -3.1669862729064695,
+        "private_posterior": -2.405096820373347
+      },
+      {
+        "opened_by": "tr_loop01_045.csv",
+        "rms": 0.00120153788420315,
+        "public_se": 0.9130224721109051,
+        "best_coord": -0.12552094746226025,
+        "public_optimum": -0.4918847498405037,
+        "private_posterior": -0.1467007515979737
+      }
+    ],
+    "expected_private_gain_rmse": 7.572668670630112e-06,
+    "public_forecast": {
+      "expected_rmse": 0.05870407788065296,
+      "sd_rmse": 1.8201826723466155e-05,
+      "p_beats_best": 0.36075778980375917,
+      "coordinates": [
+        3.396068487383305,
+        -0.06803672058835046,
+        0.7959319870692684,
+        1.4693867737214406,
+        2.5596626717319824,
+        1.8148485743922742,
+        0.7334570821768767,
+        2.399066237292428,
+        -2.4050936614772107,
+        -0.1466918498726767
+      ],
+      "residual_rms": 0.00024275483638206246,
+      "assumed_residual_curvature": 1.3,
+      "effective_draws": 438.1652136470307,
+      "curvature_scale": [
+        1.334073308853538,
+        1.6518973686408867,
+        1.3300906911661854,
+        1.017389610593806,
+        1.272840078236079,
+        1.250452470907018,
+        1.2700525880369031,
+        0.9257974826956814,
+        0.8362125056605456,
+        1.2953345999446695
+      ]
+    }
+  },
+  "B_bet": {
+    "source": "physics_lb_struct_unmatched_regional_nn.csv",
+    "share": 0.3,
+    "unscored_rms": 0.0067021304504231,
+    "expected": {
+      "coef_-0.3": 0.05881759575103688,
+      "coef_+0.0": 0.058748823226248394,
+      "coef_+0.3": 0.05867997010058522,
+      "coef_+0.5": 0.058634023098339726
+    }
+  },
+  "best_scored": {
+    "file": "tr_refined083_d7469871.csv",
+    "rmse": 0.058697414
+  },
+  "A": {
+    "file": "submission.csv",
+    "bet_share": 0.3,
+    "md5": "f6657f7a07c8f38972a7af81886b0d7a"
+  },
+  "B": {
+    "file": "submission_alt.csv",
+    "bet_share": 0.3,
+    "md5": "4ec0d88792a4b3d1efa28b1b47a7401f"
+  }
+}

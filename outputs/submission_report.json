@@ -1,136 +1,17 @@
 {
-  "aggregate_labels": {
-    "files": 80,
-    "public_weight_mean": 0.3052414652336193,
-    "mean_y": 0.0598061011140652,
-    "mean_y2": 0.011501768649197401
-  },
-  "transfer_update": [
-    {
-      "label": "local Bayesian update around s8_refit67.csv",
-      "anchor": "s8_refit67.csv",
-      "directions": 9,
-      "coordinates": [
-        3.269816027021073,
-        -0.23831203077726182,
-        -0.04451101306444208,
-        1.2756625339696817,
-        2.4395830254381194,
-        1.8544734352275365,
-        0.65714153488708,
-        2.1625726334250936,
-        -1.6995222097163634
-      ],
-      "expected_rmse": 0.058762069095550935,
-      "sd_rmse": 9.201660465062068e-05,
-      "p_beats_best": 0.8861706453454029,
-      "effective_draws": 31.197833181005482,
-      "curvature_scale": [
-        1.325329389709933,
-        1.6117750961886916,
-        1.2850008822543066,
-        1.1826214896346694,
-        1.2617384193214074,
-        1.2134847417518608,
-        1.180601335214779,
-        1.2689131693632216,
-        1.2946209918643565
-      ]
-    },
-    {
-      "label": "tr_lbflexw_030.csv with its newest 1 direction(s) at -1.62x",
-      "anchor": "s8_refit67.csv",
-      "directions": 9,
-      "coordinates": [
-        3.5058162686858103,
-        -0.1780676856418241,
-        0.6622765062828938,
-        1.4335976402660748,
-        2.627183087646782,
-        1.7400180182759568,
-        0.9996134150439514,
-        1.0000000000002502,
-        -1.6229807008428951
-      ],
-      "expected_rmse": 0.058811449074771496,
-      "sd_rmse": 4.303045516920248e-05,
-      "p_beats_best": 0.9336090706291272,
-      "effective_draws": 31.197833181005482,
-      "curvature_scale": [
-        1.325329389709933,
-        1.6117750961886916,
-        1.2850008822543066,
-        1.1826214896346694,
-        1.2617384193214074,
-        1.2134847417518608,
-        1.180601335214779,
-        1.2689131693632216,
-        1.2946209918643565
-      ]
-    },
-    {
-      "label": "tr_lbflexw_030.csv with its newest 2 direction(s) at 2.26x, -1.64x",
-      "anchor": "s8_refit67.csv",
-      "directions": 9,
-      "coordinates": [
-        3.5058162686858103,
-        -0.1780676856418241,
-        0.6622765062828938,
-        1.4335976402660748,
-        2.627183087646782,
-        1.7400180182759568,
-        0.9996134150439514,
-        2.2554687386423167,
-        -1.6398790509341339
-      ],
-      "expected_rmse": 0.05879050313686641,
-      "sd_rmse": 4.4231505385587624e-05,
-      "p_beats_best": 0.9651264540277534,
-      "effective_draws": 31.197833181005482,
-      "curvature_scale": [
-        1.325329389709933,
-        1.6117750961886916,
-        1.2850008822543066,
-        1.1826214896346694,
-        1.2617384193214074,
-        1.2134847417518608,
-        1.180601335214779,
-        1.2689131693632216,
-        1.2946209918643565
-      ]
-    }
-  ],
+  "file": "submission.csv",
+  "file_md5": "75ab5a0832f434ce042ee3ef4a1f109b",
+  "next_label": "tr_refined083_d7469871.csv",
+  "inputs": "challenge features and 84 real score labels",
+  "method": "continuous posterior search across ten residual/prior scenarios; see final_submission_manifest.json",
   "aggregate_fit": {
-    "chosen": "tr_lbflexw_030.csv with its newest 2 direction(s) at 2.26x, -1.64x",
-    "chosen_est": 0.05879050313686641,
-    "hyper": {
-      "tau_base": 0.3451602862469892,
-      "mu_base": 0.47900415125330076,
-      "tau_probe": 0.6614427767294265,
-      "mu_probe": 0.09185611082385359,
-      "tau_clip": 2.9011719152485807e-07,
-      "noise_scale": 0.9483965339854268,
-      "mu_clip": 0.3681572211317823
-    },
-    "washington_affine": [
-      0.018228278885811272,
-      0.4235882171122321
-    ],
-    "est_public_refit": 0.06079819760667625,
+    "chosen": "measured_best",
+    "chosen_est": 0.05869741399999987,
     "best_scored": {
-      "file": "tr_lbflexw_030.csv",
-      "rmse": 0.058866163
-    },
-    "ratios": {
-      "rural": 2.219,
-      "tribal": 2.804,
-      "svi": 1.276,
-      "cvi": 1.595,
-      "sdrought": 0.98,
-      "wdrought": 1.353,
-      "wildfire": 1.67,
-      "heat": 0.633,
-      "hv": 1.256
+      "file": "tr_refined083_d7469871.csv",
+      "score": 0.058697414
     }
-  }
+  },
+  "final_manifest": "outputs/final_submission_manifest.json",
+  "caveat": "Forecasts are conditional on aggregate-score models and are not independently calibrated probabilities. Competing residual models have similar historical error; both must support the chosen update. No private leaderboard validation is available."
 }

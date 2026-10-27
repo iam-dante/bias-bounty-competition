@@ -1,0 +1,8 @@
+{
+  "label": "tr_loop01_045.csv",
+  "rmse": 0.05873199,
+  "input_md5": "7522dfa76f0d7e880a4c638136db273c",
+  "phase": "complete",
+  "output_md5": "8a4695b2f44638b281973a4571faf5b1",
+  "next_label": "tr_loop02_030.csv"
+}

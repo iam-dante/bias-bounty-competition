@@ -1,0 +1,12 @@
+{
+  "score": 0.058707252,
+  "label": "tr_refined082_df6bb1c7.csv",
+  "submission": "outputs/experiment_runs/fe7279a40c599457/selected.csv",
+  "sha256": "df6bb1c71c07a930d13f530c573ce7dc2e644676fb928eac2137d5830539ba9d",
+  "forecast_before_score": 0.05872304618138901,
+  "forecast_error": -1.579418138900751e-05,
+  "forecast_model_sd": 1.301702982131385e-05,
+  "standardized_error": -1.2133475612959266,
+  "source": "user-reported public leaderboard RMSE",
+  "added": false
+}
