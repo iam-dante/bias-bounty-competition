@@ -124,7 +124,8 @@ different idea (B or its successor), so the two finals do not share every error.
 Record the real leaderboard score of the file you uploaded, then rerun the loop:
 
 ```bash
-python train.py --add-label NAME FILE RMSE        # NAME as printed in outputs/cosci_report.json; FILE = the uploaded CSV
+python train.py --add-label tr_cosciA_030.csv submission.csv RMSE_A        # file A
+python train.py --add-label tr_cosciB_030.csv submission_alt.csv RMSE_B    # file B
 python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2   # ~10 min
 python cosci.py                                   # -> new submission.csv and submission_alt.csv
 ```
