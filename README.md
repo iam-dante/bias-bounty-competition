@@ -54,22 +54,26 @@ It follows the AI co-scientist (Gottweis et al. 2025, [arXiv:2502.18864](https:/
 
 | Co-scientist step | Here |
 |---|---|
-| **Generate** hypotheses | physics-model families: base (60 parameters), flexible linear context effects (88), neural MLP context effects inside the simulator (206) |
+| **Generate** hypotheses | physics-model families: base (60 parameters), flexible linear context effects (88), neural MLP context effects inside the simulator (206), and a wide network on all four reference layers (376) |
 | **Reflect** (review) | each family is refitted *without* the 10 newest score moments (`train.py --holdout 10`), so it cannot have seen them |
 | **Rank** (tournament) | every held-out moment is one pairwise debate (the closer prediction wins), and the debates update Elo ratings |
 | **Evolve** | the measured bets decide the families: each file bets on a different one, so two scores measure both |
 | **Meta-review** | failure patterns go into METHOD.md §24 and constrain the next generation |
 
-Result (84 labels; the 10 newest genuine directions held out; every fit starts from the same base):
+Result (85 labels; the 10 newest genuine directions held out; every fit starts from the same base):
 
-| Hypothesis | Parameters | Held-out chi-square (start 27.8) | Elo | Estimated public RMSE on its own (84 → 85 labels) |
-|---|---:|---:|---:|---:|
-| **flexible linear context effects** | 88 | **21.4** | **1056** | 0.0611 → **0.0607** |
-| neural MLP context effects (21 → 6 tanh → 2) | 206 | 23.3 | 983 | 0.0619 → 0.0614 |
-| base physics | 60 | 25.7 | 961 | 0.0622 (held-out fit) |
+| Hypothesis | Parameters | Held-out chi-square (start 30.4) | Elo | Estimated public RMSE on its own (all labels) | Unscored part (RMS) |
+|---|---:|---:|---:|---:|---:|
+| **wide neural network** (21 → 12 tanh → 4: TIGER length, facilities, Microsoft buildings, CBP establishments) | 376 | **23.5** | **1050** | 0.0612 | **0.0046** |
+| neural network (21 → 6 tanh → 2: TIGER length, facilities) | 206 | 24.6 | 957 | 0.0614 | 0.0026 |
+| base physics | 60 | 26.2 | 968 | 0.0619 (held-out fit) | – |
+| flexible linear context effects | 88 | 79.2 | 1025 | 0.0607 | 0.0040 |
 
-On held-out moments the neural network beats the base model but not the simpler linear effects. Its first measured
-bet, however, gave the largest gain of any round (below).
+At 84 labels the flexible model led (21.4 against 23.3 for the 6-unit network). At 85 it misses one held-out moment by
+z +7.8: it fits the scores it sees best, but extrapolates worst. The wide network wins on both measures, and its unscored
+part is mostly new: cosine 0.32 with the 6-unit network's and 0.23 with the flexible model's. After the two pending
+files are scored, RMS 0.0043 of it will still be unmeasured. Its two new outputs (buildings, establishments) stay small
+(|W2| 0.08 and 0.07, against 0.18 and 0.23).
 
 **A bug found on the way.** Two near-duplicate labels (`tr_loop01_045` and `tr_refined082`, whose new part has
 RMS 0.000028) had inflated the posterior's fitted noise scale from 0.97 to 6.4. Every physics refit after the 82nd label
@@ -130,8 +134,8 @@ Record the real leaderboard score of the file you uploaded, then rerun the loop:
 ```bash
 python train.py --add-label tr_cosci02A_043.csv submission.csv RMSE_A       # file A
 python train.py --add-label tr_cosci02B_030.csv submission_alt.csv RMSE_B   # file B
+python train.py --calibrate-physics --structural --unmatched --regional --nn-wide             # ~40 min (run both at once)
 python train.py --calibrate-physics --structural --unmatched --regional --nn                  # ~20 min
-python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2  # ~10 min
 python cosci.py                                   # -> new submission.csv and submission_alt.csv (prints the next label names)
 ```
 

@@ -1,0 +1,2152 @@
+{
+  "auxiliary_models": [
+    {
+      "target": "E_fire",
+      "cv_deviance": {
+        "poisson_glm": 1.0078705909828674,
+        "poisson_gbm": 0.9712292946940405
+      },
+      "null_deviance": 1.3702903566827984,
+      "chosen": "poisson_gbm",
+      "explained": 0.2912237249883344,
+      "gbm_config": "shallow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    },
+    {
+      "target": "E_ems",
+      "cv_deviance": {
+        "poisson_glm": 0.8858766857381882,
+        "poisson_gbm": 0.8703166712784036
+      },
+      "null_deviance": 1.0384455103034815,
+      "chosen": "poisson_gbm",
+      "explained": 0.16190434390336272,
+      "gbm_config": "shallow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    },
+    {
+      "target": "E_sch",
+      "cv_deviance": {
+        "poisson_glm": 2.829117283013772,
+        "poisson_gbm": 2.6970097415227245
+      },
+      "null_deviance": 3.7520618463758275,
+      "chosen": "poisson_gbm",
+      "explained": 0.2811926210310721,
+      "gbm_config": "slow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    },
+    {
+      "target": "n_poi_bq",
+      "cv_deviance": {
+        "poisson_glm": 24.46673004773486,
+        "poisson_gbm": 22.039579536740646
+      },
+      "null_deviance": 45.22585144062347,
+      "chosen": "poisson_gbm",
+      "explained": 0.5126773994365552,
+      "gbm_config": "slow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    }
+  ],
+  "auxiliary_model_configs": {
+    "E_fire": "shallow_regularized",
+    "E_ems": "shallow_regularized",
+    "E_sch": "slow_regularized",
+    "n_poi_bq": "slow_regularized"
+  },
+  "auxiliary_feature_configs": {},
+  "parameters": [
+    {
+      "parameter": "log_m_eastern-ok",
+      "start": 0.1116692880078362,
+      "fitted": 0.09045509605571085
+    },
+    {
+      "parameter": "log_m_maricopa-az",
+      "start": -0.17726068065283695,
+      "fitted": -0.13090525390331717
+    },
+    {
+      "parameter": "log_m_northern-ca",
+      "start": 0.08246525982362853,
+      "fitted": 0.025340891928748478
+    },
+    {
+      "parameter": "log_m_south-central-tx",
+      "start": -0.16585055927222297,
+      "fitted": -0.11964914857103294
+    },
+    {
+      "parameter": "log_sigma_t",
+      "start": -0.7807196198096366,
+      "fitted": -0.8680160323883145
+    },
+    {
+      "parameter": "beta_bnd",
+      "start": 1.422000249843862,
+      "fitted": 1.3006029496133245
+    },
+    {
+      "parameter": "logit_q_fm",
+      "start": -2.5448878829721617,
+      "fitted": -2.4366792942158817
+    },
+    {
+      "parameter": "logit_q_cty",
+      "start": -2.8569886254699024,
+      "fitted": -2.9106782779940312
+    },
+    {
+      "parameter": "logit_q_unr",
+      "start": -4.282255029194023,
+      "fitted": -4.2466768581668966
+    },
+    {
+      "parameter": "logit_p_surprise",
+      "start": -4.816872081896935,
+      "fitted": -4.944633635626614
+    },
+    {
+      "parameter": "log_kappa",
+      "start": -0.45531937511458254,
+      "fitted": -0.4641856516722975
+    },
+    {
+      "parameter": "log_sigma_b",
+      "start": -1.9597680672859654,
+      "fitted": -1.9349289252896822
+    },
+    {
+      "parameter": "logit_r_fire",
+      "start": 1.238108043625183,
+      "fitted": 1.2102582740639445
+    },
+    {
+      "parameter": "logit_r_ems",
+      "start": 3.649707866690614,
+      "fitted": 3.7296639124637485
+    },
+    {
+      "parameter": "logit_r_sch",
+      "start": 4.893976004135858,
+      "fitted": 4.3094521521229465
+    },
+    {
+      "parameter": "logit_a_fire",
+      "start": 2.5389395920596383,
+      "fitted": 2.391016812660824
+    },
+    {
+      "parameter": "logit_x_fire",
+      "start": -0.4502730220211246,
+      "fitted": -0.6132962057543466
+    },
+    {
+      "parameter": "logit_a_ems",
+      "start": 0.6693927823295583,
+      "fitted": 0.6400191782577068
+    },
+    {
+      "parameter": "logit_x_ems",
+      "start": -3.2796507217932174,
+      "fitted": -3.3053582399680392
+    },
+    {
+      "parameter": "logit_a_sch",
+      "start": -0.4729856975764253,
+      "fitted": -0.514216302143003
+    },
+    {
+      "parameter": "logit_x_sch",
+      "start": -3.956064622753717,
+      "fitted": -3.8459924966685026
+    },
+    {
+      "parameter": "ge_fac",
+      "start": -0.5873807896031071,
+      "fitted": -0.5596995431048208
+    },
+    {
+      "parameter": "log_eps",
+      "start": -5.592667399249016,
+      "fitted": -5.555945172235715
+    },
+    {
+      "parameter": "log_sigma_c",
+      "start": -0.8754696694475381,
+      "fitted": -0.8376035785722377
+    },
+    {
+      "parameter": "a_bq",
+      "start": 0.764321052661693,
+      "fitted": 0.8343053973884019
+    },
+    {
+      "parameter": "gf_rural",
+      "start": 0.5771599527332257,
+      "fitted": 0.7184073467050218
+    },
+    {
+      "parameter": "gf_tribal",
+      "start": -0.007008951974682508,
+      "fitted": 0.0895784873930761
+    },
+    {
+      "parameter": "gf_svi",
+      "start": 0.19889940488796332,
+      "fitted": 0.023604951967056673
+    },
+    {
+      "parameter": "gf_cvi",
+      "start": 0.11060976061860195,
+      "fitted": 0.15988960548983921
+    },
+    {
+      "parameter": "gf_sdrought",
+      "start": -0.18012621687923908,
+      "fitted": -0.13875067353754617
+    },
+    {
+      "parameter": "gf_wdrought",
+      "start": -0.05976967367830926,
+      "fitted": 0.06436910627449455
+    },
+    {
+      "parameter": "gf_wildfire",
+      "start": 0.39492850868210727,
+      "fitted": 0.3134551005705412
+    },
+    {
+      "parameter": "gf_heat",
+      "start": -0.5813149353134658,
+      "fitted": -0.5602823769239811
+    },
+    {
+      "parameter": "gr_rural",
+      "start": -0.25028609326551216,
+      "fitted": -0.13805493198979588
+    },
+    {
+      "parameter": "gr_tribal",
+      "start": 0.1699030538102115,
+      "fitted": 0.15195496617313392
+    },
+    {
+      "parameter": "gr_svi",
+      "start": 0.015109171500470076,
+      "fitted": 0.029715407545183897
+    },
+    {
+      "parameter": "gr_cvi",
+      "start": 0.03046014203678902,
+      "fitted": 0.030331134472343813
+    },
+    {
+      "parameter": "gr_sdrought",
+      "start": 0.07459817165301348,
+      "fitted": 0.0655557972924671
+    },
+    {
+      "parameter": "gr_wdrought",
+      "start": 0.11749127757502442,
+      "fitted": 0.11129468307395346
+    },
+    {
+      "parameter": "gr_wildfire",
+      "start": -0.0005120536349957293,
+      "fitted": 0.052699492125510033
+    },
+    {
+      "parameter": "gr_heat",
+      "start": 0.2336009771979647,
+      "fitted": 0.17966670817858657
+    },
+    {
+      "parameter": "log_sigma_loc",
+      "start": 2.9435575394448064,
+      "fitted": 2.971859735574525
+    },
+    {
+      "parameter": "w_local",
+      "start": 0.6736601889798299,
+      "fitted": 0.5413280668931595
+    },
+    {
+      "parameter": "w_inter",
+      "start": 0.5110689836068222,
+      "fitted": 0.43739247794762365
+    },
+    {
+      "parameter": "w_multi",
+      "start": 0.5481737952536329,
+      "fitted": 0.3602020954028976
+    },
+    {
+      "parameter": "logit_a_col",
+      "start": -3.047716081325723,
+      "fitted": -3.0549324141198753
+    },
+    {
+      "parameter": "logit_a_k12",
+      "start": -2.8251436904452234,
+      "fitted": -2.6586817570844743
+    },
+    {
+      "parameter": "logit_a_er",
+      "start": -4.2282282951188614,
+      "fitted": -3.488664680015856
+    },
+    {
+      "parameter": "gfr_eastern-ok",
+      "start": -0.21836698268103855,
+      "fitted": -0.20231959429737872
+    },
+    {
+      "parameter": "gfr_maricopa-az",
+      "start": -0.16751307302330132,
+      "fitted": -0.17170349069997304
+    },
+    {
+      "parameter": "gfr_northern-ca",
+      "start": -0.021805198187191097,
+      "fitted": 0.21849902677000502
+    },
+    {
+      "parameter": "gfr_south-central-tx",
+      "start": -0.11014158408944894,
+      "fitted": -0.07882317891419192
+    },
+    {
+      "parameter": "gcr_eastern-ok",
+      "start": -0.0038259000303553633,
+      "fitted": 0.00045367152534714003
+    },
+    {
+      "parameter": "gcr_maricopa-az",
+      "start": -0.15974510442824136,
+      "fitted": -0.17280111544482107
+    },
+    {
+      "parameter": "gcr_northern-ca",
+      "start": -0.033611106067362076,
+      "fitted": -0.031233497749938596
+    },
+    {
+      "parameter": "gcr_south-central-tx",
+      "start": -0.09372176168831668,
+      "fitted": -0.08238777467432358
+    },
+    {
+      "parameter": "gbr_eastern-ok",
+      "start": -0.10532413460353271,
+      "fitted": -0.12059713441502573
+    },
+    {
+      "parameter": "gbr_maricopa-az",
+      "start": -0.004016067557254243,
+      "fitted": -0.014343876175601476
+    },
+    {
+      "parameter": "gbr_northern-ca",
+      "start": -0.012716548137070764,
+      "fitted": -0.007348547589942441
+    },
+    {
+      "parameter": "gbr_south-central-tx",
+      "start": -0.31522213587769304,
+      "fitted": -0.30715546725683107
+    },
+    {
+      "parameter": "nn_w1_bph_0",
+      "start": 0.0352557600323244,
+      "fitted": -0.09518290394318349
+    },
+    {
+      "parameter": "nn_w1_bph_1",
+      "start": 0.06568092256242548,
+      "fitted": 0.4323950374911096
+    },
+    {
+      "parameter": "nn_w1_bph_2",
+      "start": 0.002612538948236881,
+      "fitted": 0.016026484059317624
+    },
+    {
+      "parameter": "nn_w1_bph_3",
+      "start": 0.08686592884883335,
+      "fitted": -0.002869176967778896
+    },
+    {
+      "parameter": "nn_w1_bph_4",
+      "start": -0.006446383381979708,
+      "fitted": -0.3131352292388384
+    },
+    {
+      "parameter": "nn_w1_bph_5",
+      "start": 0.07393787639605932,
+      "fitted": 0.2547285532197042
+    },
+    {
+      "parameter": "nn_w1_bph_6",
+      "start": 0.06286511054669665,
+      "fitted": 0.015394240341502993
+    },
+    {
+      "parameter": "nn_w1_bph_7",
+      "start": -0.06605243164565094,
+      "fitted": -0.016174748719177102
+    },
+    {
+      "parameter": "nn_w1_bph_8",
+      "start": 0.32021132522164103,
+      "fitted": 0.07673290139464037
+    },
+    {
+      "parameter": "nn_w1_bph_9",
+      "start": 0.052450058576519853,
+      "fitted": 0.012843817003598114
+    },
+    {
+      "parameter": "nn_w1_bph_10",
+      "start": -0.2678346865805555,
+      "fitted": -0.06559044774582001
+    },
+    {
+      "parameter": "nn_w1_bph_11",
+      "start": 0.18079752745474237,
+      "fitted": 0.044274305871966936
+    },
+    {
+      "parameter": "nn_w1_bq_share_0",
+      "start": 0.12771806679109432,
+      "fitted": 0.1979988805438284
+    },
+    {
+      "parameter": "nn_w1_bq_share_1",
+      "start": 0.07573212334637498,
+      "fitted": -0.0025571118688031223
+    },
+    {
+      "parameter": "nn_w1_bq_share_2",
+      "start": -0.09386346949733335,
+      "fitted": -0.07567281479753672
+    },
+    {
+      "parameter": "nn_w1_bq_share_3",
+      "start": -0.08033458794999873,
+      "fitted": -0.1639153096219813
+    },
+    {
+      "parameter": "nn_w1_bq_share_4",
+      "start": -0.04900928595159887,
+      "fitted": -0.03482214529463111
+    },
+    {
+      "parameter": "nn_w1_bq_share_5",
+      "start": -0.03952778050559847,
+      "fitted": -0.1754055733939233
+    },
+    {
+      "parameter": "nn_w1_bq_share_6",
+      "start": 0.6520000225650686,
+      "fitted": 0.1597169192696376
+    },
+    {
+      "parameter": "nn_w1_bq_share_7",
+      "start": 0.4735404815646211,
+      "fitted": 0.11598108402040995
+    },
+    {
+      "parameter": "nn_w1_bq_share_8",
+      "start": -0.3518676179034963,
+      "fitted": -0.08617322694334387
+    },
+    {
+      "parameter": "nn_w1_bq_share_9",
+      "start": -0.6327107355230263,
+      "fitted": -0.15498852005536004
+    },
+    {
+      "parameter": "nn_w1_bq_share_10",
+      "start": -0.3116372312686761,
+      "fitted": -0.07631897308055523
+    },
+    {
+      "parameter": "nn_w1_bq_share_11",
+      "start": 0.0206629896736218,
+      "fitted": 0.0050598824129531195
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_0",
+      "start": -0.17575864649163375,
+      "fitted": -0.06540210821179648
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_1",
+      "start": -0.059263139720602445,
+      "fitted": -0.005542151498911855
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_2",
+      "start": -0.09775816586327483,
+      "fitted": 0.16757037252342585
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_3",
+      "start": 0.1241938438304429,
+      "fitted": 0.3540725876328295
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_4",
+      "start": -0.046777590736003204,
+      "fitted": -0.12652397897770473
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_5",
+      "start": -0.13022481815750714,
+      "fitted": 0.07101112535932591
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_6",
+      "start": -1.1625153873194172,
+      "fitted": -0.28498863046640993
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_7",
+      "start": -0.10939583196627287,
+      "fitted": -0.02678874324958563
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_8",
+      "start": -0.6229554736265326,
+      "fitted": -0.15259731313351477
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_9",
+      "start": -0.3661336773517258,
+      "fitted": -0.08966780065436745
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_10",
+      "start": -0.27212949142865495,
+      "fitted": -0.0666423410707667
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_11",
+      "start": -0.15815007818457727,
+      "fitted": -0.03872806781627981
+    },
+    {
+      "parameter": "nn_w1_cty_share_0",
+      "start": 0.003838728556443462,
+      "fitted": 0.12062029288355879
+    },
+    {
+      "parameter": "nn_w1_cty_share_1",
+      "start": 0.0701287634639771,
+      "fitted": -0.28235203776248907
+    },
+    {
+      "parameter": "nn_w1_cty_share_2",
+      "start": 0.01030464873500699,
+      "fitted": -0.04652305418608505
+    },
+    {
+      "parameter": "nn_w1_cty_share_3",
+      "start": 0.09132175291783289,
+      "fitted": 0.1885779592212579
+    },
+    {
+      "parameter": "nn_w1_cty_share_4",
+      "start": -0.038682635425837004,
+      "fitted": 0.16256534870006845
+    },
+    {
+      "parameter": "nn_w1_cty_share_5",
+      "start": 0.06870773538860502,
+      "fitted": -0.021099978679215252
+    },
+    {
+      "parameter": "nn_w1_cty_share_6",
+      "start": 0.2058152681870664,
+      "fitted": 0.05040115151038115
+    },
+    {
+      "parameter": "nn_w1_cty_share_7",
+      "start": 0.5212566847213388,
+      "fitted": 0.12767300805442738
+    },
+    {
+      "parameter": "nn_w1_cty_share_8",
+      "start": -0.06426733147201713,
+      "fitted": -0.015737614862578957
+    },
+    {
+      "parameter": "nn_w1_cty_share_9",
+      "start": 0.6832317352748429,
+      "fitted": 0.16737339780939514
+    },
+    {
+      "parameter": "nn_w1_cty_share_10",
+      "start": -0.33259733674330677,
+      "fitted": -0.08145297395207088
+    },
+    {
+      "parameter": "nn_w1_cty_share_11",
+      "start": 0.17575503504650986,
+      "fitted": 0.04303941713526069
+    },
+    {
+      "parameter": "nn_w1_detail_0",
+      "start": 0.02828243281416568,
+      "fitted": -0.046439935548895174
+    },
+    {
+      "parameter": "nn_w1_detail_1",
+      "start": -0.027885577019775364,
+      "fitted": -0.20453108374294776
+    },
+    {
+      "parameter": "nn_w1_detail_2",
+      "start": -0.07435262162301248,
+      "fitted": 0.004321189782649236
+    },
+    {
+      "parameter": "nn_w1_detail_3",
+      "start": -0.014713782586345174,
+      "fitted": 0.021579189348265325
+    },
+    {
+      "parameter": "nn_w1_detail_4",
+      "start": 0.022031955183009856,
+      "fitted": 0.07835807984654555
+    },
+    {
+      "parameter": "nn_w1_detail_5",
+      "start": 0.03876401584497338,
+      "fitted": -0.0014845323697414753
+    },
+    {
+      "parameter": "nn_w1_detail_6",
+      "start": 0.4517350908259043,
+      "fitted": 0.11063854791682326
+    },
+    {
+      "parameter": "nn_w1_detail_7",
+      "start": 0.04700614888043728,
+      "fitted": 0.011510722966169692
+    },
+    {
+      "parameter": "nn_w1_detail_8",
+      "start": -0.3717496246769042,
+      "fitted": -0.09104349248321258
+    },
+    {
+      "parameter": "nn_w1_detail_9",
+      "start": -0.4608626881292097,
+      "fitted": -0.11287486648209157
+    },
+    {
+      "parameter": "nn_w1_detail_10",
+      "start": -0.22886291283366958,
+      "fitted": -0.05604566314514745
+    },
+    {
+      "parameter": "nn_w1_detail_11",
+      "start": 0.1100975617350247,
+      "fitted": 0.026960585702302826
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_0",
+      "start": -0.11563036391491364,
+      "fitted": -0.29008736479523983
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_1",
+      "start": -0.02030306975410985,
+      "fitted": -0.1296996789394166
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_2",
+      "start": -0.008219990940351342,
+      "fitted": 0.10591369620001923
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_3",
+      "start": 0.14364005982483327,
+      "fitted": 0.08609674349461623
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_4",
+      "start": 0.011042868606394635,
+      "fitted": 0.0039866085379071875
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_5",
+      "start": 0.00792075760180428,
+      "fitted": 0.14284847289406713
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_6",
+      "start": -0.504809091769368,
+      "fitted": -0.12364268881320264
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_7",
+      "start": -0.10458778743585653,
+      "fitted": -0.02561133146311501
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_8",
+      "start": -0.07961250495723886,
+      "fitted": -0.019495337448885548
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_9",
+      "start": 0.27042279234290384,
+      "fitted": 0.06622433172129374
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_10",
+      "start": 0.10732956125317045,
+      "fitted": 0.02628274682777471
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_11",
+      "start": 0.1776863545199607,
+      "fitted": 0.04351238984048663
+    },
+    {
+      "parameter": "nn_w1_has_route_0",
+      "start": -0.04763122900933413,
+      "fitted": -0.09304033123962593
+    },
+    {
+      "parameter": "nn_w1_has_route_1",
+      "start": -0.17577690278139305,
+      "fitted": -0.0767105924065477
+    },
+    {
+      "parameter": "nn_w1_has_route_2",
+      "start": 0.03843832454551451,
+      "fitted": -0.08780485680879227
+    },
+    {
+      "parameter": "nn_w1_has_route_3",
+      "start": 0.10215315800539532,
+      "fitted": -0.006710449334339862
+    },
+    {
+      "parameter": "nn_w1_has_route_4",
+      "start": -0.09207359146130893,
+      "fitted": 0.07993740540197088
+    },
+    {
+      "parameter": "nn_w1_has_route_5",
+      "start": 0.16268458574533248,
+      "fitted": 0.14654760095671165
+    },
+    {
+      "parameter": "nn_w1_has_route_6",
+      "start": -0.3269143047091697,
+      "fitted": -0.08006094572176717
+    },
+    {
+      "parameter": "nn_w1_has_route_7",
+      "start": -0.06480681684638473,
+      "fitted": -0.015869723568073875
+    },
+    {
+      "parameter": "nn_w1_has_route_8",
+      "start": 0.39198773503066475,
+      "fitted": 0.09600117608317849
+    },
+    {
+      "parameter": "nn_w1_has_route_9",
+      "start": 0.7467155726103804,
+      "fitted": 0.18293900471395866
+    },
+    {
+      "parameter": "nn_w1_has_route_10",
+      "start": -0.6295327660520601,
+      "fitted": -0.15420952918487613
+    },
+    {
+      "parameter": "nn_w1_has_route_11",
+      "start": 0.7569618873695313,
+      "fitted": 0.18545162690217598
+    },
+    {
+      "parameter": "nn_w1_loc_share_0",
+      "start": 0.13379020770816266,
+      "fitted": -0.2554507928334665
+    },
+    {
+      "parameter": "nn_w1_loc_share_1",
+      "start": -0.019213842115705405,
+      "fitted": -0.07483474873689218
+    },
+    {
+      "parameter": "nn_w1_loc_share_2",
+      "start": -0.08373231750707201,
+      "fitted": 0.016556282096375344
+    },
+    {
+      "parameter": "nn_w1_loc_share_3",
+      "start": 0.03186684413082752,
+      "fitted": -0.02716707910668685
+    },
+    {
+      "parameter": "nn_w1_loc_share_4",
+      "start": 0.10345676611059286,
+      "fitted": -0.06167104641547381
+    },
+    {
+      "parameter": "nn_w1_loc_share_5",
+      "start": 0.1395035213077619,
+      "fitted": 0.13832507133465666
+    },
+    {
+      "parameter": "nn_w1_loc_share_6",
+      "start": 0.6729377118911523,
+      "fitted": 0.16484972341584003
+    },
+    {
+      "parameter": "nn_w1_loc_share_7",
+      "start": 0.39065570035021374,
+      "fitted": 0.09567486458375515
+    },
+    {
+      "parameter": "nn_w1_loc_share_8",
+      "start": 0.13222781516465176,
+      "fitted": 0.0323799698607152
+    },
+    {
+      "parameter": "nn_w1_loc_share_9",
+      "start": -0.1569614072682139,
+      "fitted": -0.03843697166980165
+    },
+    {
+      "parameter": "nn_w1_loc_share_10",
+      "start": 0.7290103417684793,
+      "fitted": 0.17859751042041824
+    },
+    {
+      "parameter": "nn_w1_loc_share_11",
+      "start": 0.9801291582249824,
+      "fitted": 0.24020235154741854
+    },
+    {
+      "parameter": "nn_w1_log_area_0",
+      "start": 0.14081439127750484,
+      "fitted": 0.21352111507448304
+    },
+    {
+      "parameter": "nn_w1_log_area_1",
+      "start": 0.1667647228356732,
+      "fitted": 0.26592350272006005
+    },
+    {
+      "parameter": "nn_w1_log_area_2",
+      "start": 0.015221815401817572,
+      "fitted": -0.244445545313921
+    },
+    {
+      "parameter": "nn_w1_log_area_3",
+      "start": -0.14966113754277172,
+      "fitted": -0.29737721356807956
+    },
+    {
+      "parameter": "nn_w1_log_area_4",
+      "start": 0.019525997819818758,
+      "fitted": 0.04455647180922884
+    },
+    {
+      "parameter": "nn_w1_log_area_5",
+      "start": 0.14141758205958127,
+      "fitted": 0.07678750337512258
+    },
+    {
+      "parameter": "nn_w1_log_area_6",
+      "start": 0.9008174349330625,
+      "fitted": 0.2207386114292449
+    },
+    {
+      "parameter": "nn_w1_log_area_7",
+      "start": 0.657551882367185,
+      "fitted": 0.16107790511176026
+    },
+    {
+      "parameter": "nn_w1_log_area_8",
+      "start": 0.178690205329478,
+      "fitted": 0.04375822936813984
+    },
+    {
+      "parameter": "nn_w1_log_area_9",
+      "start": -0.6041593161410858,
+      "fitted": -0.14799020563972887
+    },
+    {
+      "parameter": "nn_w1_log_area_10",
+      "start": -0.0022270665600416144,
+      "fitted": -0.0005453562634158582
+    },
+    {
+      "parameter": "nn_w1_log_area_11",
+      "start": 0.3282374675381679,
+      "fitted": 0.08038504618009368
+    },
+    {
+      "parameter": "nn_w1_log_bld_0",
+      "start": -0.1134394104613507,
+      "fitted": -0.027902452190552873
+    },
+    {
+      "parameter": "nn_w1_log_bld_1",
+      "start": 0.0942731486308514,
+      "fitted": -0.025916044918857697
+    },
+    {
+      "parameter": "nn_w1_log_bld_2",
+      "start": 0.06437748244992471,
+      "fitted": -0.10830228289187785
+    },
+    {
+      "parameter": "nn_w1_log_bld_3",
+      "start": -0.03437595191653207,
+      "fitted": -0.07348379495769387
+    },
+    {
+      "parameter": "nn_w1_log_bld_4",
+      "start": -0.07792849904884168,
+      "fitted": 0.03337341827045014
+    },
+    {
+      "parameter": "nn_w1_log_bld_5",
+      "start": 0.07133999398380308,
+      "fitted": 0.04510577772996688
+    },
+    {
+      "parameter": "nn_w1_log_bld_6",
+      "start": -0.6441807318747772,
+      "fitted": -0.1578001351988401
+    },
+    {
+      "parameter": "nn_w1_log_bld_7",
+      "start": 0.19756103009100412,
+      "fitted": 0.04837967137889864
+    },
+    {
+      "parameter": "nn_w1_log_bld_8",
+      "start": 0.214931847411115,
+      "fitted": 0.052633841262083265
+    },
+    {
+      "parameter": "nn_w1_log_bld_9",
+      "start": 0.34802136198143424,
+      "fitted": 0.08523107432498787
+    },
+    {
+      "parameter": "nn_w1_log_bld_10",
+      "start": -0.5920589833785945,
+      "fitted": -0.14502444237032613
+    },
+    {
+      "parameter": "nn_w1_log_bld_11",
+      "start": -0.33085128601951747,
+      "fitted": -0.08102528677418849
+    },
+    {
+      "parameter": "nn_w1_log_density_0",
+      "start": -0.09654874878510365,
+      "fitted": 0.022112842904943142
+    },
+    {
+      "parameter": "nn_w1_log_density_1",
+      "start": -0.12662738976860746,
+      "fitted": -0.24406314703880774
+    },
+    {
+      "parameter": "nn_w1_log_density_2",
+      "start": 0.23610506023503527,
+      "fitted": 0.20728865573665986
+    },
+    {
+      "parameter": "nn_w1_log_density_3",
+      "start": -0.0517978314435034,
+      "fitted": 0.05457650022986778
+    },
+    {
+      "parameter": "nn_w1_log_density_4",
+      "start": 0.01454940527527645,
+      "fitted": 0.06292512311646822
+    },
+    {
+      "parameter": "nn_w1_log_density_5",
+      "start": -0.16439951076992262,
+      "fitted": -0.11239140020043338
+    },
+    {
+      "parameter": "nn_w1_log_density_6",
+      "start": -0.21821762357161062,
+      "fitted": -0.053438547524345174
+    },
+    {
+      "parameter": "nn_w1_log_density_7",
+      "start": -0.584900953886432,
+      "fitted": -0.1432700757194827
+    },
+    {
+      "parameter": "nn_w1_log_density_8",
+      "start": 0.869683938565067,
+      "fitted": 0.2131000103714356
+    },
+    {
+      "parameter": "nn_w1_log_density_9",
+      "start": -0.24795536422107595,
+      "fitted": -0.06072163807924392
+    },
+    {
+      "parameter": "nn_w1_log_density_10",
+      "start": 0.16448481473010104,
+      "fitted": 0.04027939969862674
+    },
+    {
+      "parameter": "nn_w1_log_density_11",
+      "start": -0.129286272736962,
+      "fitted": -0.031659623577565944
+    },
+    {
+      "parameter": "nn_w1_meta_share_0",
+      "start": 0.10699519262174538,
+      "fitted": 0.026818467153029605
+    },
+    {
+      "parameter": "nn_w1_meta_share_1",
+      "start": 0.13841797912091477,
+      "fitted": -0.06266802943006415
+    },
+    {
+      "parameter": "nn_w1_meta_share_2",
+      "start": 0.03357169213197163,
+      "fitted": 0.16282676046631192
+    },
+    {
+      "parameter": "nn_w1_meta_share_3",
+      "start": -0.24649265677896318,
+      "fitted": -0.2791176308894836
+    },
+    {
+      "parameter": "nn_w1_meta_share_4",
+      "start": -0.04301548662240283,
+      "fitted": -0.006056201895722629
+    },
+    {
+      "parameter": "nn_w1_meta_share_5",
+      "start": 0.0824397076331954,
+      "fitted": 0.13554961667656099
+    },
+    {
+      "parameter": "nn_w1_meta_share_6",
+      "start": 0.7917364394010611,
+      "fitted": 0.19397982157696847
+    },
+    {
+      "parameter": "nn_w1_meta_share_7",
+      "start": 0.6601804935409196,
+      "fitted": 0.16172229273224714
+    },
+    {
+      "parameter": "nn_w1_meta_share_8",
+      "start": 0.3166763114124576,
+      "fitted": 0.07755323719910458
+    },
+    {
+      "parameter": "nn_w1_meta_share_9",
+      "start": -1.1017549403233253,
+      "fitted": -0.2700640317921043
+    },
+    {
+      "parameter": "nn_w1_meta_share_10",
+      "start": 0.026014487129943253,
+      "fitted": 0.006370340217050922
+    },
+    {
+      "parameter": "nn_w1_meta_share_11",
+      "start": 0.34184309538826724,
+      "fitted": 0.0837177016570963
+    },
+    {
+      "parameter": "nn_w1_multi_share_0",
+      "start": 0.037694092866112264,
+      "fitted": -0.08701736395098245
+    },
+    {
+      "parameter": "nn_w1_multi_share_1",
+      "start": -0.07833320306949067,
+      "fitted": -0.06255930700598139
+    },
+    {
+      "parameter": "nn_w1_multi_share_2",
+      "start": 0.13671809045412645,
+      "fitted": 0.1491781612059517
+    },
+    {
+      "parameter": "nn_w1_multi_share_3",
+      "start": -0.10322950354281453,
+      "fitted": -0.23311778051764973
+    },
+    {
+      "parameter": "nn_w1_multi_share_4",
+      "start": -0.051565351883024274,
+      "fitted": -0.07424621111390675
+    },
+    {
+      "parameter": "nn_w1_multi_share_5",
+      "start": 0.043909420283352145,
+      "fitted": -0.0941206128706191
+    },
+    {
+      "parameter": "nn_w1_multi_share_6",
+      "start": 0.5019807879210848,
+      "fitted": 0.12294965807090173
+    },
+    {
+      "parameter": "nn_w1_multi_share_7",
+      "start": -0.3089535223538004,
+      "fitted": -0.07566163380958592
+    },
+    {
+      "parameter": "nn_w1_multi_share_8",
+      "start": 0.9110056816641616,
+      "fitted": 0.22323851426960842
+    },
+    {
+      "parameter": "nn_w1_multi_share_9",
+      "start": -0.6602154850066467,
+      "fitted": -0.16173087070857847
+    },
+    {
+      "parameter": "nn_w1_multi_share_10",
+      "start": -0.33076401090760954,
+      "fitted": -0.08100390916577484
+    },
+    {
+      "parameter": "nn_w1_multi_share_11",
+      "start": 0.46752499405701103,
+      "fitted": 0.11450720301427203
+    },
+    {
+      "parameter": "nn_w1_named_over_route_0",
+      "start": -0.00966279636452738,
+      "fitted": -0.013924788662961146
+    },
+    {
+      "parameter": "nn_w1_named_over_route_1",
+      "start": 0.2605125499492487,
+      "fitted": 0.2306563865845677
+    },
+    {
+      "parameter": "nn_w1_named_over_route_2",
+      "start": 0.0425789537829856,
+      "fitted": 0.09312391754420242
+    },
+    {
+      "parameter": "nn_w1_named_over_route_3",
+      "start": -0.19444542736591452,
+      "fitted": 0.037530979429992214
+    },
+    {
+      "parameter": "nn_w1_named_over_route_4",
+      "start": -0.047303376340154954,
+      "fitted": -0.2677509391084159
+    },
+    {
+      "parameter": "nn_w1_named_over_route_5",
+      "start": -0.22784805075626882,
+      "fitted": -0.0413424697161296
+    },
+    {
+      "parameter": "nn_w1_named_over_route_6",
+      "start": 0.024527306912655828,
+      "fitted": 0.006006164134030351
+    },
+    {
+      "parameter": "nn_w1_named_over_route_7",
+      "start": 1.0011962918226276,
+      "fitted": 0.2453735536310689
+    },
+    {
+      "parameter": "nn_w1_named_over_route_8",
+      "start": 0.09425959625623279,
+      "fitted": 0.02308213579403064
+    },
+    {
+      "parameter": "nn_w1_named_over_route_9",
+      "start": -0.31659704509611336,
+      "fitted": -0.07753382175890801
+    },
+    {
+      "parameter": "nn_w1_named_over_route_10",
+      "start": -0.18878175261640412,
+      "fitted": -0.04622962653552517
+    },
+    {
+      "parameter": "nn_w1_named_over_route_11",
+      "start": -0.5455730588095977,
+      "fitted": -0.13363181160689394
+    },
+    {
+      "parameter": "nn_w1_pct_urban_0",
+      "start": -0.14388823121818042,
+      "fitted": -0.16482026725554233
+    },
+    {
+      "parameter": "nn_w1_pct_urban_1",
+      "start": 0.08454690515041766,
+      "fitted": 0.18818968915749304
+    },
+    {
+      "parameter": "nn_w1_pct_urban_2",
+      "start": 0.08257882009235558,
+      "fitted": 0.11447895268226295
+    },
+    {
+      "parameter": "nn_w1_pct_urban_3",
+      "start": 0.0709679718373582,
+      "fitted": 0.1627543504266222
+    },
+    {
+      "parameter": "nn_w1_pct_urban_4",
+      "start": -0.07988338974379115,
+      "fitted": 0.0733044236661042
+    },
+    {
+      "parameter": "nn_w1_pct_urban_5",
+      "start": -0.04974237252692533,
+      "fitted": -0.08709990698819019
+    },
+    {
+      "parameter": "nn_w1_pct_urban_6",
+      "start": -0.638840083193304,
+      "fitted": -0.15649098105464787
+    },
+    {
+      "parameter": "nn_w1_pct_urban_7",
+      "start": 0.31520574538411594,
+      "fitted": 0.07719303811172362
+    },
+    {
+      "parameter": "nn_w1_pct_urban_8",
+      "start": 0.29058290620640287,
+      "fitted": 0.07116206583598907
+    },
+    {
+      "parameter": "nn_w1_pct_urban_9",
+      "start": 0.6472794097205585,
+      "fitted": 0.15855972477771826
+    },
+    {
+      "parameter": "nn_w1_pct_urban_10",
+      "start": -0.37730289562996555,
+      "fitted": -0.09240384532007177
+    },
+    {
+      "parameter": "nn_w1_pct_urban_11",
+      "start": 0.8445537262218366,
+      "fitted": 0.2069350292549542
+    },
+    {
+      "parameter": "nn_w1_places_pc_0",
+      "start": -0.011333275088128423,
+      "fitted": 0.03422653218312536
+    },
+    {
+      "parameter": "nn_w1_places_pc_1",
+      "start": 0.10358662755986589,
+      "fitted": -0.236437987742562
+    },
+    {
+      "parameter": "nn_w1_places_pc_2",
+      "start": -0.02742463725197902,
+      "fitted": -0.14700568747136789
+    },
+    {
+      "parameter": "nn_w1_places_pc_3",
+      "start": -0.08800546867447392,
+      "fitted": -0.16894187769274385
+    },
+    {
+      "parameter": "nn_w1_places_pc_4",
+      "start": 0.006131699733935232,
+      "fitted": -0.0761055458325006
+    },
+    {
+      "parameter": "nn_w1_places_pc_5",
+      "start": 0.135869561507928,
+      "fitted": -0.2576642262441396
+    },
+    {
+      "parameter": "nn_w1_places_pc_6",
+      "start": -0.14369385390433315,
+      "fitted": -0.035187870777298284
+    },
+    {
+      "parameter": "nn_w1_places_pc_7",
+      "start": 0.7872041394222934,
+      "fitted": 0.19286824649490558
+    },
+    {
+      "parameter": "nn_w1_places_pc_8",
+      "start": -0.2163929235912984,
+      "fitted": -0.05299166720790045
+    },
+    {
+      "parameter": "nn_w1_places_pc_9",
+      "start": -0.3677416461711375,
+      "fitted": -0.09006168990461044
+    },
+    {
+      "parameter": "nn_w1_places_pc_10",
+      "start": 0.12489268577933342,
+      "fitted": 0.03058369269107463
+    },
+    {
+      "parameter": "nn_w1_places_pc_11",
+      "start": 0.5157265424347361,
+      "fitted": 0.12631788262716492
+    },
+    {
+      "parameter": "nn_w1_ruca_0",
+      "start": 0.1158857073215428,
+      "fitted": 0.08155086316644375
+    },
+    {
+      "parameter": "nn_w1_ruca_1",
+      "start": -0.017694812387206132,
+      "fitted": 0.04772730759685931
+    },
+    {
+      "parameter": "nn_w1_ruca_2",
+      "start": -0.1924786245293689,
+      "fitted": -0.37819190186350937
+    },
+    {
+      "parameter": "nn_w1_ruca_3",
+      "start": -0.09597539370809631,
+      "fitted": -0.06703426721237289
+    },
+    {
+      "parameter": "nn_w1_ruca_4",
+      "start": 0.044770052005537436,
+      "fitted": 0.09975525454805442
+    },
+    {
+      "parameter": "nn_w1_ruca_5",
+      "start": 0.1904679816154394,
+      "fitted": -0.07572516414434288
+    },
+    {
+      "parameter": "nn_w1_ruca_6",
+      "start": 0.08050478835767233,
+      "fitted": 0.019713840287309617
+    },
+    {
+      "parameter": "nn_w1_ruca_7",
+      "start": -0.2927644120616683,
+      "fitted": -0.07169638179627454
+    },
+    {
+      "parameter": "nn_w1_ruca_8",
+      "start": -0.6706098570383345,
+      "fitted": -0.16427904031834784
+    },
+    {
+      "parameter": "nn_w1_ruca_9",
+      "start": -0.700760107458714,
+      "fitted": -0.1716708394742692
+    },
+    {
+      "parameter": "nn_w1_ruca_10",
+      "start": 0.25134142493743283,
+      "fitted": 0.06155093734658799
+    },
+    {
+      "parameter": "nn_w1_ruca_11",
+      "start": 0.4948565166429025,
+      "fitted": 0.1212039908061606
+    },
+    {
+      "parameter": "nn_w1_svi_0",
+      "start": -0.0321853967850538,
+      "fitted": 0.07439447600637202
+    },
+    {
+      "parameter": "nn_w1_svi_1",
+      "start": -0.06969153551240359,
+      "fitted": -0.09327821288177918
+    },
+    {
+      "parameter": "nn_w1_svi_2",
+      "start": 0.06215514768908731,
+      "fitted": -0.11312040108264622
+    },
+    {
+      "parameter": "nn_w1_svi_3",
+      "start": -0.1468288955259252,
+      "fitted": -0.1548739116203612
+    },
+    {
+      "parameter": "nn_w1_svi_4",
+      "start": -0.06718295747441558,
+      "fitted": -0.18904720425030183
+    },
+    {
+      "parameter": "nn_w1_svi_5",
+      "start": 0.10237647359866055,
+      "fitted": 0.07685778110814467
+    },
+    {
+      "parameter": "nn_w1_svi_6",
+      "start": -0.08214729631264535,
+      "fitted": -0.020116058729442228
+    },
+    {
+      "parameter": "nn_w1_svi_7",
+      "start": -0.5371824291142173,
+      "fitted": -0.13157561789381342
+    },
+    {
+      "parameter": "nn_w1_svi_8",
+      "start": 0.4365210763108533,
+      "fitted": 0.10691112166605009
+    },
+    {
+      "parameter": "nn_w1_svi_9",
+      "start": -0.6401969723572866,
+      "fitted": -0.1568235934439922
+    },
+    {
+      "parameter": "nn_w1_svi_10",
+      "start": -0.3565340475296361,
+      "fitted": -0.08731629241780113
+    },
+    {
+      "parameter": "nn_w1_svi_11",
+      "start": 0.31050892677004927,
+      "fitted": 0.07604260936455674
+    },
+    {
+      "parameter": "nn_w1_tert_share_0",
+      "start": -0.15234856054237741,
+      "fitted": -0.23591778856410822
+    },
+    {
+      "parameter": "nn_w1_tert_share_1",
+      "start": 0.06256701807634849,
+      "fitted": 0.09115964502297907
+    },
+    {
+      "parameter": "nn_w1_tert_share_2",
+      "start": -0.11196194674708781,
+      "fitted": 0.03771848768156642
+    },
+    {
+      "parameter": "nn_w1_tert_share_3",
+      "start": 0.02316070306518494,
+      "fitted": -0.17004441488424785
+    },
+    {
+      "parameter": "nn_w1_tert_share_4",
+      "start": 0.017947636175087937,
+      "fitted": 0.024887956333312367
+    },
+    {
+      "parameter": "nn_w1_tert_share_5",
+      "start": 0.0568351843904597,
+      "fitted": -0.04365013161857279
+    },
+    {
+      "parameter": "nn_w1_tert_share_6",
+      "start": -1.1250705867872959,
+      "fitted": -0.2757905181942386
+    },
+    {
+      "parameter": "nn_w1_tert_share_7",
+      "start": 0.19318479878315292,
+      "fitted": 0.04730793009957478
+    },
+    {
+      "parameter": "nn_w1_tert_share_8",
+      "start": -0.2908204182047516,
+      "fitted": -0.07122023953644686
+    },
+    {
+      "parameter": "nn_w1_tert_share_9",
+      "start": 0.05463984873890694,
+      "fitted": 0.01338004910832136
+    },
+    {
+      "parameter": "nn_w1_tert_share_10",
+      "start": -0.03785076311041156,
+      "fitted": -0.00926877372856546
+    },
+    {
+      "parameter": "nn_w1_tert_share_11",
+      "start": 0.10105719752197993,
+      "fitted": 0.024746749450005386
+    },
+    {
+      "parameter": "nn_w1_tribal_0",
+      "start": 0.07646429438765688,
+      "fitted": 0.05809382855322023
+    },
+    {
+      "parameter": "nn_w1_tribal_1",
+      "start": -0.07276337689037649,
+      "fitted": -0.0725917169215195
+    },
+    {
+      "parameter": "nn_w1_tribal_2",
+      "start": 0.07043093011748178,
+      "fitted": -0.02322285774353923
+    },
+    {
+      "parameter": "nn_w1_tribal_3",
+      "start": 0.10263346136867148,
+      "fitted": 0.25929497236919863
+    },
+    {
+      "parameter": "nn_w1_tribal_4",
+      "start": 0.06097693984528301,
+      "fitted": 0.06445265057376709
+    },
+    {
+      "parameter": "nn_w1_tribal_5",
+      "start": 0.08877387420176282,
+      "fitted": -0.010101199063792764
+    },
+    {
+      "parameter": "nn_w1_tribal_6",
+      "start": 0.3470859683535041,
+      "fitted": 0.08500194765245803
+    },
+    {
+      "parameter": "nn_w1_tribal_7",
+      "start": -0.3791848754492046,
+      "fitted": -0.09286486635567189
+    },
+    {
+      "parameter": "nn_w1_tribal_8",
+      "start": 0.7104910111559581,
+      "fitted": 0.174056681722733
+    },
+    {
+      "parameter": "nn_w1_tribal_9",
+      "start": 0.3630468944738825,
+      "fitted": 0.08891166329296996
+    },
+    {
+      "parameter": "nn_w1_tribal_10",
+      "start": 0.421866331151634,
+      "fitted": 0.10332083415437412
+    },
+    {
+      "parameter": "nn_w1_tribal_11",
+      "start": 0.5824319905555141,
+      "fitted": 0.14266496416515825
+    },
+    {
+      "parameter": "nn_w1_unr_share_0",
+      "start": 0.05327416728522365,
+      "fitted": 0.07270216664268826
+    },
+    {
+      "parameter": "nn_w1_unr_share_1",
+      "start": 0.005010142617046408,
+      "fitted": -0.040202249284739075
+    },
+    {
+      "parameter": "nn_w1_unr_share_2",
+      "start": 0.028572308355067386,
+      "fitted": -0.2687492748148128
+    },
+    {
+      "parameter": "nn_w1_unr_share_3",
+      "start": -0.09526617651446842,
+      "fitted": -0.10549332906342736
+    },
+    {
+      "parameter": "nn_w1_unr_share_4",
+      "start": 0.0017400420521597169,
+      "fitted": 0.24765513811658452
+    },
+    {
+      "parameter": "nn_w1_unr_share_5",
+      "start": -0.13767752829399588,
+      "fitted": -0.1067343617764352
+    },
+    {
+      "parameter": "nn_w1_unr_share_6",
+      "start": 0.3937941108529347,
+      "fitted": 0.09644368936559129
+    },
+    {
+      "parameter": "nn_w1_unr_share_7",
+      "start": 0.422039340289296,
+      "fitted": 0.10336321925595186
+    },
+    {
+      "parameter": "nn_w1_unr_share_8",
+      "start": 0.03779680537144256,
+      "fitted": 0.009255560697726553
+    },
+    {
+      "parameter": "nn_w1_unr_share_9",
+      "start": -0.7133869254948662,
+      "fitted": -0.17476672319019998
+    },
+    {
+      "parameter": "nn_w1_unr_share_10",
+      "start": -0.06752255001850696,
+      "fitted": -0.016534750291312544
+    },
+    {
+      "parameter": "nn_w1_unr_share_11",
+      "start": -0.38475732008835284,
+      "fitted": -0.0942299355371844
+    },
+    {
+      "parameter": "nn_b1_0",
+      "start": -0.07055950287891537,
+      "fitted": -0.08388318638057898
+    },
+    {
+      "parameter": "nn_b1_1",
+      "start": -0.06769506037488351,
+      "fitted": -0.15475474338506262
+    },
+    {
+      "parameter": "nn_b1_2",
+      "start": 0.05848132116221814,
+      "fitted": 0.2266221748707614
+    },
+    {
+      "parameter": "nn_b1_3",
+      "start": -0.05534866623211566,
+      "fitted": -0.27410723342223137
+    },
+    {
+      "parameter": "nn_b1_4",
+      "start": 0.00587100341193295,
+      "fitted": -0.032497011357327105
+    },
+    {
+      "parameter": "nn_b1_5",
+      "start": -0.011541167428089171,
+      "fitted": -0.18969600952533852
+    },
+    {
+      "parameter": "nn_b1_6",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_7",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_8",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_9",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_10",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_11",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_w2_0_t",
+      "start": -0.03447203537212095,
+      "fitted": -0.057122148605460915
+    },
+    {
+      "parameter": "nn_w2_0_f",
+      "start": 0.08783859207678152,
+      "fitted": -0.043442206968461634
+    },
+    {
+      "parameter": "nn_w2_0_b",
+      "start": 0.0,
+      "fitted": 0.013726254436259308
+    },
+    {
+      "parameter": "nn_w2_0_c",
+      "start": 0.0,
+      "fitted": 0.013279583281434151
+    },
+    {
+      "parameter": "nn_w2_1_t",
+      "start": -0.09411298737660567,
+      "fitted": -0.10071593966095752
+    },
+    {
+      "parameter": "nn_w2_1_f",
+      "start": -0.09961239478601347,
+      "fitted": -0.15537297455018717
+    },
+    {
+      "parameter": "nn_w2_1_b",
+      "start": 0.0,
+      "fitted": 0.00401889294172253
+    },
+    {
+      "parameter": "nn_w2_1_c",
+      "start": 0.0,
+      "fitted": 0.008616714598072367
+    },
+    {
+      "parameter": "nn_w2_2_t",
+      "start": 0.03872998669097748,
+      "fitted": 0.05911938468469978
+    },
+    {
+      "parameter": "nn_w2_2_f",
+      "start": -0.060355521328383475,
+      "fitted": -0.0353543376225322
+    },
+    {
+      "parameter": "nn_w2_2_b",
+      "start": 0.0,
+      "fitted": -0.0010799633282166574
+    },
+    {
+      "parameter": "nn_w2_2_c",
+      "start": 0.0,
+      "fitted": -0.008658055893406359
+    },
+    {
+      "parameter": "nn_w2_3_t",
+      "start": 0.02124354081299122,
+      "fitted": 0.025793275284415454
+    },
+    {
+      "parameter": "nn_w2_3_f",
+      "start": 0.0339624278600934,
+      "fitted": -0.01589655142008607
+    },
+    {
+      "parameter": "nn_w2_3_b",
+      "start": 0.0,
+      "fitted": 0.0029243083432530514
+    },
+    {
+      "parameter": "nn_w2_3_c",
+      "start": 0.0,
+      "fitted": -0.000652173166810812
+    },
+    {
+      "parameter": "nn_w2_4_t",
+      "start": 0.010166150171911336,
+      "fitted": 0.0005174509448530745
+    },
+    {
+      "parameter": "nn_w2_4_f",
+      "start": 0.05082751854551057,
+      "fitted": -0.060153670415432806
+    },
+    {
+      "parameter": "nn_w2_4_b",
+      "start": 0.0,
+      "fitted": -0.007239759100481042
+    },
+    {
+      "parameter": "nn_w2_4_c",
+      "start": 0.0,
+      "fitted": -0.003312259718546654
+    },
+    {
+      "parameter": "nn_w2_5_t",
+      "start": -0.009971966586546963,
+      "fitted": -0.04669039365207833
+    },
+    {
+      "parameter": "nn_w2_5_f",
+      "start": 0.07229107206738399,
+      "fitted": 0.10520958003630106
+    },
+    {
+      "parameter": "nn_w2_5_b",
+      "start": 0.0,
+      "fitted": 0.044921746365181266
+    },
+    {
+      "parameter": "nn_w2_5_c",
+      "start": 0.0,
+      "fitted": 0.03391958980236703
+    },
+    {
+      "parameter": "nn_w2_6_t",
+      "start": 0.0,
+      "fitted": -0.02732341785002701
+    },
+    {
+      "parameter": "nn_w2_6_f",
+      "start": 0.0,
+      "fitted": 0.03400548775726158
+    },
+    {
+      "parameter": "nn_w2_6_b",
+      "start": 0.0,
+      "fitted": 0.012930537265252397
+    },
+    {
+      "parameter": "nn_w2_6_c",
+      "start": 0.0,
+      "fitted": 0.01612438592960489
+    },
+    {
+      "parameter": "nn_w2_7_t",
+      "start": 0.0,
+      "fitted": -0.0899796849671183
+    },
+    {
+      "parameter": "nn_w2_7_f",
+      "start": 0.0,
+      "fitted": -0.06555839022878202
+    },
+    {
+      "parameter": "nn_w2_7_b",
+      "start": 0.0,
+      "fitted": 0.0012985536569419813
+    },
+    {
+      "parameter": "nn_w2_7_c",
+      "start": 0.0,
+      "fitted": 0.03319216702598458
+    },
+    {
+      "parameter": "nn_w2_8_t",
+      "start": 0.0,
+      "fitted": 0.06172327071595466
+    },
+    {
+      "parameter": "nn_w2_8_f",
+      "start": 0.0,
+      "fitted": -0.019500409545438878
+    },
+    {
+      "parameter": "nn_w2_8_b",
+      "start": 0.0,
+      "fitted": 0.04162540526043147
+    },
+    {
+      "parameter": "nn_w2_8_c",
+      "start": 0.0,
+      "fitted": 0.006321605105900478
+    },
+    {
+      "parameter": "nn_w2_9_t",
+      "start": 0.0,
+      "fitted": -0.01905938534548188
+    },
+    {
+      "parameter": "nn_w2_9_f",
+      "start": 0.0,
+      "fitted": 0.026623077143437594
+    },
+    {
+      "parameter": "nn_w2_9_b",
+      "start": 0.0,
+      "fitted": 0.021876452189646015
+    },
+    {
+      "parameter": "nn_w2_9_c",
+      "start": 0.0,
+      "fitted": -0.008123144841469618
+    },
+    {
+      "parameter": "nn_w2_10_t",
+      "start": 0.0,
+      "fitted": 0.022492092664672354
+    },
+    {
+      "parameter": "nn_w2_10_f",
+      "start": 0.0,
+      "fitted": 0.021142301319590228
+    },
+    {
+      "parameter": "nn_w2_10_b",
+      "start": 0.0,
+      "fitted": -0.036065532279152115
+    },
+    {
+      "parameter": "nn_w2_10_c",
+      "start": 0.0,
+      "fitted": -0.013240637978407627
+    },
+    {
+      "parameter": "nn_w2_11_t",
+      "start": 0.0,
+      "fitted": -0.008707503473207298
+    },
+    {
+      "parameter": "nn_w2_11_f",
+      "start": 0.0,
+      "fitted": 0.0697869587970753
+    },
+    {
+      "parameter": "nn_w2_11_b",
+      "start": 0.0,
+      "fitted": 0.030881947873907866
+    },
+    {
+      "parameter": "nn_w2_11_c",
+      "start": 0.0,
+      "fitted": 0.03851181578491644
+    },
+    {
+      "parameter": "nn_b2_t",
+      "start": 0.013231566814604108,
+      "fitted": 0.025191427654053383
+    },
+    {
+      "parameter": "nn_b2_f",
+      "start": -0.011210818951956369,
+      "fitted": -0.11175161932733726
+    },
+    {
+      "parameter": "nn_b2_b",
+      "start": 0.0,
+      "fitted": -0.05109931008760385
+    },
+    {
+      "parameter": "nn_b2_c",
+      "start": 0.0,
+      "fitted": -0.03152767706425499
+    }
+  ],
+  "targets": [
+    {
+      "target": "undefined_share[eastern-ok]",
+      "observed": 0.21,
+      "start": 0.20849445522231544,
+      "fitted": 0.2085550807466443
+    },
+    {
+      "target": "undefined_share[maricopa-az]",
+      "observed": 0.55,
+      "start": 0.534841150737602,
+      "fitted": 0.5351206940521029
+    },
+    {
+      "target": "undefined_share[northern-ca]",
+      "observed": 0.37,
+      "start": 0.3384127802453469,
+      "fitted": 0.33883909686971236
+    },
+    {
+      "target": "undefined_share[south-central-tx]",
+      "observed": 0.28,
+      "start": 0.2754332469182076,
+      "fitted": 0.2746761384932534
+    },
+    {
+      "target": "road_ratio[min region]",
+      "observed": 0.71,
+      "start": 0.6571826454255557,
+      "fitted": 0.6783119925071173
+    },
+    {
+      "target": "road_ratio[max region]",
+      "observed": 1.59,
+      "start": 1.539443894896635,
+      "fitted": 1.5361832128717372
+    },
+    {
+      "target": "ems_ratio",
+      "observed": 1.0,
+      "start": 1.0084422664716095,
+      "fitted": 1.008805581506291
+    },
+    {
+      "target": "ems_binding_share",
+      "observed": 0.01,
+      "start": 0.02547308981501226,
+      "fitted": 0.025752345665849236
+    },
+    {
+      "target": "schools_per_tract",
+      "observed": 1.5,
+      "start": 1.115691263394285,
+      "fitted": 1.1332219086523083
+    },
+    {
+      "target": "fire_stations_per_tract",
+      "observed": 0.6,
+      "start": 0.744104806949035,
+      "fitted": 0.7425217323941785
+    },
+    {
+      "target": "establishments_per_resident",
+      "observed": 0.025,
+      "start": 0.004038213186192687,
+      "fitted": 0.00420598588533333
+    },
+    {
+      "target": "scorecard[rural]",
+      "observed": 2.336,
+      "start": 2.30669550808095,
+      "fitted": 2.3247404292401503
+    },
+    {
+      "target": "scorecard[tribal]",
+      "observed": 2.884,
+      "start": 2.885882192516025,
+      "fitted": 2.883757573998759
+    },
+    {
+      "target": "scorecard[svi]",
+      "observed": 1.231,
+      "start": 1.2248414994378563,
+      "fitted": 1.222511345642208
+    },
+    {
+      "target": "scorecard[cvi]",
+      "observed": 1.554,
+      "start": 1.544700924488754,
+      "fitted": 1.5473099421736694
+    },
+    {
+      "target": "scorecard[sdrought]",
+      "observed": 0.999,
+      "start": 0.996664946745647,
+      "fitted": 0.9962694172016842
+    },
+    {
+      "target": "scorecard[wdrought]",
+      "observed": 1.36,
+      "start": 1.3524001179463292,
+      "fitted": 1.3557140245441643
+    },
+    {
+      "target": "scorecard[wildfire]",
+      "observed": 1.767,
+      "start": 1.7654837868588116,
+      "fitted": 1.75715182991591
+    },
+    {
+      "target": "scorecard[heat]",
+      "observed": 0.618,
+      "start": 0.6196968203572822,
+      "fitted": 0.6120300425265958
+    },
+    {
+      "target": "scorecard[hv]",
+      "observed": 1.219,
+      "start": 1.2173694257278878,
+      "fitted": 1.2150870114095653
+    }
+  ],
+  "est_public": 0.06121540879569864,
+  "ratios": {
+    "rural": 2.322,
+    "tribal": 2.882,
+    "svi": 1.224,
+    "cvi": 1.546,
+    "sdrought": 0.995,
+    "wdrought": 1.355,
+    "wildfire": 1.754,
+    "heat": 0.611,
+    "hv": 1.217
+  },
+  "cost": 190.35865680791537
+}
