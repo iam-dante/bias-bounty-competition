@@ -1541,3 +1541,25 @@ coordinates from +2.79 to +2.40 and from −2.95 to −2.41. Expected private ga
 **Limits.** The held-out moments are the newest bets' directions, so the tournament ranks how well each family
 extrapolates, not its public score. No forecast here supports 0.04.
 
+## 25. The neural bet measured, and the second co-scientist round (2026-10-27)
+
+**Measurement.** File B (`tr_cosciB_030.csv`: the private-robust best + 0.3 × the neural model's unscored part)
+scored 0.05860295. The leaderboard API's rubric matched B on all nine ratios to 3 dp (CVI 1.594; A would be 1.598). Its
+forecast was 0.058634 for a coefficient of +0.5, so the neural direction measured stronger. The transfer posterior
+(85 labels, 5M draws, effective sample 450) puts the optimum along it at 1.65× B's step (coefficient about +0.6).
+File A (the flexible bet) has no recorded score.
+
+**Refits on 85 labels.** Flexible model (sd 0.2): score-moment chi-square 79.0 → 75.7 over 59 moments; estimated
+public RMSE on its own 0.060731 (0.0611 at 84 labels). Neural model: 93.7 → 83.6; 0.061420 (0.0619).
+
+**Evolve.** `cosci.py` now builds both files from one base: the risk-aware transfer update (the stage-8 rule: P ≥ 0.75,
+lowest mean + sd/2). The chosen move is the full update over 11 directions: 0.058572 ± 0.000018, P(beats best) 0.94.
+Each file then bets on a different family. The private-robust shrinkage is retired as a file builder: it was worth
+0.000008, and it pulls against the measured update.
+
+| File | Bet | +0.5 | +0.3 | 0 | −0.3 |
+|---|---|---:|---:|---:|---:|
+| A `submission.csv` | 0.43 × neural unscored part (RMS 0.0026) | 0.058561 | 0.058571 | 0.058586 | 0.058600 |
+| B `submission_alt.csv` | 0.30 × flexible unscored part (RMS 0.0040) | 0.058547 | 0.058564 | 0.058588 | 0.058613 |
+
+A and B differ by RMS 0.0014. The in-span estimates are 0.058535 (A) and 0.058545 (B).
