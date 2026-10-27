@@ -1,0 +1,37 @@
+{
+  "created_utc": "2026-10-24T14:51:18.769564+00:00",
+  "input_fingerprint": "3710c3264b7423a2d46893d29e000bff95c6632fcd7f65a164ac5e794667abc7",
+  "submission": "submission.csv",
+  "immutable_submission": "outputs/submissions/d74698713855a82a78dd46c74822c1a53c4f2e7e696c44e9908e903789f3d4d8.csv",
+  "sha256": "d74698713855a82a78dd46c74822c1a53c4f2e7e696c44e9908e903789f3d4d8",
+  "next_label": "tr_refined083_d7469871.csv",
+  "measured_best": {
+    "file": "tr_refined082_df6bb1c7.csv",
+    "score": 0.058707252
+  },
+  "selected": "robust_last10_rms0.003_risk0.5",
+  "estimated_public_rmse": 0.05868279585762265,
+  "model_sd_rmse": 2.385831619884342e-05,
+  "modeled_p_beats_best": 0.849078048485943,
+  "scenario_rmse_range": [
+    0.05866352968137852,
+    0.058689260756998075
+  ],
+  "min_scenario_p_beats_best": 0.8094958806468326,
+  "worst_risk_adjusted_rmse": 0.058699567284379896,
+  "target_004_supported": false,
+  "checks": {
+    "rows": 9794,
+    "unique_ids": 9794,
+    "missing_values": 0,
+    "min_score": 0.0,
+    "max_score": 0.828204,
+    "matches_authoritative_samples": true,
+    "leading_zero_ids": 2183
+  },
+  "kernel_decision": "reject promotion; feature extrapolation failed confirmation",
+  "posterior_report": "outputs/experiment_runs/3710c3264b7423a2/posterior.json",
+  "kernel_report": "outputs/experiment_runs/3710c3264b7423a2/kernel.json",
+  "forecast_limitation": "Forecasts are conditional on aggregate-score models and are not independently calibrated probabilities. Competing residual models have similar historical error; both must support the chosen update. No private leaderboard validation is available.",
+  "feedback_command": "python experiment_loop.py --score <actual-public-RMSE> --score-manifest outputs/submissions/d74698713855a82a78dd46c74822c1a53c4f2e7e696c44e9908e903789f3d4d8.json"
+}

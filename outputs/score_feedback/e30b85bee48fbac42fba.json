@@ -1,0 +1,12 @@
+{
+  "score": 0.058697414,
+  "label": "tr_refined083_d7469871.csv",
+  "submission": "outputs/submissions/d74698713855a82a78dd46c74822c1a53c4f2e7e696c44e9908e903789f3d4d8.csv",
+  "sha256": "d74698713855a82a78dd46c74822c1a53c4f2e7e696c44e9908e903789f3d4d8",
+  "forecast_before_score": 0.05868279585762265,
+  "forecast_error": 1.4618142377353927e-05,
+  "forecast_model_sd": 2.385831619884342e-05,
+  "standardized_error": 0.6127063727180617,
+  "source": "user-reported public leaderboard RMSE",
+  "added": true
+}

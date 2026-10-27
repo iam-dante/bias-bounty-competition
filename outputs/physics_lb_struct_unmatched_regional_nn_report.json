@@ -1,0 +1,1302 @@
+{
+  "auxiliary_models": [
+    {
+      "target": "E_fire",
+      "cv_deviance": {
+        "poisson_glm": 1.0078705909828674,
+        "poisson_gbm": 0.9712292946940405
+      },
+      "null_deviance": 1.3702903566827984,
+      "chosen": "poisson_gbm",
+      "explained": 0.2912237249883344,
+      "gbm_config": "shallow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    },
+    {
+      "target": "E_ems",
+      "cv_deviance": {
+        "poisson_glm": 0.8858766857381882,
+        "poisson_gbm": 0.8703166712784036
+      },
+      "null_deviance": 1.0384455103034815,
+      "chosen": "poisson_gbm",
+      "explained": 0.16190434390336272,
+      "gbm_config": "shallow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    },
+    {
+      "target": "E_sch",
+      "cv_deviance": {
+        "poisson_glm": 2.829117283013772,
+        "poisson_gbm": 2.6970097415227245
+      },
+      "null_deviance": 3.7520618463758275,
+      "chosen": "poisson_gbm",
+      "explained": 0.2811926210310721,
+      "gbm_config": "slow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    },
+    {
+      "target": "n_poi_bq",
+      "cv_deviance": {
+        "poisson_glm": 24.46673004773486,
+        "poisson_gbm": 22.039579536740646
+      },
+      "null_deviance": 45.22585144062347,
+      "chosen": "poisson_gbm",
+      "explained": 0.5126773994365552,
+      "gbm_config": "slow_regularized",
+      "feature_variant": "baseline",
+      "features": [
+        "log_pop",
+        "log_housing",
+        "log_area",
+        "log_buildings_usfs",
+        "log_road_km",
+        "road_detail",
+        "log_transit",
+        "log_rail_km",
+        "pct_urban",
+        "ruca",
+        "svi",
+        "tribal_pct",
+        "region_eastern-ok",
+        "region_maricopa-az",
+        "region_northern-ca",
+        "region_south-central-tx",
+        "region_eastern-wa"
+      ]
+    }
+  ],
+  "auxiliary_model_configs": {
+    "E_fire": "shallow_regularized",
+    "E_ems": "shallow_regularized",
+    "E_sch": "slow_regularized",
+    "n_poi_bq": "slow_regularized"
+  },
+  "auxiliary_feature_configs": {},
+  "parameters": [
+    {
+      "parameter": "log_m_eastern-ok",
+      "start": 0.11821351755330461,
+      "fitted": 0.11051494162029853
+    },
+    {
+      "parameter": "log_m_maricopa-az",
+      "start": -0.2547554719616588,
+      "fitted": -0.17726565318053494
+    },
+    {
+      "parameter": "log_m_northern-ca",
+      "start": 0.1824182075048676,
+      "fitted": 0.11038617128352902
+    },
+    {
+      "parameter": "log_m_south-central-tx",
+      "start": -0.18121785075836092,
+      "fitted": -0.16900826212417222
+    },
+    {
+      "parameter": "log_sigma_t",
+      "start": -0.8002054172315941,
+      "fitted": -0.7681177884410952
+    },
+    {
+      "parameter": "beta_bnd",
+      "start": 1.5112568686848888,
+      "fitted": 1.4554552139320023
+    },
+    {
+      "parameter": "logit_q_fm",
+      "start": -2.934820004879787,
+      "fitted": -2.586396539443553
+    },
+    {
+      "parameter": "logit_q_cty",
+      "start": -2.9331094546875898,
+      "fitted": -2.7805653952506835
+    },
+    {
+      "parameter": "logit_q_unr",
+      "start": -4.24875224811991,
+      "fitted": -4.309855826730369
+    },
+    {
+      "parameter": "logit_p_surprise",
+      "start": -4.98899888321983,
+      "fitted": -4.817287634550124
+    },
+    {
+      "parameter": "log_kappa",
+      "start": -0.5441912708113069,
+      "fitted": -0.4372133392346705
+    },
+    {
+      "parameter": "log_sigma_b",
+      "start": -1.9307251496083173,
+      "fitted": -1.962372459690897
+    },
+    {
+      "parameter": "logit_r_fire",
+      "start": 1.24656784602338,
+      "fitted": 1.251736426242119
+    },
+    {
+      "parameter": "logit_r_ems",
+      "start": 3.698555591518251,
+      "fitted": 3.66897093980177
+    },
+    {
+      "parameter": "logit_r_sch",
+      "start": 4.508473831184629,
+      "fitted": 4.883244436432231
+    },
+    {
+      "parameter": "logit_a_fire",
+      "start": 2.369493620275292,
+      "fitted": 2.3078641389336436
+    },
+    {
+      "parameter": "logit_x_fire",
+      "start": -0.38053991425466366,
+      "fitted": -0.428419528409101
+    },
+    {
+      "parameter": "logit_a_ems",
+      "start": 0.6458219168774442,
+      "fitted": 0.6511458465619644
+    },
+    {
+      "parameter": "logit_x_ems",
+      "start": -3.1776767069283434,
+      "fitted": -3.316500807896684
+    },
+    {
+      "parameter": "logit_a_sch",
+      "start": -0.47954794428880887,
+      "fitted": -0.45026855949843003
+    },
+    {
+      "parameter": "logit_x_sch",
+      "start": -3.929104646390503,
+      "fitted": -3.9371720606335368
+    },
+    {
+      "parameter": "ge_fac",
+      "start": -0.5958186592733625,
+      "fitted": -0.5308724516686706
+    },
+    {
+      "parameter": "log_eps",
+      "start": -5.749235214761987,
+      "fitted": -5.567593916267892
+    },
+    {
+      "parameter": "log_sigma_c",
+      "start": -0.7311131644356511,
+      "fitted": -0.8573545717001797
+    },
+    {
+      "parameter": "a_bq",
+      "start": 0.4806172151458431,
+      "fitted": 0.8260687505270469
+    },
+    {
+      "parameter": "gf_rural",
+      "start": 0.5426630886716355,
+      "fitted": 0.5617886777365491
+    },
+    {
+      "parameter": "gf_tribal",
+      "start": 0.06858577641181349,
+      "fitted": -0.019814391673470565
+    },
+    {
+      "parameter": "gf_svi",
+      "start": 0.2018443109212154,
+      "fitted": 0.2016061852439051
+    },
+    {
+      "parameter": "gf_cvi",
+      "start": 0.15774814531271597,
+      "fitted": 0.13747959414200056
+    },
+    {
+      "parameter": "gf_sdrought",
+      "start": -0.19671022342332103,
+      "fitted": -0.1670302003447067
+    },
+    {
+      "parameter": "gf_wdrought",
+      "start": -0.039134732588005,
+      "fitted": 4.543160623975202e-05
+    },
+    {
+      "parameter": "gf_wildfire",
+      "start": 0.36609221080598175,
+      "fitted": 0.37570778101206154
+    },
+    {
+      "parameter": "gf_heat",
+      "start": -0.5504816977194049,
+      "fitted": -0.5518012321565724
+    },
+    {
+      "parameter": "gr_rural",
+      "start": -0.2686521885103967,
+      "fitted": -0.26020759055145415
+    },
+    {
+      "parameter": "gr_tribal",
+      "start": 0.17236203825654997,
+      "fitted": 0.1677034831497739
+    },
+    {
+      "parameter": "gr_svi",
+      "start": -0.001211405564483224,
+      "fitted": 0.008499807903339563
+    },
+    {
+      "parameter": "gr_cvi",
+      "start": 0.03452016813680251,
+      "fitted": 0.02722156407567463
+    },
+    {
+      "parameter": "gr_sdrought",
+      "start": 0.07657556257596707,
+      "fitted": 0.07626879303274718
+    },
+    {
+      "parameter": "gr_wdrought",
+      "start": 0.11687654448976859,
+      "fitted": 0.11620200721138137
+    },
+    {
+      "parameter": "gr_wildfire",
+      "start": -0.009660449756677262,
+      "fitted": -0.0037803521387601716
+    },
+    {
+      "parameter": "gr_heat",
+      "start": 0.2623360167462296,
+      "fitted": 0.24409389482848629
+    },
+    {
+      "parameter": "log_sigma_loc",
+      "start": 2.9430873756368032,
+      "fitted": 2.9703563615168425
+    },
+    {
+      "parameter": "w_local",
+      "start": 0.6705684893343274,
+      "fitted": 0.6804418461512461
+    },
+    {
+      "parameter": "w_inter",
+      "start": 0.3494373485781342,
+      "fitted": 0.4857165072298021
+    },
+    {
+      "parameter": "w_multi",
+      "start": 0.5672005116473774,
+      "fitted": 0.565357141913585
+    },
+    {
+      "parameter": "logit_a_col",
+      "start": -2.8183537630607285,
+      "fitted": -3.014383171946699
+    },
+    {
+      "parameter": "logit_a_k12",
+      "start": -2.784585281316807,
+      "fitted": -2.84912956787852
+    },
+    {
+      "parameter": "logit_a_er",
+      "start": -3.881583284315918,
+      "fitted": -3.8174117575549795
+    },
+    {
+      "parameter": "gfr_eastern-ok",
+      "start": -0.18743083896515678,
+      "fitted": -0.20870155299529874
+    },
+    {
+      "parameter": "gfr_maricopa-az",
+      "start": -0.3275536013999199,
+      "fitted": -0.3885887069412681
+    },
+    {
+      "parameter": "gfr_northern-ca",
+      "start": 0.09450980278737846,
+      "fitted": -0.14155842204279281
+    },
+    {
+      "parameter": "gfr_south-central-tx",
+      "start": -0.10389438116998231,
+      "fitted": -0.11247779680795746
+    },
+    {
+      "parameter": "gcr_eastern-ok",
+      "start": -0.01467990882248529,
+      "fitted": -0.003544943248516735
+    },
+    {
+      "parameter": "gcr_maricopa-az",
+      "start": -0.10831523795980903,
+      "fitted": -0.13938709547263683
+    },
+    {
+      "parameter": "gcr_northern-ca",
+      "start": -0.0268682980982904,
+      "fitted": -0.03156396115993091
+    },
+    {
+      "parameter": "gcr_south-central-tx",
+      "start": -0.0924923695441722,
+      "fitted": -0.0758895989010403
+    },
+    {
+      "parameter": "gbr_eastern-ok",
+      "start": -0.08150472224964284,
+      "fitted": -0.09721593264760668
+    },
+    {
+      "parameter": "gbr_maricopa-az",
+      "start": -0.14664334205266288,
+      "fitted": -0.011948498634846854
+    },
+    {
+      "parameter": "gbr_northern-ca",
+      "start": -0.01862573902574707,
+      "fitted": -0.018327957164604537
+    },
+    {
+      "parameter": "gbr_south-central-tx",
+      "start": -0.2793690877976415,
+      "fitted": -0.2964366614870342
+    },
+    {
+      "parameter": "nn_w1_bph_0",
+      "start": 0.06286511054669665,
+      "fitted": 0.009731998893820553
+    },
+    {
+      "parameter": "nn_w1_bph_1",
+      "start": -0.06605243164565094,
+      "fitted": -0.010225506549816249
+    },
+    {
+      "parameter": "nn_w1_bph_2",
+      "start": 0.32021132522164103,
+      "fitted": 0.04967042135327545
+    },
+    {
+      "parameter": "nn_w1_bph_3",
+      "start": 0.052450058576519853,
+      "fitted": 0.008119469676754186
+    },
+    {
+      "parameter": "nn_w1_bph_4",
+      "start": -0.2678346865805555,
+      "fitted": -0.04152008334530949
+    },
+    {
+      "parameter": "nn_w1_bph_5",
+      "start": 0.18079752745474237,
+      "fitted": 0.028005266251672784
+    },
+    {
+      "parameter": "nn_w1_bq_share_0",
+      "start": 0.6520000225650686,
+      "fitted": 0.10177605565973653
+    },
+    {
+      "parameter": "nn_w1_bq_share_1",
+      "start": 0.4735404815646211,
+      "fitted": 0.07363251079320937
+    },
+    {
+      "parameter": "nn_w1_bq_share_2",
+      "start": -0.3518676179034963,
+      "fitted": -0.0546041837639502
+    },
+    {
+      "parameter": "nn_w1_bq_share_3",
+      "start": -0.6327107355230263,
+      "fitted": -0.09871849537587561
+    },
+    {
+      "parameter": "nn_w1_bq_share_4",
+      "start": -0.3116372312686761,
+      "fitted": -0.048335159197903474
+    },
+    {
+      "parameter": "nn_w1_bq_share_5",
+      "start": 0.0206629896736218,
+      "fitted": 0.0031985575624513063
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_0",
+      "start": -1.1625153873194172,
+      "fitted": -0.18443629281292287
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_1",
+      "start": -0.10939583196627287,
+      "fitted": -0.01693808719933494
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_2",
+      "start": -0.6229554736265326,
+      "fitted": -0.0971737182964469
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_3",
+      "start": -0.3661336773517258,
+      "fitted": -0.05682969585720483
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_4",
+      "start": -0.27212949142865495,
+      "fitted": -0.04218784773177537
+    },
+    {
+      "parameter": "nn_w1_c_unr_share_5",
+      "start": -0.15815007818457727,
+      "fitted": -0.024493377774158994
+    },
+    {
+      "parameter": "nn_w1_cty_share_0",
+      "start": 0.2058152681870664,
+      "fitted": 0.03188675240480589
+    },
+    {
+      "parameter": "nn_w1_cty_share_1",
+      "start": 0.5212566847213388,
+      "fitted": 0.08112747484226457
+    },
+    {
+      "parameter": "nn_w1_cty_share_2",
+      "start": -0.06426733147201713,
+      "fitted": -0.00994910970808626
+    },
+    {
+      "parameter": "nn_w1_cty_share_3",
+      "start": 0.6832317352748429,
+      "fitted": 0.10673538889814385
+    },
+    {
+      "parameter": "nn_w1_cty_share_4",
+      "start": -0.33259733674330677,
+      "fitted": -0.05160009393538279
+    },
+    {
+      "parameter": "nn_w1_cty_share_5",
+      "start": 0.17575503504650986,
+      "fitted": 0.02722319464634623
+    },
+    {
+      "parameter": "nn_w1_detail_0",
+      "start": 0.4517350908259043,
+      "fitted": 0.07021398687329303
+    },
+    {
+      "parameter": "nn_w1_detail_1",
+      "start": 0.04700614888043728,
+      "fitted": 0.007276650945764983
+    },
+    {
+      "parameter": "nn_w1_detail_2",
+      "start": -0.3717496246769042,
+      "fitted": -0.0577061587408784
+    },
+    {
+      "parameter": "nn_w1_detail_3",
+      "start": -0.4608626881292097,
+      "fitted": -0.07164447890118411
+    },
+    {
+      "parameter": "nn_w1_detail_4",
+      "start": -0.22886291283366958,
+      "fitted": -0.035464717363074064
+    },
+    {
+      "parameter": "nn_w1_detail_5",
+      "start": 0.1100975617350247,
+      "fitted": 0.017046791819433523
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_0",
+      "start": -0.504809091769368,
+      "fitted": -0.07854170289979857
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_1",
+      "start": -0.10458778743585653,
+      "fitted": -0.016193302483757593
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_2",
+      "start": -0.07961250495723886,
+      "fitted": -0.012325225370015312
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_3",
+      "start": 0.27042279234290384,
+      "fitted": 0.04192247579580057
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_4",
+      "start": 0.10732956125317045,
+      "fitted": 0.01661800810920987
+    },
+    {
+      "parameter": "nn_w1_fire_weak_share_5",
+      "start": 0.1776863545199607,
+      "fitted": 0.027522724937545734
+    },
+    {
+      "parameter": "nn_w1_has_route_0",
+      "start": -0.3269143047091697,
+      "fitted": -0.050714593739727906
+    },
+    {
+      "parameter": "nn_w1_has_route_1",
+      "start": -0.06480681684638473,
+      "fitted": -0.010032640769422221
+    },
+    {
+      "parameter": "nn_w1_has_route_2",
+      "start": 0.39198773503066475,
+      "fitted": 0.06086646030477106
+    },
+    {
+      "parameter": "nn_w1_has_route_3",
+      "start": 0.7467155726103804,
+      "fitted": 0.1168509535007098
+    },
+    {
+      "parameter": "nn_w1_has_route_4",
+      "start": -0.6295327660520601,
+      "fitted": -0.09821514133438553
+    },
+    {
+      "parameter": "nn_w1_has_route_5",
+      "start": 0.7569618873695313,
+      "fitted": 0.1184881502628096
+    },
+    {
+      "parameter": "nn_w1_loc_share_0",
+      "start": 0.6729377118911523,
+      "fitted": 0.105099567943991
+    },
+    {
+      "parameter": "nn_w1_loc_share_1",
+      "start": 0.39065570035021374,
+      "fitted": 0.06065836655682199
+    },
+    {
+      "parameter": "nn_w1_loc_share_2",
+      "start": 0.13222781516465176,
+      "fitted": 0.02047554026705912
+    },
+    {
+      "parameter": "nn_w1_loc_share_3",
+      "start": -0.1569614072682139,
+      "fitted": -0.02430909751312285
+    },
+    {
+      "parameter": "nn_w1_loc_share_4",
+      "start": 0.7290103417684793,
+      "fitted": 0.11402496083882131
+    },
+    {
+      "parameter": "nn_w1_loc_share_5",
+      "start": 0.9801291582249824,
+      "fitted": 0.15448743324586342
+    },
+    {
+      "parameter": "nn_w1_log_area_0",
+      "start": 0.9008174349330625,
+      "fitted": 0.14161610605216943
+    },
+    {
+      "parameter": "nn_w1_log_area_1",
+      "start": 0.657551882367185,
+      "fitted": 0.10265684420954066
+    },
+    {
+      "parameter": "nn_w1_log_area_2",
+      "start": 0.178690205329478,
+      "fitted": 0.02767841810613314
+    },
+    {
+      "parameter": "nn_w1_log_area_3",
+      "start": -0.6041593161410858,
+      "fitted": -0.09420014030757314
+    },
+    {
+      "parameter": "nn_w1_log_area_4",
+      "start": -0.0022270665600416144,
+      "fitted": -0.0003447390290637767
+    },
+    {
+      "parameter": "nn_w1_log_area_5",
+      "start": 0.3282374675381679,
+      "fitted": 0.050920744468866685
+    },
+    {
+      "parameter": "nn_w1_log_bld_0",
+      "start": -0.6441807318747772,
+      "fitted": -0.10053612281813415
+    },
+    {
+      "parameter": "nn_w1_log_bld_1",
+      "start": 0.19756103009100412,
+      "fitted": 0.03060585899108043
+    },
+    {
+      "parameter": "nn_w1_log_bld_2",
+      "start": 0.214931847411115,
+      "fitted": 0.03330177101076297
+    },
+    {
+      "parameter": "nn_w1_log_bld_3",
+      "start": 0.34802136198143424,
+      "fitted": 0.05400439364961156
+    },
+    {
+      "parameter": "nn_w1_log_bld_4",
+      "start": -0.5920589833785945,
+      "fitted": -0.09228780444023907
+    },
+    {
+      "parameter": "nn_w1_log_bld_5",
+      "start": -0.33085128601951747,
+      "fitted": -0.051328012517763776
+    },
+    {
+      "parameter": "nn_w1_log_density_0",
+      "start": -0.21821762357161062,
+      "fitted": -0.03381185028815258
+    },
+    {
+      "parameter": "nn_w1_log_density_1",
+      "start": -0.584900953886432,
+      "fitted": -0.0911572580104598
+    },
+    {
+      "parameter": "nn_w1_log_density_2",
+      "start": 0.869683938565067,
+      "fitted": 0.13658746875982117
+    },
+    {
+      "parameter": "nn_w1_log_density_3",
+      "start": -0.24795536422107595,
+      "fitted": -0.03843038745234771
+    },
+    {
+      "parameter": "nn_w1_log_density_4",
+      "start": 0.16448481473010104,
+      "fitted": 0.02547552722223639
+    },
+    {
+      "parameter": "nn_w1_log_density_5",
+      "start": -0.129286272736962,
+      "fitted": -0.02001972645473822
+    },
+    {
+      "parameter": "nn_w1_meta_share_0",
+      "start": 0.7917364394010611,
+      "fitted": 0.1240543030718527
+    },
+    {
+      "parameter": "nn_w1_meta_share_1",
+      "start": 0.6601804935409196,
+      "fitted": 0.10307398634537049
+    },
+    {
+      "parameter": "nn_w1_meta_share_2",
+      "start": 0.3166763114124576,
+      "fitted": 0.04911985386061811
+    },
+    {
+      "parameter": "nn_w1_meta_share_3",
+      "start": -1.1017549403233253,
+      "fitted": -0.17440332509520803
+    },
+    {
+      "parameter": "nn_w1_meta_share_4",
+      "start": 0.026014487129943253,
+      "fitted": 0.004026971009076138
+    },
+    {
+      "parameter": "nn_w1_meta_share_5",
+      "start": 0.34184309538826724,
+      "fitted": 0.05304114486115181
+    },
+    {
+      "parameter": "nn_w1_multi_share_0",
+      "start": 0.5019807879210848,
+      "fitted": 0.07809730372118781
+    },
+    {
+      "parameter": "nn_w1_multi_share_1",
+      "start": -0.3089535223538004,
+      "fitted": -0.04791730720752718
+    },
+    {
+      "parameter": "nn_w1_multi_share_2",
+      "start": 0.9110056816641616,
+      "fitted": 0.14326458783000443
+    },
+    {
+      "parameter": "nn_w1_multi_share_3",
+      "start": -0.6602154850066467,
+      "fitted": -0.10307953976535526
+    },
+    {
+      "parameter": "nn_w1_multi_share_4",
+      "start": -0.33076401090760954,
+      "fitted": -0.05131441321012858
+    },
+    {
+      "parameter": "nn_w1_multi_share_5",
+      "start": 0.46752499405701103,
+      "fitted": 0.07268904133434075
+    },
+    {
+      "parameter": "nn_w1_named_over_route_0",
+      "start": 0.024527306912655828,
+      "fitted": 0.003796753757899264
+    },
+    {
+      "parameter": "nn_w1_named_over_route_1",
+      "start": 1.0011962918226276,
+      "fitted": 0.15792147927827777
+    },
+    {
+      "parameter": "nn_w1_named_over_route_2",
+      "start": 0.09425959625623279,
+      "fitted": 0.014593578076414353
+    },
+    {
+      "parameter": "nn_w1_named_over_route_3",
+      "start": -0.31659704509611336,
+      "fitted": -0.049107509219533656
+    },
+    {
+      "parameter": "nn_w1_named_over_route_4",
+      "start": -0.18878175261640412,
+      "fitted": -0.029243767839138173
+    },
+    {
+      "parameter": "nn_w1_named_over_route_5",
+      "start": -0.5455730588095977,
+      "fitted": -0.08495490794558784
+    },
+    {
+      "parameter": "nn_w1_pct_urban_0",
+      "start": -0.638840083193304,
+      "fitted": -0.09968962267897469
+    },
+    {
+      "parameter": "nn_w1_pct_urban_1",
+      "start": 0.31520574538411594,
+      "fitted": 0.04889083937180716
+    },
+    {
+      "parameter": "nn_w1_pct_urban_2",
+      "start": 0.29058290620640287,
+      "fitted": 0.045058102733505176
+    },
+    {
+      "parameter": "nn_w1_pct_urban_3",
+      "start": 0.6472794097205585,
+      "fitted": 0.10102741070418546
+    },
+    {
+      "parameter": "nn_w1_pct_urban_4",
+      "start": -0.37730289562996555,
+      "fitted": -0.05857305127858533
+    },
+    {
+      "parameter": "nn_w1_pct_urban_5",
+      "start": 0.8445537262218366,
+      "fitted": 0.13253803923492197
+    },
+    {
+      "parameter": "nn_w1_places_pc_0",
+      "start": -0.14369385390433315,
+      "fitted": -0.022252499262792665
+    },
+    {
+      "parameter": "nn_w1_places_pc_1",
+      "start": 0.7872041394222934,
+      "fitted": 0.12332798240109025
+    },
+    {
+      "parameter": "nn_w1_places_pc_2",
+      "start": -0.2163929235912984,
+      "fitted": -0.03352858100204027
+    },
+    {
+      "parameter": "nn_w1_places_pc_3",
+      "start": -0.3677416461711375,
+      "fitted": -0.057080624606486316
+    },
+    {
+      "parameter": "nn_w1_places_pc_4",
+      "start": 0.12489268577933342,
+      "fitted": 0.019338946894964414
+    },
+    {
+      "parameter": "nn_w1_places_pc_5",
+      "start": 0.5157265424347361,
+      "fitted": 0.08025779082721225
+    },
+    {
+      "parameter": "nn_w1_ruca_0",
+      "start": 0.08050478835767233,
+      "fitted": 0.012463400839245992
+    },
+    {
+      "parameter": "nn_w1_ruca_1",
+      "start": -0.2927644120616683,
+      "fitted": -0.04539753492562065
+    },
+    {
+      "parameter": "nn_w1_ruca_2",
+      "start": -0.6706098570383345,
+      "fitted": -0.10472981607206396
+    },
+    {
+      "parameter": "nn_w1_ruca_3",
+      "start": -0.700760107458714,
+      "fitted": -0.1095236217372393
+    },
+    {
+      "parameter": "nn_w1_ruca_4",
+      "start": 0.25134142493743283,
+      "fitted": 0.03895652429701261
+    },
+    {
+      "parameter": "nn_w1_ruca_5",
+      "start": 0.4948565166429025,
+      "fitted": 0.07697821334404198
+    },
+    {
+      "parameter": "nn_w1_svi_0",
+      "start": -0.08214729631264535,
+      "fitted": -0.012717756301610763
+    },
+    {
+      "parameter": "nn_w1_svi_1",
+      "start": -0.5371824291142173,
+      "fitted": -0.0836335811254396
+    },
+    {
+      "parameter": "nn_w1_svi_2",
+      "start": 0.4365210763108533,
+      "fitted": 0.06783112200588065
+    },
+    {
+      "parameter": "nn_w1_svi_3",
+      "start": -0.6401969723572866,
+      "fitted": -0.09990466195658437
+    },
+    {
+      "parameter": "nn_w1_svi_4",
+      "start": -0.3565340475296361,
+      "fitted": -0.05533200154403668
+    },
+    {
+      "parameter": "nn_w1_svi_5",
+      "start": 0.31050892677004927,
+      "fitted": 0.048159477763222894
+    },
+    {
+      "parameter": "nn_w1_tert_share_0",
+      "start": -1.1250705867872959,
+      "fitted": -0.17824657911740996
+    },
+    {
+      "parameter": "nn_w1_tert_share_1",
+      "start": 0.19318479878315292,
+      "fitted": 0.02992685849432431
+    },
+    {
+      "parameter": "nn_w1_tert_share_2",
+      "start": -0.2908204182047516,
+      "fitted": -0.045095057247581186
+    },
+    {
+      "parameter": "nn_w1_tert_share_3",
+      "start": 0.05463984873890694,
+      "fitted": 0.0084584981899573
+    },
+    {
+      "parameter": "nn_w1_tert_share_4",
+      "start": -0.03785076311041156,
+      "fitted": -0.00585928468790095
+    },
+    {
+      "parameter": "nn_w1_tert_share_5",
+      "start": 0.10105719752197993,
+      "fitted": 0.015646429764326692
+    },
+    {
+      "parameter": "nn_w1_tribal_0",
+      "start": 0.3470859683535041,
+      "fitted": 0.05385854153178349
+    },
+    {
+      "parameter": "nn_w1_tribal_1",
+      "start": -0.3791848754492046,
+      "fitted": -0.058866885656195383
+    },
+    {
+      "parameter": "nn_w1_tribal_2",
+      "start": 0.7104910111559581,
+      "fitted": 0.1110730589561646
+    },
+    {
+      "parameter": "nn_w1_tribal_3",
+      "start": 0.3630468944738825,
+      "fitted": 0.05634804200910304
+    },
+    {
+      "parameter": "nn_w1_tribal_4",
+      "start": 0.421866331151634,
+      "fitted": 0.06553757915022258
+    },
+    {
+      "parameter": "nn_w1_tribal_5",
+      "start": 0.5824319905555141,
+      "fitted": 0.09076742832594831
+    },
+    {
+      "parameter": "nn_w1_unr_share_0",
+      "start": 0.3937941108529347,
+      "fitted": 0.061148677090830605
+    },
+    {
+      "parameter": "nn_w1_unr_share_1",
+      "start": 0.422039340289296,
+      "fitted": 0.06556464628171947
+    },
+    {
+      "parameter": "nn_w1_unr_share_2",
+      "start": 0.03779680537144256,
+      "fitted": 0.005850931559864928
+    },
+    {
+      "parameter": "nn_w1_unr_share_3",
+      "start": -0.7133869254948662,
+      "fitted": -0.11153438633902016
+    },
+    {
+      "parameter": "nn_w1_unr_share_4",
+      "start": -0.06752255001850696,
+      "fitted": -0.01045313603268869
+    },
+    {
+      "parameter": "nn_w1_unr_share_5",
+      "start": -0.38475732008835284,
+      "fitted": -0.059737058608381445
+    },
+    {
+      "parameter": "nn_b1_0",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_1",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_2",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_3",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_4",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_b1_5",
+      "start": 0.0,
+      "fitted": 0.0
+    },
+    {
+      "parameter": "nn_w2_0_t",
+      "start": 0.0,
+      "fitted": -0.02904619541026263
+    },
+    {
+      "parameter": "nn_w2_0_f",
+      "start": 0.0,
+      "fitted": 0.07542468653308543
+    },
+    {
+      "parameter": "nn_w2_1_t",
+      "start": 0.0,
+      "fitted": -0.06908692498219346
+    },
+    {
+      "parameter": "nn_w2_1_f",
+      "start": 0.0,
+      "fitted": -0.08737870975234993
+    },
+    {
+      "parameter": "nn_w2_2_t",
+      "start": 0.0,
+      "fitted": 0.02367598899949924
+    },
+    {
+      "parameter": "nn_w2_2_f",
+      "start": 0.0,
+      "fitted": -0.06475137647679131
+    },
+    {
+      "parameter": "nn_w2_3_t",
+      "start": 0.0,
+      "fitted": 0.02253302205118089
+    },
+    {
+      "parameter": "nn_w2_3_f",
+      "start": 0.0,
+      "fitted": 0.07525273204511077
+    },
+    {
+      "parameter": "nn_w2_4_t",
+      "start": 0.0,
+      "fitted": -0.0015022941657960264
+    },
+    {
+      "parameter": "nn_w2_4_f",
+      "start": 0.0,
+      "fitted": 0.028447778520654384
+    },
+    {
+      "parameter": "nn_w2_5_t",
+      "start": 0.0,
+      "fitted": -0.004018324623492956
+    },
+    {
+      "parameter": "nn_w2_5_f",
+      "start": 0.0,
+      "fitted": 0.15718022654779806
+    },
+    {
+      "parameter": "nn_b2_t",
+      "start": 0.0,
+      "fitted": 0.009915162504205774
+    },
+    {
+      "parameter": "nn_b2_f",
+      "start": 0.0,
+      "fitted": 0.017775895416183126
+    }
+  ],
+  "targets": [
+    {
+      "target": "undefined_share[eastern-ok]",
+      "observed": 0.21,
+      "start": 0.2087680893456376,
+      "fitted": 0.20849445522231544
+    },
+    {
+      "target": "undefined_share[maricopa-az]",
+      "observed": 0.55,
+      "start": 0.535651581136221,
+      "fitted": 0.5349367839767734
+    },
+    {
+      "target": "undefined_share[northern-ca]",
+      "observed": 0.37,
+      "start": 0.33906712669204736,
+      "fitted": 0.3381880552030457
+    },
+    {
+      "target": "undefined_share[south-central-tx]",
+      "observed": 0.28,
+      "start": 0.2783399966683325,
+      "fitted": 0.2756935334416125
+    },
+    {
+      "target": "road_ratio[min region]",
+      "observed": 0.71,
+      "start": 0.6442878088875602,
+      "fitted": 0.6486019387596187
+    },
+    {
+      "target": "road_ratio[max region]",
+      "observed": 1.59,
+      "start": 1.509911035900682,
+      "fitted": 1.5187118695749775
+    },
+    {
+      "target": "ems_ratio",
+      "observed": 1.0,
+      "start": 1.0069816295098475,
+      "fitted": 1.0112629329454488
+    },
+    {
+      "target": "ems_binding_share",
+      "observed": 0.01,
+      "start": 0.02594059867789743,
+      "fitted": 0.02556679983207165
+    },
+    {
+      "target": "schools_per_tract",
+      "observed": 1.5,
+      "start": 1.1451655626932509,
+      "fitted": 1.1308071056349291
+    },
+    {
+      "target": "fire_stations_per_tract",
+      "observed": 0.6,
+      "start": 0.7257782512794541,
+      "fitted": 0.7209049139034012
+    },
+    {
+      "target": "establishments_per_resident",
+      "observed": 0.025,
+      "start": 0.0030526798667995076,
+      "fitted": 0.004379955949690597
+    },
+    {
+      "target": "scorecard[rural]",
+      "observed": 2.336,
+      "start": 2.3271922973503556,
+      "fitted": 2.319774737286513
+    },
+    {
+      "target": "scorecard[tribal]",
+      "observed": 2.884,
+      "start": 2.8710731516996466,
+      "fitted": 2.8756043143428296
+    },
+    {
+      "target": "scorecard[svi]",
+      "observed": 1.231,
+      "start": 1.219644379019609,
+      "fitted": 1.2216987028616542
+    },
+    {
+      "target": "scorecard[cvi]",
+      "observed": 1.554,
+      "start": 1.5480928693979437,
+      "fitted": 1.5464656341505225
+    },
+    {
+      "target": "scorecard[sdrought]",
+      "observed": 0.999,
+      "start": 0.9996266186051471,
+      "fitted": 1.003615291610366
+    },
+    {
+      "target": "scorecard[wdrought]",
+      "observed": 1.36,
+      "start": 1.3553648547012156,
+      "fitted": 1.3616251135841404
+    },
+    {
+      "target": "scorecard[wildfire]",
+      "observed": 1.767,
+      "start": 1.7589303877891915,
+      "fitted": 1.7711111516641047
+    },
+    {
+      "target": "scorecard[heat]",
+      "observed": 0.618,
+      "start": 0.6179978902954815,
+      "fitted": 0.6230293956170382
+    },
+    {
+      "target": "scorecard[hv]",
+      "observed": 1.219,
+      "start": 1.2160939984414643,
+      "fitted": 1.2179821080272728
+    }
+  ],
+  "est_public": 0.06188794021995073,
+  "ratios": {
+    "rural": 2.316,
+    "tribal": 2.873,
+    "svi": 1.221,
+    "cvi": 1.545,
+    "sdrought": 1.001,
+    "wdrought": 1.36,
+    "wildfire": 1.767,
+    "heat": 0.623,
+    "hv": 1.217
+  },
+  "cost": 202.0591958297312
+}
