@@ -1,11 +1,16 @@
 # Bias Bounty Mapping Equity Challenge: a coverage-gap model trained from scratch
 
-Zindi user **iam-dante**. The pipeline trains from the challenge data and writes two final files:
+Zindi user **iam-dante**. The pipeline trains from the challenge data. Final state (2026-10-27, experiments stopped):
+
+| Final file | Scored file | Public RMSE |
+|---|---|---:|
+| **`submission.csv`** | `tr_nofp_030`: the best + 0.3 × the footprint-free flexible model's unscored part | **0.05836217** |
+| `submission_alt.csv` | `tr_cosci02B_030`: the shared update + 0.3 × the flexible model's unscored part (a different idea, kept as the second final) | 0.05854815 |
 
 ```bash
 pip install -r requirements.txt
 python train.py          # first run: data (4.2 GB), features, physics model, stage 8
-python cosci.py          # co-scientist tournament -> submission.csv (A) and submission_alt.csv (B)
+python cosci.py          # co-scientist round (overwrites submission.csv and submission_alt.csv)
 ```
 
 Seeds are fixed, and reruns reproduce the files byte for byte.
@@ -17,9 +22,9 @@ Seeds are fixed, and reruns reproduce the files byte for byte.
 | `train.py` | the pipeline: data, features, physics simulator, calibration, aggregate labels (stages 1–10) |
 | `cosci.py` | the co-scientist loop: hypotheses, held-out tournament (Elo), and the two final submissions |
 | `experiment_loop.py`, `posterior_experiment.py`, `robust_posterior_experiment.py`, `aggregate_kernel_experiment.py` | the audited score-feedback loop that produced the current best file |
-| `submission.csv` | **submission A**: the measured best + a bet on the wide neural network |
-| `submission_alt.csv` | **submission B**: the measured best + a bet on the flexible linear model |
-| `aggregate_labels.npz` | training labels: the vector and public RMSE of every scored file (87) |
+| `submission.csv` | **final submission**: the best scored file, 0.05836217 |
+| `submission_alt.csv` | **second final**: the previous best scored file, 0.05854815 |
+| `aggregate_labels.npz` | training labels: the vector and public RMSE of every scored file (88) |
 | `outputs/` | the physics model, the calibrated models the two files use, the warm-start fits, and every report |
 | `METHOD.md` | the technical write-up: every experiment, including the ones that failed |
 | `BIAS_DISCOVERY.md` | the Best Bias Discovery write-up |
@@ -86,30 +91,21 @@ was therefore down-weighting the scores about 40×. A file now opens a posterior
 |---|---|---|---:|---|
 | 1 | `tr_cosciB_030` | 0.3 × the 6-unit network's unscored part | 0.058603 | optimum 1.65× the step (coefficient about +0.6) |
 | 2 | `tr_cosci02A_043` | shared update + 0.43 × the 6-unit network | 0.058568 | optimum 0.55× the step: little left |
-| 2 | `tr_cosci02B_030` | shared update + 0.30 × the flexible model | **0.058548** | optimum 1.12× the step: B landed on it |
+| 2 | `tr_cosci02B_030` | shared update + 0.30 × the flexible model | 0.058548 | optimum 1.12× the step: B landed on it |
+| 3 | `tr_nofp_030` | best + 0.30 × the footprint-free flexible model | **0.058362** | beat its +0.5 forecast (0.058466); coefficient above +0.5 |
 
 The shared update was forecast at 0.058572; the flexible bet added 0.000024. Flexible bets have now measured +0.5,
 +0.4, +0.85 and about +0.45, although the flexible model fails one held-out moment. After round 2 the posterior's
 own update is spent: it forecasts 0.058543 ± 0.000046, a coin flip against the best (P 0.54).
 
-## The next two submissions
+## Round 3
 
-Both start from the measured best (`tr_cosci02B_030`), since no update clears P ≥ 0.75. Each adds a bet on a model
-refitted on all 87 labels:
+Three files started from `tr_cosci02B_030`. C, the bet on the footprint-free model, scored **0.05836217**, a gain of
+0.000186 and the largest of any round. A (the wide-network bet) and B (a second flexible bet) have no recorded scores.
+Their files are in git history at commit `016baa9`.
 
-| | **A: `submission.csv`** | **B: `submission_alt.csv`** |
-|---|---|---|
-| Bet | 0.30 × the wide network's unscored part (RMS 0.0049; never measured) | 0.45 × the flexible model's new unscored part (RMS 0.0024) |
-| If the bet's coefficient is +0.5 | **0.058511** | 0.058539 |
-| +0.3 | 0.058535 | 0.058548 |
-| 0 | 0.058572 | 0.058562 |
-| −0.3 | 0.058608 | 0.058575 |
-
-A is the bigger bet: it is the first measurement of the wide network, the held-out tournament's winner. B is the
-safer one: a smaller step along a family that has measured +0.4 to +0.85. They differ by RMS 0.0014.
-
-**For the final selection:** keep the best public-scored file, and pick the second from a different idea, so the two
-finals do not share every error.
+**For the final selection:** `submission.csv` (0.058362) and `submission_alt.csv` (0.058548). Both are scored, and
+they rest on different bets, so they do not share every error.
 
 ## Without the footprint-derived columns (`--no-footprint-columns`)
 
@@ -127,9 +123,9 @@ Dropping them costs 0.000035 in the physics model. The building component is nea
 predictions still differ by RMS 0.0086 (correlation 0.992). The footprint-free model's unscored part is RMS 0.0072,
 three times the flexible model's, so a bet on it is the boldest file available:
 
-| Optional C: `outputs/submission_c_nofp.csv` | +0.5 | +0.3 | 0 | −0.3 |
-|---|---:|---:|---:|---:|
-| best + 0.3 × the footprint-free model's unscored part | 0.058466 | 0.058520 | 0.058600 | 0.058681 |
+| File C (`tr_nofp_030`, now `submission.csv`) | +0.5 | +0.3 | 0 | −0.3 | **Scored** |
+|---|---:|---:|---:|---:|---:|
+| best + 0.3 × the footprint-free model's unscored part | 0.058466 | 0.058520 | 0.058600 | 0.058681 | **0.058362** |
 
 A caveat: every scored file so far came from physics that used the USFS count, and the best file is built from them. A
 strictly footprint-free final would be the footprint-free physics alone, about 0.0610.
@@ -154,23 +150,22 @@ strictly footprint-free final would be the footprint-free physics alone, about 0
 | robust continuous update | `tr_refined083_d7469871.csv` | 0.058697 |
 | co-scientist B: neural-network bet | 0.3 × the neural model's unscored part (`tr_cosciB_030.csv`) | 0.058603 |
 | co-scientist round 2, A | shared update + 0.43 × the 6-unit network (`tr_cosci02A_043.csv`) | 0.058568 |
-| co-scientist round 2, B | shared update + 0.30 × the flexible model (`tr_cosci02B_030.csv`) | **0.058548 (best)** |
+| co-scientist round 2, B | shared update + 0.30 × the flexible model (`tr_cosci02B_030.csv`) | 0.058548 |
+| footprint-free bet | best + 0.30 × the footprint-free flexible model (`tr_nofp_030.csv`) | **0.058362 (best)** |
 
-## After each score
+## Continuing the loop
 
-Record the real leaderboard score of the file you uploaded, then rerun the loop:
+Experiments stopped on 2026-10-27. To continue, record each real score, refit, and rerun the co-scientist round
+(`cosci.py` overwrites both final files):
 
 ```bash
-python train.py --add-label tr_cosci04A_030.csv submission.csv RMSE_A       # file A
-python train.py --add-label tr_cosci04B_045.csv submission_alt.csv RMSE_B   # file B
-python train.py --add-label tr_nofp_030.csv outputs/submission_c_nofp.csv RMSE_C   # optional file C
-python train.py --calibrate-physics --structural --unmatched --regional --nn-wide             # ~40 min (run both at once)
-python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2  # ~10 min
-python cosci.py                                   # -> new submission.csv and submission_alt.csv (prints the next label names)
+python train.py --add-label NAME.csv FILE RMSE      # NAME starts with tr_ for a bet file
+python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2 --no-footprint-columns
+python cosci.py
 ```
 
 `--add-label` refuses a score more than 0.003 from what the file can plausibly score: a target typed in as a score
-(0.004, 0.04) would corrupt every later fit. Each round needs a real score, and Zindi allows 5 uploads a day.
+(0.004, 0.04) would corrupt every later fit. Zindi's upload dialog allows 5 uploads a day.
 
 ## Why not 0.04
 

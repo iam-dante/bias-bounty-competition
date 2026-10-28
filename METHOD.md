@@ -1610,5 +1610,5 @@ independent building count `U_bld` to the Overture count (the fallback the code 
 missing). Outputs carry the suffix `_nofp`. In the default configuration only `U_bld` (the Microsoft building-count
 proxy, `MS = κ · U_b`) and the auxiliary feature `log_buildings_usfs` used these columns. Flexible physics refitted on 87
 labels: estimated alone 0.061049 without them, 0.061014 with them. Fit cost 145.2 against 157.3, κ 0.82 against 0.62.
-Predictions differ by RMS 0.0086 (correlation 0.992); the unscored part is RMS 0.0072. Optional file C =
-best + 0.3 × that unscored part: 0.058466 (+0.5), 0.058520 (+0.3), 0.058600 (0), 0.058681 (−0.3). Label `tr_nofp_030`.
+Predictions differ by RMS 0.0086 (correlation 0.992); the unscored part is RMS 0.0072. File C =
+best + 0.3 × that unscored part: 0.058466 (+0.5), 0.058520 (+0.3), 0.058600 (0), 0.058681 (−0.3). Label `tr_nofp_030`; it scored **0.05836217** (best), beating its +0.5 forecast, and is the final `submission.csv`.
