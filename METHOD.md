@@ -1603,3 +1603,12 @@ Labels: `tr_cosci04A_030`, `tr_cosci04B_045`.
 not permitted. Questions on `usfs_BuildingCount_sum` (the building model's independent count, `U_bld`) and on
 leaderboard-based tuning are unanswered. The source bucket's newest object is dated 2026-09-25, and every local file
 matches its size.
+
+**Footprint-free variant (`--no-footprint-columns`).** The switch drops `usfs_BuildingCount_*`, `usfs_HUCount_*` and
+`carbonplan_buildings*` from every strata sweep, and drops the Microsoft-sourced share of Overture buildings. It sets the
+independent building count `U_bld` to the Overture count (the fallback the code already used where USFS is zero or
+missing). Outputs carry the suffix `_nofp`. In the default configuration only `U_bld` (the Microsoft building-count
+proxy, `MS = κ · U_b`) and the auxiliary feature `log_buildings_usfs` used these columns. Flexible physics refitted on 87
+labels: estimated alone 0.061049 without them, 0.061014 with them. Fit cost 145.2 against 157.3, κ 0.82 against 0.62.
+Predictions differ by RMS 0.0086 (correlation 0.992); the unscored part is RMS 0.0072. Optional file C =
+best + 0.3 × that unscored part: 0.058466 (+0.5), 0.058520 (+0.3), 0.058600 (0), 0.058681 (−0.3). Label `tr_nofp_030`.

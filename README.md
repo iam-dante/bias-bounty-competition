@@ -111,6 +111,29 @@ safer one: a smaller step along a family that has measured +0.4 to +0.85. They d
 **For the final selection:** keep the best public-scored file, and pick the second from a different idea, so the two
 finals do not share every error.
 
+## Without the footprint-derived columns (`--no-footprint-columns`)
+
+The organisers have not said whether `usfs_BuildingCount_sum` is a "permitted column" of the strata tables. Neither have
+they ruled on `usfs_HUCount_sum` or `carbonplan_buildings`. The switch drops all three, plus the Microsoft-sourced share of
+Overture buildings. The Overture building count then stands in for the USFS count. Only two active paths used them: the
+building model's independent count, and one auxiliary feature.
+
+| Flexible physics, 87 labels | Estimated public RMSE alone | Fit cost | Microsoft scale κ |
+|---|---:|---:|---:|
+| with the columns | 0.061014 | 157.3 | 0.62 |
+| without | 0.061049 | 145.2 | 0.82 |
+
+Dropping them costs 0.000035 in the physics model. The building component is near zero in both. The two
+predictions still differ by RMS 0.0086 (correlation 0.992). The footprint-free model's unscored part is RMS 0.0072,
+three times the flexible model's, so a bet on it is the boldest file available:
+
+| Optional C: `outputs/submission_c_nofp.csv` | +0.5 | +0.3 | 0 | −0.3 |
+|---|---:|---:|---:|---:|
+| best + 0.3 × the footprint-free model's unscored part | 0.058466 | 0.058520 | 0.058600 | 0.058681 |
+
+A caveat: every scored file so far came from physics that used the USFS count, and the best file is built from them. A
+strictly footprint-free final would be the footprint-free physics alone, about 0.0610.
+
 ## Score progression (public RMSE)
 
 | File | What changed | Score |
@@ -140,6 +163,7 @@ Record the real leaderboard score of the file you uploaded, then rerun the loop:
 ```bash
 python train.py --add-label tr_cosci04A_030.csv submission.csv RMSE_A       # file A
 python train.py --add-label tr_cosci04B_045.csv submission_alt.csv RMSE_B   # file B
+python train.py --add-label tr_nofp_030.csv outputs/submission_c_nofp.csv RMSE_C   # optional file C
 python train.py --calibrate-physics --structural --unmatched --regional --nn-wide             # ~40 min (run both at once)
 python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2  # ~10 min
 python cosci.py                                   # -> new submission.csv and submission_alt.csv (prints the next label names)
