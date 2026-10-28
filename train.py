@@ -405,7 +405,7 @@ def load():
                        ("sch", "n_sch", "n_sch_alt", "n_sch_name")]:
         df[f"E_{k}"] = df[a] + df[b] + df[c]          # all Overture evidence of the facility type
         df[f"X_{k}"] = df[b] + df[c]                  # weak evidence (alternate category or name only)
-    u = df["usfs_BuildingCount_sum"]                  # independent building count (USFS)
+    u = df["usfs_BuildingCount_sum"] if FOOTPRINT_COLUMNS else df["n_bld"]   # independent building count (USFS)
     df["U_bld"] = u.where(u > 0, df["n_bld"]).fillna(df["n_bld"])
     df["detail"] = (df["L_service"] + df["L_track"] + df["L_ped"]) / (df["L_unf"] + 1.0)
     df["bnd"] = (df["Lb_route"] - df["L_route_nearB"]).clip(lower=0)
@@ -516,6 +516,11 @@ AUX_POI_CATEGORY_SELECTED = {"E_fire": ("primary",), "E_ems": (),
 AUX_SOURCE_DEPTH_SELECTED = {"n_poi_bq"}
 AUX_FEATURE_BY_TARGET = {}
 AUX_FEATURE_TAG = ""
+# Strata columns counted from building footprints (USFS WRC 2nd edition, CarbonPlan) and the Microsoft-sourced share of
+# Overture buildings. The organisers allow "permitted columns in the strata tables" without listing them, and questions
+# on these columns are unanswered. `--no-footprint-columns` drops them all; the Overture count then stands in for USFS.
+FOOTPRINT_COLUMNS = True
+FOOTPRINT_PREFIXES = ("usfs_BuildingCount", "usfs_HUCount", "carbonplan_buildings")
 
 
 def cross_fit_hurdle(df, X, target, cap):
@@ -600,7 +605,7 @@ def building_extra_features(df):
         "b_commercial_share": df["b_class_commercial"].to_numpy(float) / (n + 1),
         "b_apartments_share": df["b_class_apartments"].to_numpy(float) / (n + 1),
         "b_house_share": df["b_class_house"].to_numpy(float) / (n + 1),
-        "b_src_msft_share": df["b_src_msft"].to_numpy(float) / (n + 1),
+        **({"b_src_msft_share": df["b_src_msft"].to_numpy(float) / (n + 1)} if FOOTPRINT_COLUMNS else {}),
         "b_src_osm_share": df["b_src_osm"].to_numpy(float) / (n + 1),
         "b_area_per_bld": np.log1p(a / (n + 1)), "b_volume": np.log1p(a * hm),
     }
@@ -671,6 +676,8 @@ def auxiliary_feature_matrix(df, variant):
             if variant == "density_strata_no_gehe" and col.startswith("gehe_"):
                 continue
             in_strata = col.startswith(prefixes) or (use_full and col in full_columns)
+            if not FOOTPRINT_COLUMNS and col.startswith(FOOTPRINT_PREFIXES):
+                continue
             if not in_strata or col in {"aiannh_geoid", "aiannh_name"} and not use_full:
                 continue
             if (col.endswith(metadata_suffixes) if use_full else any(token in col for token in metadata_tokens)):
@@ -4047,11 +4054,14 @@ def main():
     ap.add_argument("--flex-sd", type=float, default=FLEX_SD, help="with --flex: prior sd of the flexible effects")
     ap.add_argument("--flex-regional", action="store_true", help="with --flex: per-region deviations of the flexible effects")
     ap.add_argument("--nn", action="store_true", help="with --calibrate-physics: neural context effects (MLP) in the simulator")
+    ap.add_argument("--no-footprint-columns", action="store_true",
+                    help="drop the footprint-derived strata columns (USFS/CarbonPlan building counts) and the Microsoft-sourced "
+                         "building share; outputs get the suffix _nofp")
     ap.add_argument("--nn-wide", action="store_true", help="with --calibrate-physics: the wide network (12 units, all four reference layers)")
     ap.add_argument("--holdout", type=int, default=0, metavar="M",
                     help="with --calibrate-physics: leave the last M score moments out of the fit and report their chi-square")
     args = ap.parse_args()
-    global AUX_FEATURE_BY_TARGET, AUX_FEATURE_TAG, AUX_USE_REGION_BLEND, AUX_USE_HURDLE, AUX_USE_CROSS_COUNTS, AUX_USE_SOURCE_MIX, AUX_USE_SOURCE_CONFIDENCE, AUX_USE_SOURCE_RICHNESS, AUX_USE_SPATIAL_LAGS, AUX_SPATIAL_LAG_TARGETS, AUX_USE_POI_CATEGORIES, AUX_POI_CATEGORY_KINDS, AUX_USE_SOURCE_DEPTH, AUX_SOURCE_DEPTH_TARGETS
+    global FOOTPRINT_COLUMNS, AUX_FEATURE_BY_TARGET, AUX_FEATURE_TAG, AUX_USE_REGION_BLEND, AUX_USE_HURDLE, AUX_USE_CROSS_COUNTS, AUX_USE_SOURCE_MIX, AUX_USE_SOURCE_CONFIDENCE, AUX_USE_SOURCE_RICHNESS, AUX_USE_SPATIAL_LAGS, AUX_SPATIAL_LAG_TARGETS, AUX_USE_POI_CATEGORIES, AUX_POI_CATEGORY_KINDS, AUX_USE_SOURCE_DEPTH, AUX_SOURCE_DEPTH_TARGETS
     AUX_FEATURE_BY_TARGET = (AUX_DENSITY_BUILDING_FEATURE_CHOICES.copy() if args.aux_features == "density_building_cv"
                              else AUX_FEATURE_CHOICES.copy() if args.aux_features in ("density_cv", "regional_blend_cv")
                              else AUX_COUNTY_FEATURE_CHOICES.copy() if args.aux_features == "county_cv"
@@ -4079,6 +4089,9 @@ def main():
                        "poicategories" if args.aux_features == "poi_categories_cv" else
                        "poicategoriesdepth" if args.aux_features == "poi_categories_depth_cv" else
                        "hurdle" if args.aux_features == "hurdle_cv" else "")
+    if args.no_footprint_columns:
+        FOOTPRINT_COLUMNS = False
+        AUX_FEATURE_TAG = "_".join(t for t in (AUX_FEATURE_TAG, "nofp") if t)
     AUX_USE_REGION_BLEND = args.aux_features == "regional_blend_cv"
     AUX_USE_HURDLE = args.aux_features in ("hurdle_cv", "cross_counts_cv")
     AUX_USE_CROSS_COUNTS = args.aux_features in ("cross_counts_cv", "cross_counts_direct_cv", "spatial_lags_cv", "spatial_fire_ems_cv", "poi_categories_cv", "poi_categories_depth_cv")
