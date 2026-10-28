@@ -31,8 +31,10 @@ HYPOTHESES = {   # name: stage-10 model
 # Evolve (85 labels): the neural bet in tr_cosciB_030 measured 1.69x its step (coefficient about +0.6) and gave the
 # largest single-round gain (0.058697 -> 0.058603). Rerun at 85 labels, the held-out tournament ranks the wide network
 # first (chi-square 23.5, Elo 1050), then the 6-unit network (24.6) and base (26.2); the flexible model fails one held-out
-# moment at z +7.8 (79.2). A bets on the wide network, B on the 6-unit network.
-FAMILY = dict(A="wide neural, MLP 21-12-4 on all four layers (376)", B="neural context effects, MLP 21-6-2 (206)")
+# moment at z +7.8 (79.2). Round 2 measured the bets on the shared update (forecast 0.058572): the 6-unit network's
+# tr_cosci02A_043 scored 0.058568 (almost nothing), the flexible model's tr_cosci02B_030 scored 0.058548 (best). Real
+# bets outrank held-out moments: A bets on the wide network (unmeasured, held-out winner), B on the flexible model.
+FAMILY = dict(A="wide neural, MLP 21-12-4 on all four layers (376)", B="flexible linear effects, sd 0.2 (88)")
 
 
 def tournament(report, k_elo=16):

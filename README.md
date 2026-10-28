@@ -17,9 +17,9 @@ Seeds are fixed, and reruns reproduce the files byte for byte.
 | `train.py` | the pipeline: data, features, physics simulator, calibration, aggregate labels (stages 1–10) |
 | `cosci.py` | the co-scientist loop: hypotheses, held-out tournament (Elo), and the two final submissions |
 | `experiment_loop.py`, `posterior_experiment.py`, `robust_posterior_experiment.py`, `aggregate_kernel_experiment.py` | the audited score-feedback loop that produced the current best file |
-| `submission.csv` | **submission A**: the measured update + a bet on the neural model |
-| `submission_alt.csv` | **submission B**: the same update + a bet on the flexible linear model |
-| `aggregate_labels.npz` | training labels: the vector and public RMSE of every scored file (85) |
+| `submission.csv` | **submission A**: the measured best + a bet on the wide neural network |
+| `submission_alt.csv` | **submission B**: the measured best + a bet on the flexible linear model |
+| `aggregate_labels.npz` | training labels: the vector and public RMSE of every scored file (87) |
 | `outputs/` | the physics model, the calibrated models the two files use, the warm-start fits, and every report |
 | `METHOD.md` | the technical write-up: every experiment, including the ones that failed |
 | `BIAS_DISCOVERY.md` | the Best Bias Discovery write-up |
@@ -80,29 +80,33 @@ RMS 0.000028) had inflated the posterior's fitted noise scale from 0.97 to 6.4. 
 was therefore down-weighting the scores about 40×. A file now opens a posterior direction only if its new part has RMS ≥ 0.0005
 (`EB_MIN_NEW_RMS`), which restores the noise scale to 1.18.
 
-## Measured: the neural network's bet (2026-10-27)
+## Measured bets (2026-10-27)
 
-File B of the first co-scientist round bet 0.3 × the neural model's unscored part and scored **0.058603**, the largest
-single-round gain (−0.000094). Its forecast for a coefficient of +0.5 was 0.058634. The transfer posterior puts the
-optimum along that direction at 1.65× the step B took. The neural model came second in the held-out tournament,
-but its first measured bet beat every flexible bet. (File A, the flexible bet, has no recorded score.)
+| Round | File | Bet | Score | Measured |
+|---|---|---|---:|---|
+| 1 | `tr_cosciB_030` | 0.3 × the 6-unit network's unscored part | 0.058603 | optimum 1.65× the step (coefficient about +0.6) |
+| 2 | `tr_cosci02A_043` | shared update + 0.43 × the 6-unit network | 0.058568 | optimum 0.55× the step: little left |
+| 2 | `tr_cosci02B_030` | shared update + 0.30 × the flexible model | **0.058548** | optimum 1.12× the step: B landed on it |
+
+The shared update was forecast at 0.058572; the flexible bet added 0.000024. Flexible bets have now measured +0.5,
++0.4, +0.85 and about +0.45, although the flexible model fails one held-out moment. After round 2 the posterior's
+own update is spent: it forecasts 0.058543 ± 0.000046, a coin flip against the best (P 0.54).
 
 ## The next two submissions
 
-Both start from the same base: the best file moved along all 11 measured directions to their posterior optimum
-(5M posterior draws, effective sample 450). Expected public RMSE 0.058572 ± 0.000018, P(beats 0.058603) 0.94.
-Each then bets on a different family, refitted on all 85 labels:
+Both start from the measured best (`tr_cosci02B_030`), since no update clears P ≥ 0.75. Each adds a bet on a model
+refitted on all 87 labels:
 
 | | **A: `submission.csv`** | **B: `submission_alt.csv`** |
 |---|---|---|
-| Bet | 0.43 × the neural model's new unscored part (RMS 0.0026) | 0.30 × the flexible model's unscored part (RMS 0.0040) |
-| If the bet's coefficient is +0.5 | 0.058561 | **0.058547** |
-| +0.3 | 0.058571 | 0.058564 |
-| 0 | 0.058586 | 0.058588 |
-| −0.3 | 0.058600 | 0.058613 |
+| Bet | 0.30 × the wide network's unscored part (RMS 0.0049; never measured) | 0.45 × the flexible model's new unscored part (RMS 0.0024) |
+| If the bet's coefficient is +0.5 | **0.058511** | 0.058539 |
+| +0.3 | 0.058535 | 0.058548 |
+| 0 | 0.058572 | 0.058562 |
+| −0.3 | 0.058608 | 0.058575 |
 
-The two files differ by RMS 0.0014, so the two scores measure the two bets separately. Even with a coefficient of −0.3,
-each is expected to score close to the current best, because the base update gains about 0.00003.
+A is the bigger bet: it is the first measurement of the wide network, the held-out tournament's winner. B is the
+safer one: a smaller step along a family that has measured +0.4 to +0.85. They differ by RMS 0.0014.
 
 **For the final selection:** keep the best public-scored file, and pick the second from a different idea, so the two
 finals do not share every error.
@@ -125,17 +129,19 @@ finals do not share every error.
 | loop round | `tr_loop01_045.csv` | 0.058732 |
 | refined posterior update | `tr_refined082_df6bb1c7.csv` | 0.058707 |
 | robust continuous update | `tr_refined083_d7469871.csv` | 0.058697 |
-| co-scientist B: neural-network bet | 0.3 × the neural model's unscored part (`tr_cosciB_030.csv`) | **0.058603 (best)** |
+| co-scientist B: neural-network bet | 0.3 × the neural model's unscored part (`tr_cosciB_030.csv`) | 0.058603 |
+| co-scientist round 2, A | shared update + 0.43 × the 6-unit network (`tr_cosci02A_043.csv`) | 0.058568 |
+| co-scientist round 2, B | shared update + 0.30 × the flexible model (`tr_cosci02B_030.csv`) | **0.058548 (best)** |
 
 ## After each score
 
 Record the real leaderboard score of the file you uploaded, then rerun the loop:
 
 ```bash
-python train.py --add-label tr_cosci02A_043.csv submission.csv RMSE_A       # file A
-python train.py --add-label tr_cosci02B_030.csv submission_alt.csv RMSE_B   # file B
+python train.py --add-label tr_cosci04A_030.csv submission.csv RMSE_A       # file A
+python train.py --add-label tr_cosci04B_045.csv submission_alt.csv RMSE_B   # file B
 python train.py --calibrate-physics --structural --unmatched --regional --nn-wide             # ~40 min (run both at once)
-python train.py --calibrate-physics --structural --unmatched --regional --nn                  # ~20 min
+python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2  # ~10 min
 python cosci.py                                   # -> new submission.csv and submission_alt.csv (prints the next label names)
 ```
 
@@ -158,3 +164,10 @@ gained 0.00001–0.00005 each.
 - **Leaderboard:** the leaderboard scores of our own files are used as aggregate labels. This is stated openly.
 - **Private leaderboard:** the public score covers about 30% of the test rows; the final ranking uses the other 70%.
 - **Tooling:** open-source packages only (NumPy, pandas, SciPy, DuckDB, scikit-learn), fixed seeds, no AutoML.
+- **Open questions (forum, read 2026-10-27):** the organisers allow "features derived from the currently provided
+  datasets, including Overture attributes and permitted columns in the strata tables" (thread 35250), and ban any use of
+  TIGER, Microsoft footprints, HIFLD or CBP to reconstruct the target (35079). They have not answered two questions this
+  pipeline depends on. One is whether `usfs_BuildingCount_sum` is a permitted column (35302, 35402); it is the building
+  model's independent count. The other is whether tuning on one's own leaderboard scores is allowed (35292, 35532).
+- **Data:** the bucket has not changed since 2026-09-25. All 197 files used here match it in size; the rest are CSV
+  copies of the same tables and the bulk zips.

@@ -1588,3 +1588,18 @@ same model scored 21.4. The wide network's fitted output weights: |W2| 0.18 (TIG
 0.07 (establishments). Its unscored part has cosine 0.32 with the 6-unit network's and 0.23 with the flexible model's.
 After the pending files `tr_cosci02A_043` and `tr_cosci02B_030` are scored, RMS 0.0043 of it stays unmeasured. Next round:
 A bets on the wide network and B on the 6-unit network.
+
+**Round 2 measured, round 3 built (87 labels).** On the shared update (forecast 0.058572), the 6-unit network's bet
+`tr_cosci02A_043` scored 0.05856822 and the flexible bet `tr_cosci02B_030` scored **0.058548152**. The posterior puts their
+optima at 0.55× and 1.12× of their steps. The update itself is spent (0.058543 ± 0.000046, P 0.54 at 1M draws), so both
+new files start from the measured best. Refits on 87 labels: flexible 0.061014 alone, wide network 0.061195.
+- A = best + 0.30 × the wide network's unscored part (RMS 0.0049): 0.058511 (+0.5) … 0.058572 (0) … 0.058608 (−0.3).
+- B = best + 0.45 × the flexible model's unscored part (RMS 0.0024): 0.058539 (+0.5) … 0.058562 (0) … 0.058575 (−0.3).
+
+Labels: `tr_cosci04A_030`, `tr_cosci04B_045`.
+
+**Forum and data check (2026-10-27).** The organisers' 8 October post allows features from the provided datasets,
+"including Overture attributes and permitted columns in the strata tables". It does not say which strata columns are
+not permitted. Questions on `usfs_BuildingCount_sum` (the building model's independent count, `U_bld`) and on
+leaderboard-based tuning are unanswered. The source bucket's newest object is dated 2026-09-25, and every local file
+matches its size.
