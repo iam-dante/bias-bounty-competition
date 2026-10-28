@@ -2467,14 +2467,23 @@ FLEX_PRIORS = lambda sd: [(f"ft_{k}", 0.0, sd) for k in FLEX_T] + [(f"ff_{k}", 0
 # per-region deviations from each flexible effect (the same feature can act differently in each region's map)
 FLEX_REGIONAL_PRIORS = ([(f"ftr_{k}_{r}", 0.0, 0.1) for k in FLEX_T for r in GRADED]
                         + [(f"ffr_{k}_{r}", 0.0, 0.1) for k in FLEX_F for r in GRADED])
-# neural context effects: a small MLP (standardised context features -> NN_HIDDEN tanh units -> two log-multipliers, on the
-# TIGER length and on the unseen-facility rate) inside the simulator, calibrated by the same simulated moments. The output
-# layer starts at zero, so the network starts as the physics model without context effects.
+# neural context effects: a small MLP (standardised context features -> tanh units -> log-multipliers) inside the
+# simulator, calibrated by the same simulated moments. The output layer starts at zero, so the network starts as the
+# physics model without context effects. `--nn`: 6 units, multipliers of the TIGER length (t) and the unseen-facility
+# rate (f). `--nn-wide`: 12 units and all four reference layers, adding the Microsoft building scale (b) and the CBP
+# establishments per resident (c).
 NN_FEATURES = sorted(set(FLEX_T) | set(FLEX_F))
-NN_HIDDEN = 6
-NN_PRIORS = ([(f"nn_w1_{k}_{j}", 0.0, 0.5) for k in NN_FEATURES for j in range(NN_HIDDEN)]
-             + [(f"nn_b1_{j}", 0.0, 0.5) for j in range(NN_HIDDEN)]
-             + [(f"nn_w2_{j}_{o}", 0.0, 0.1) for j in range(NN_HIDDEN) for o in ("t", "f")] + [("nn_b2_t", 0.0, 0.1), ("nn_b2_f", 0.0, 0.1)])
+NN_LAYERS = "tfbc"
+
+
+def nn_priors(hidden, outputs):
+    return ([(f"nn_w1_{k}_{j}", 0.0, 0.5) for k in NN_FEATURES for j in range(hidden)]
+            + [(f"nn_b1_{j}", 0.0, 0.5) for j in range(hidden)]
+            + [(f"nn_w2_{j}_{o}", 0.0, 0.1) for j in range(hidden) for o in outputs] + [(f"nn_b2_{o}", 0.0, 0.1) for o in outputs])
+
+
+NN_PRIORS = nn_priors(6, "tf")
+NN_WIDE_PRIORS = nn_priors(12, NN_LAYERS)
 # per-region log-multipliers of the unseen-facility rate, establishments per resident and the building scale
 REGIONAL_PRIORS = [(f"{pre}_{r}", 0.0, 0.3) for pre in ("gfr", "gcr", "gbr") for r in GRADED]
 NAMES, THETA0, PRIOR_SD = [], np.zeros(0), np.zeros(0)
@@ -2492,7 +2501,7 @@ def set_priors(use_scorecard, regional=False, structural=False, unmatched=False,
     pri = (CORE_PRIORS + (STRATA_PRIORS if use_scorecard else []) + (STRUCT_PRIORS if structural else [])
            + (UNMATCHED_PRIORS if unmatched else []) + (REGIONAL_PRIORS if regional else [])
            + (COVAR_PRIORS if covariates else []) + (FLEX_PRIORS(flex) if flex else [])
-           + (FLEX_REGIONAL_PRIORS if flex_regional else []) + (NN_PRIORS if nn else []))
+           + (FLEX_REGIONAL_PRIORS if flex_regional else []) + (NN_WIDE_PRIORS if nn == "wide" else NN_PRIORS if nn else []))
     NAMES, THETA0, PRIOR_SD = [p[0] for p in pri], np.array([p[1] for p in pri]), np.array([p[2] for p in pri])
 
 
@@ -2596,31 +2605,32 @@ def simulate(F, th, S=256, seed=0):
     G = (route + p["beta_bnd"] * F["bnd"])[None, :] + inc("logit_q_fm", F["L_fm"]) + inc("logit_q_cty", F["L_cty"]) \
         + inc("logit_q_unr", F["L_unr"])
     has = G > 1.0
-    nn_out = (0.0, 0.0)
+    nn = {}
     if "nn_b2_t" in p:
+        hidden = sum(k.startswith("nn_b1_") for k in p)
+        outs = [o for o in NN_LAYERS if f"nn_b2_{o}" in p]
         Z = np.column_stack([F[f"zf_{k}"] for k in NN_FEATURES])
-        W1 = np.array([[p[f"nn_w1_{k}_{j}"] for j in range(NN_HIDDEN)] for k in NN_FEATURES])
-        hid = np.tanh(Z @ W1 + np.array([p[f"nn_b1_{j}"] for j in range(NN_HIDDEN)]))
-        W2 = np.array([[p[f"nn_w2_{j}_{o}"] for o in ("t", "f")] for j in range(NN_HIDDEN)])
-        o2 = hid @ W2 + np.array([p["nn_b2_t"], p["nn_b2_f"]])
-        nn_out = (o2[:, 0], o2[:, 1])
+        W1 = np.array([[p[f"nn_w1_{k}_{j}"] for j in range(hidden)] for k in NN_FEATURES])
+        hid = np.tanh(Z @ W1 + np.array([p[f"nn_b1_{j}"] for j in range(hidden)]))
+        W2 = np.array([[p[f"nn_w2_{j}_{o}"] for o in outs] for j in range(hidden)])
+        nn = dict(zip(outs, (hid @ W2 + np.array([p[f"nn_b2_{o}"] for o in outs])).T))
     cov_t = np.exp(p.get("gt_inter", 0.0) * F["z_inter"] + p.get("gt_detail", 0.0) * F["z_detail"] + p.get("gt_fm", 0.0) * F["z_fm"]
                    + sum(p[f"ft_{k}"] * F[f"zf_{k}"] for k in FLEX_T if f"ft_{k}" in p)
-                   + sum(regk("ftr", k) * F[f"zf_{k}"] for k in FLEX_T if f"ftr_{k}_{GRADED[0]}" in p) + nn_out[0])
+                   + sum(regk("ftr", k) * F[f"zf_{k}"] for k in FLEX_T if f"ftr_{k}_{GRADED[0]}" in p) + nn.get("t", 0.0))
     T = (m * eff("gr") * cov_t)[None, :] * G * ln(np.exp(p["log_sigma_t"]), (S, n))
     surprise = ~has & (rng.random((S, n)) < SIG(p["logit_p_surprise"]))
     T = np.where(surprise, 400.0 * ln(1.0, (S, n)), T)
     dT = has | surprise
     t = np.where(dT, 1 - np.minimum(1, F["N"][None, :] / np.maximum(T, 1e-9)), 0.0)
     # buildings: Microsoft count = kappa * USFS count * noise
-    MS = (np.exp(p["log_kappa"]) * F["U_b"] * reg("gbr") * np.exp(p.get("gb_bph", 0.0) * F["z_bph"]))[None, :] \
+    MS = (np.exp(p["log_kappa"]) * F["U_b"] * reg("gbr") * np.exp(p.get("gb_bph", 0.0) * F["z_bph"] + nn.get("b", 0.0)))[None, :] \
         * ln(np.exp(p["log_sigma_b"]), (S, n))
     dB = MS > 0.5
     b = np.where(dB, 1 - np.minimum(1, F["O_b"][None, :] / np.maximum(MS, 1e-9)), 0.0)
     # facilities: reference = Bin(Overture primary, a) + Bin(weak evidence, x) + Poisson(unseen)
     fac = eff("gf") * np.exp(p["ge_fac"] * F["z_effort"] + sum(p[f"ff_{k}"] * F[f"zf_{k}"] for k in FLEX_F if f"ff_{k}" in p)
                                                    + sum(regk("ffr", k) * F[f"zf_{k}"] for k in FLEX_F if f"ffr_{k}_{GRADED[0]}" in p)
-                                                   + nn_out[1]) * reg("gfr")
+                                                   + nn.get("f", 0.0)) * reg("gfr")
     gs, ds, H_ems, types = [], [], None, {}
     for k in ["fire", "ems", "sch"]:
         r = SIG(p[f"logit_r_{k}"])
@@ -2649,7 +2659,7 @@ def simulate(F, th, S=256, seed=0):
     dH = nd > 0
     h = np.where(dH, (gs[0] + gs[1] + gs[2]) / np.maximum(nd, 1), 0.0)
     # establishments: CBP = eps * population * registry intensity * noise
-    cm = np.exp(p["log_eps"]) * F["pop"] * np.exp(p["a_bq"] * F["z_bq"]) * reg("gcr")
+    cm = np.exp(p["log_eps"]) * F["pop"] * np.exp(p["a_bq"] * F["z_bq"] + nn.get("c", 0.0)) * reg("gcr")
     CBP = cm[None, :] * ln(np.exp(p["log_sigma_c"]), (S, n))
     dC = CBP >= 0.5
     c = np.where(dC, 1 - np.minimum(1, F["n_poi"][None, :] / np.maximum(CBP, 1e-9)), 0.0)
@@ -3667,16 +3677,18 @@ def calibrate_physics_on_labels(df, groups, report, S=512, regional=False, struc
         # held-out test: every hypothesis starts from the same base fit, and never from a fit that saw the held-out moments
         warm = [w_ for w_ in warm if "flex" not in w_]
     else:
-        warm += [lb_name(structural, unmatched, regional, covariates, flex, flex_regional, nn=nn) + "_report.json"] if nn else []
+        # the wide network starts from the fitted 6-unit network (its first 6 units and two outputs), then its own last fit
+        warm += [lb_name(structural, unmatched, regional, covariates, flex, flex_regional, nn=n_) + "_report.json"
+                 for n_ in ([True] if nn == "wide" else []) + ([nn] if nn else [])]
     for wf in map(out, warm) if structural else []:
         if os.path.exists(wf):
             with open(wf) as f:                                           # warm start from the fitted smaller models
                 start.update({p["parameter"]: p["fitted"] for p in json.load(f)["parameters"]})
     if nn:   # hidden layer starts at a fixed random draw from its prior (an all-zero network has no gradient)
         r0 = np.random.default_rng(0)
-        for p_ in NN_PRIORS:
-            if p_[0].startswith("nn_w1_") and p_[0] not in start:
-                start[p_[0]] = float(r0.normal(0, p_[2]))
+        for n_, sd_ in zip(NAMES, PRIOR_SD):
+            if n_.startswith("nn_w1_") and n_ not in start:
+                start[n_] = float(r0.normal(0, sd_))
     th0 = np.array([start.get(n, c0) for n, c0 in zip(NAMES, THETA0)])   # new mechanisms start at their prior centres
     mu, aux = fit_auxiliary(df)
     report["auxiliary_models"] = aux
@@ -3940,7 +3952,7 @@ def lb_name(structural=False, unmatched=False, regional=False, covariates=False,
     """File stem of a label-calibrated physics model (in outputs/)."""
     return ("physics_lb" + ("_struct" if structural else "") + ("_unmatched" if unmatched else "") + ("_regional" if regional else "")
             + ("_covar" if covariates else "") + (flex_suffix(flex) if flex else "") + ("_rflex" if flex_regional else "")
-            + ("_nn" if nn else "") + (f"_ho{holdout}" if holdout else "") + (f"_{aux_feature_tag}" if aux_feature_tag else ""))
+            + ("_nnw" if nn == "wide" else "_nn" if nn else "") + (f"_ho{holdout}" if holdout else "") + (f"_{aux_feature_tag}" if aux_feature_tag else ""))
 
 
 def file_md5(path):
@@ -4035,6 +4047,7 @@ def main():
     ap.add_argument("--flex-sd", type=float, default=FLEX_SD, help="with --flex: prior sd of the flexible effects")
     ap.add_argument("--flex-regional", action="store_true", help="with --flex: per-region deviations of the flexible effects")
     ap.add_argument("--nn", action="store_true", help="with --calibrate-physics: neural context effects (MLP) in the simulator")
+    ap.add_argument("--nn-wide", action="store_true", help="with --calibrate-physics: the wide network (12 units, all four reference layers)")
     ap.add_argument("--holdout", type=int, default=0, metavar="M",
                     help="with --calibrate-physics: leave the last M score moments out of the fit and report their chi-square")
     args = ap.parse_args()
@@ -4323,7 +4336,7 @@ def main():
         return
     if args.calibrate_physics:
         stage10(dict(regional=args.regional, structural=args.structural, unmatched=args.unmatched, covariates=args.covariates,
-                     flex=args.flex and args.flex_sd, flex_regional=args.flex and args.flex_regional, nn=args.nn,
+                     flex=args.flex and args.flex_sd, flex_regional=args.flex and args.flex_regional, nn="wide" if args.nn_wide else args.nn,
                      holdout=args.holdout))
         return
     if args.probes or args.loop_probes or args.deep_probes or args.strata_probes:

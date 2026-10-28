@@ -1563,3 +1563,43 @@ Each file then bets on a different family. The private-robust shrinkage is retir
 | B `submission_alt.csv` | 0.30 × flexible unscored part (RMS 0.0040) | 0.058547 | 0.058564 | 0.058588 | 0.058613 |
 
 A and B differ by RMS 0.0014. The in-span estimates are 0.058535 (A) and 0.058545 (B).
+
+**Wide neural network (`--nn-wide`).** It has 12 tanh units over the same 21 standardised features and four
+log-multiplier outputs: the TIGER length, the unseen-facility rate, the Microsoft building scale and the CBP
+establishments per resident. That is 316 network parameters, 376 in all. The 6-unit network corrects only the first two
+layers. The full fit warm-starts from the fitted 6-unit network: its first 6 units and two outputs, with the new units'
+output weights at zero, so it starts at exactly the 6-unit predictions (checked: max difference 0). The held-out fit
+starts from a random draw, like every other held-out fit. Each fit takes about 42 minutes.
+
+A screen before building it, run on the 6-unit fit: the score correction (best − physics) correlates −0.13 to −0.21 with
+each component's contribution, and the four components together explain R² 0.12 of it. The building and establishment
+components are almost zero in the physics model (mean contributions 0.0003 and 0.0005), so their new outputs have little
+room to act.
+
+| Model (85 labels) | Held-out chi-square, start 30.4 | Elo | Score moments chi-square, full fit | Estimated alone | Unscored RMS |
+|---|---:|---:|---:|---:|---:|
+| wide network | **23.5** | **1050** | 83.6 → **73.9** | 0.061215 | 0.00457 |
+| 6-unit network | 24.6 | 957 | 93.7 → 83.6 | 0.061420 | 0.00258 |
+| base | 26.2 | 968 | – | 0.061908 (held-out fit) | – |
+| flexible (sd 0.2) | 79.2 | 1025 | 79.0 → 75.7 | 0.060731 | 0.00401 |
+
+The flexible model's held-out collapse is one moment (the 5th of the 10, z +7.8, where base gets −3.4). At 84 labels the
+same model scored 21.4. The wide network's fitted output weights: |W2| 0.18 (TIGER), 0.23 (facilities), 0.08 (buildings),
+0.07 (establishments). Its unscored part has cosine 0.32 with the 6-unit network's and 0.23 with the flexible model's.
+After the pending files `tr_cosci02A_043` and `tr_cosci02B_030` are scored, RMS 0.0043 of it stays unmeasured. Next round:
+A bets on the wide network and B on the 6-unit network.
+
+**Round 2 measured, round 3 built (87 labels).** On the shared update (forecast 0.058572), the 6-unit network's bet
+`tr_cosci02A_043` scored 0.05856822 and the flexible bet `tr_cosci02B_030` scored **0.058548152**. The posterior puts their
+optima at 0.55× and 1.12× of their steps. The update itself is spent (0.058543 ± 0.000046, P 0.54 at 1M draws), so both
+new files start from the measured best. Refits on 87 labels: flexible 0.061014 alone, wide network 0.061195.
+- A = best + 0.30 × the wide network's unscored part (RMS 0.0049): 0.058511 (+0.5) … 0.058572 (0) … 0.058608 (−0.3).
+- B = best + 0.45 × the flexible model's unscored part (RMS 0.0024): 0.058539 (+0.5) … 0.058562 (0) … 0.058575 (−0.3).
+
+Labels: `tr_cosci04A_030`, `tr_cosci04B_045`.
+
+**Forum and data check (2026-10-27).** The organisers' 8 October post allows features from the provided datasets,
+"including Overture attributes and permitted columns in the strata tables". It does not say which strata columns are
+not permitted. Questions on `usfs_BuildingCount_sum` (the building model's independent count, `U_bld`) and on
+leaderboard-based tuning are unanswered. The source bucket's newest object is dated 2026-09-25, and every local file
+matches its size.
