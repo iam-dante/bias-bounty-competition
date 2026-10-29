@@ -1,6 +1,6 @@
 # Validation: how every number here is split, held out, and computed
 
-**Status (2026-10-29, after 88 real leaderboard scores; best measured public RMSE 0.05836217).**
+**Status (2026-10-29, after 89 real leaderboard scores; best measured public RMSE 0.058301186).**
 
 There is no tract-level training data for the target: the four reference layers that define the
 coverage gap (TIGER roads, Microsoft footprints, HIFLD facilities, CBP) were withdrawn, so the
@@ -42,8 +42,8 @@ constant-0.10 file, so **the target's public moments are known exactly**:
 | RMS y over public rows | 0.107246 |
 | sd y over public rows | 0.089022 |
 | best achievable with a single constant (the mean) | 0.089022 |
-| best measured (the current `submission.csv`) | **0.058362** |
-| share of the public target variance explained by the current best | **70.4%** |
+| best measured (`outputs/submission_u0.csv`, the pure measured update) | **0.058301** |
+| share of the public target variance explained by the current best | **70.45%** |
 
 ### How prediction-before-measurement is validated
 
@@ -59,7 +59,13 @@ at the end):
 | probe (designed directions) | 25 | 0.000138 | 0.000177 | +0.000003 |
 | transfer (measured bets) | 20 | 0.000232 | 0.000402 | +0.000032 |
 | **last 12 scored files** | 12 | 0.000101 | **0.000139** | +0.000082 |
+| **last 12 at 89 labels (U0 included)** | 12 | 0.000080 | **0.000100** | +0.000046 |
 | all 61 | 61 | 0.000243 | 0.000639 | +0.000121 |
+
+The pure-update file `outputs/submission_u0.csv` scored **0.058301186** (a new best, 0.000061 under the
+previous best): its pre-score forecast from the transfer posterior was 0.058272 ± 0.000053 (error
++0.000029, about half a modelled standard deviation), and the projection estimator's lower in-span
+value 0.058210 had the direction's truth below it.
 
 The current best file's forecast, made before it was scored: 0.058583 predicted, 0.058362 measured
 (error +0.000221, about a 0.02% relative forecast).

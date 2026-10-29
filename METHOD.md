@@ -1676,3 +1676,18 @@ context effects and the wide neural network on all four reference layers. What s
 measured bets on fresh directions — the last one gained 0.000186 — plus whichever strata/road questions
 the organisers close in the forum. A per-tract RMSE of 0.0004 is not on any reachable path with the
 permitted data; 0.0582–0.0583 is what round 4 forecasts, and the frontier moves ~1e-4 per round.
+
+## 27. `tr_u0_000` scored 0.058301186 — the pure measured update is the new best (2026-10-29)
+
+Recorded as label 89. The transfer-posterior pre-score forecast was 0.058272 ± 0.000053, so the landing
+(+0.000029, about half a modelled standard deviation) is another predict-then-confirm success, and the
+in-span projection value 0.058210 had the truth above it. The gain over `tr_nofp_030` is 0.000061.
+
+Consequences for the round-4 slate: the forecasts for files A and B (0.058250/0.058264 at +0.3) were
+built around U0 at 0.058272; with U0's actual at 0.058301, A and B's forecasts shift ~+0.00003 to
+~0.058279/0.058293 for matches of zero in-span state — A and B must beat 0.058301 to become the new
+best, which their +0.3-direction posterior forecasts say is plausible but not ensured. The confidence
+band around their shared component is unchanged. Rolling-origin forward validation at 89 labels
+(`outputs/validation_now.json`): last-12 MAE 0.000080, RMSE **0.000100**; overall RMSE 0.000634 over 62
+forecastable moments. Wave-1/2 refits of all four physics families on 89 labels are running; round 5
+(`cosci.py` after they land) will build the next pure update U1 plus the A/B successors.

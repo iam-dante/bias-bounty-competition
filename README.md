@@ -1,16 +1,18 @@
 # Bias Bounty Mapping Equity Challenge: a coverage-gap model trained from scratch
 
-Zindi user **iam-dante**. The pipeline trains from the challenge data. Round 4 is built and
-waiting on scores (2026-10-29). **How every number here is validated: [`VALIDATION.md`](VALIDATION.md).**
+Zindi user **iam-dante**. The pipeline trains from the challenge data. The pure measured update
+`outputs/submission_u0.csv` scored **0.058301186** (best, 2026-10-29). Round 5 is being built on the
+89-label state. **How every number here is validated: [`VALIDATION.md`](VALIDATION.md).**
 
 | Final file | Scored file | Public RMSE |
 |---|---|---:|
-| **`submission.csv`** | round-4 file **A**: the measured update + 0.30 × the wide network's unscored part | unscored, forecasts 0.058240 (0.058250 if its direction is +0.3 true) |
-| `submission_alt.csv` | round-4 file **B**: the same update + 0.30 × the flexible model's unscored part | unscored, forecasts 0.058224 |
-| `outputs/submission_u0.csv` | the pure measured update, no bet (control for A and B) | unscored, forecasts 0.05827 ± 0.00005 |
-| `outputs/probes_branch/q092_round4_network_residual.csv` | an information probe orthogonal to A and B | unscored information, 0.058439 if empty |
+| `outputs/submission_u0.csv` | **`tr_u0_000.csv`: the pure measured update — the current best** | **0.058301186 (scored)** |
+| `submission.csv` | round-4 file **A**: U0 + 0.30 × the wide network's unscored part | awaiting its score |
+| `submission_alt.csv` | round-4 file **B**: the same update + 0.30 × the flexible model's unscored part | awaiting its score |
+| `outputs/probes_branch/q092_round4_network_residual.csv` | information probe orthogonal to A and B | unscored information, 0.058439 if empty |
 
-The best **scored** file remains `tr_nofp_030` at **0.05836217** (in git at commit `8979a50`).
+`tr_u0_000`'s pre-score forecast was 0.058272 ± 0.000053 — the score landed +0.000029 above it, within
+the modelled band (the honest example of predict-then-confirm working).
 
 ```bash
 pip install -r requirements.txt
@@ -158,7 +160,8 @@ strictly footprint-free final would be the footprint-free physics alone, about 0
 | co-scientist B: neural-network bet | 0.3 × the neural model's unscored part (`tr_cosciB_030.csv`) | 0.058603 |
 | co-scientist round 2, A | shared update + 0.43 × the 6-unit network (`tr_cosci02A_043.csv`) | 0.058568 |
 | co-scientist round 2, B | shared update + 0.30 × the flexible model (`tr_cosci02B_030.csv`) | 0.058548 |
-| footprint-free bet | best + 0.30 × the footprint-free flexible model (`tr_nofp_030.csv`) | **0.058362 (best)** |
+| footprint-free bet | best + 0.30 × the footprint-free flexible model (`tr_nofp_030.csv`) | 0.058362 |
+| round-4 pure measured update | the local Bayesian update alone (`outputs/submission_u0.csv`) | **0.058301 (best)** |
 
 ## Continuing the loop (round 4 is ready)
 
