@@ -144,7 +144,7 @@ The round-4 A/B files are byte-exact stashed while round 5 overwrites the generi
 
 | File | Contains | In-span forecast | Posterior forecast |
 |---|---|---:|---:|
-| `outputs/submission_u1.csv` (`tr_u1_000.csv`) | U0's newest 2 measured directions stretched to their posterior optimum (1.10x, 2.04x), P(beats 0.058301) **0.88** | 0.058301 | 0.058296 ± 0.000005 |
+| `outputs/submission_u1.csv` (`tr_u1_000.csv`) | U0's newest 2 measured directions stretched to their posterior optimum (1.10x, 2.04x), P(beats 0.058301) **0.88** | 0.058301 | 0.058296 ± 0.000005 → **scored 0.058294871 (best; error −0.0000015 ≈ ⅓ σ)** |
 | `submission.csv` (`tr_cosci05A_030.csv`) | U1 + 0.30 × the wide network's unscored part (RMS 0.0066) | 0.058339 | 0.058273 at +0.3, 0.058228 at +0.5 |
 | `submission_alt.csv` (`tr_cosci05B_031.csv`) | U1 + 0.31 × the flexible model's unscored part (RMS 0.0035) | 0.058318 | 0.058290 at +0.3, 0.058276 at +0.5 |
 | `outputs/probes_branch/q093_round5_network_residual.csv` | the wide-net residual orthogonal to A and B (cosines ≤1e-6; span fraction 1.1e-05) | 0.058378 (if empty) | measures one fresh direction (0.058224 if true at step) |

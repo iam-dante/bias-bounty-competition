@@ -1692,6 +1692,11 @@ band around their shared component is unchanged. Rolling-origin forward validati
 forecastable moments. Wave-1/2 refits of all four physics families on 89 labels are running; round 5
 (`cosci.py` after they land) will build the next pure update U1 plus the A/B successors.
 
+**Post-round landing (still 2026-10-29):** `tr_u1_000` scored **0.058294871** (label 90) — the new
+best, −0.000006 under U0, and the posterior forecast 0.058296 ± 0.000005 called it to within
+−0.0000015 (⅓ σ). The P(beats) = 0.88 call was correct. The loop is stopped here at the user's
+request; round-5 A/B and q093 remain built and unscored.
+
 ## 28. Round 5 on 89 labels: all four families refit, tournament re-run, four new files (2026-10-29)
 
 Refits (held-out = the 10 newest moments, labels 80–89, start chi² 34.0): base 34.0→28.2, wide neural

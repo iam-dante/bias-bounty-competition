@@ -1,13 +1,13 @@
 # Bias Bounty Mapping Equity Challenge: a coverage-gap model trained from scratch
 
-Zindi user **iam-dante**. The pipeline trains from the challenge data. The pure measured update
-`outputs/submission_u0.csv` scored **0.058301186** (best, 2026-10-29). Round 5 is built on the fresh
-89-label refits (wide network wins the tournament again, Elo 1078, held-out chi² 24.91).
-**How every number here is validated: [`VALIDATION.md`](VALIDATION.md).**
+Zindi user **iam-dante**. The pipeline trains from the challenge data. The round-5 pure update
+`outputs/submission_u1.csv` scored **0.058294871** (best, 2026-10-29; forecast 0.058296 ± 0.000005 —
+error −0.0000015, dead-center of the modelled band). Round-5 A/B and q093 are built and waiting on
+their scores. **How every number here is validated: [`VALIDATION.md`](VALIDATION.md).**
 
 | Final file | Scored file | Public RMSE |
 |---|---|---:|
-| `outputs/submission_u0.csv` | **`tr_u0_000.csv`: the pure measured update — the current best** | **0.058301186 (scored)** |
+| `outputs/submission_u1.csv` | **`tr_u1_000.csv`: round-5 pure update — the current best** | **0.058294871 (scored)** |
 | `outputs/tr_cosci04A_030_final.csv` | round-4 file **A**: U0 + 0.30 × the wide network's unscored part | awaiting its score |
 | `outputs/tr_cosci04B_030_final.csv` | round-4 file **B**: U0 + 0.30 × the flexible model's unscored part | awaiting its score |
 | `submission.csv` | round-5 file **A**: U1 + 0.30 × the wide network's unscored part | forecasts 0.058273 at +0.3 |
@@ -166,7 +166,8 @@ strictly footprint-free final would be the footprint-free physics alone, about 0
 | co-scientist round 2, A | shared update + 0.43 × the 6-unit network (`tr_cosci02A_043.csv`) | 0.058568 |
 | co-scientist round 2, B | shared update + 0.30 × the flexible model (`tr_cosci02B_030.csv`) | 0.058548 |
 | footprint-free bet | best + 0.30 × the footprint-free flexible model (`tr_nofp_030.csv`) | 0.058362 |
-| round-4 pure measured update | the local Bayesian update alone (`outputs/submission_u0.csv`) | **0.058301 (best)** |
+| round-4 pure measured update | the local Bayesian update alone (`outputs/submission_u0.csv`) | 0.058301 |
+| round-5 pure measured update | U0's newest directions stretched to the posterior optimum (`outputs/submission_u1.csv`) | **0.058295 (best)** |
 
 ## Continuing the loop (round 4 is ready)
 
