@@ -1612,3 +1612,67 @@ proxy, `MS = κ · U_b`) and the auxiliary feature `log_buildings_usfs` used the
 labels: estimated alone 0.061049 without them, 0.061014 with them. Fit cost 145.2 against 157.3, κ 0.82 against 0.62.
 Predictions differ by RMS 0.0086 (correlation 0.992); the unscored part is RMS 0.0072. File C =
 best + 0.3 × that unscored part: 0.058466 (+0.5), 0.058520 (+0.3), 0.058600 (0), 0.058681 (−0.3). Label `tr_nofp_030`; it scored **0.05836217** (best), beating its +0.5 forecast, and is the final `submission.csv`.
+
+## 26. Round 4 on 88 labels: validated refits, the whole validation layer re-measured, and four files (2026-10-29)
+
+The full validation layer was run against all 88 real scores; two new `q09x` documents record it:
+[`VALIDATION.md`](VALIDATION.md) (method and numbers) and `outputs/floor_analysis.json` (the simulator's
+aleatoric claim). Then every physics family was refit **on all 88 labels** and held out on the newest 10
+(labels 79–88, which for the first time include the current best file's moment).
+
+### Rolling-origin validation against real scores (the "validation split" here)
+
+| Forecaster | Hold-out | MAE | RMSE | bias |
+|---|---:|---:|---:|---:|
+| projection estimator (`estimate`) | last 20 rounds | 0.000232 | 0.000402 | +0.000032 |
+| projection estimator | last 12 rounds | 0.000101 | **0.000139** | +0.000082 |
+| transfer posterior (bet forecaster), `--transfer-forward-sweep` | last 8 rounds | 0.000065 | **0.000102** | +0.000063 |
+| transfer posterior | last 4 rounds | 0.000024 | — | — |
+| empirical-Bayes posterior vector vs held-out probes | last 20 | 0.003738 | 0.003776 | +0.003708 (the held-out files are improvements over that vector, not forecasts of them) |
+
+The per-file forecast of the current best, made before it was scored: 0.058583 → 0.058362 (error +0.000221).
+
+### The exact target moments (from the zero and constant probes)
+
+Mean y over public rows 0.059806; RMS y 0.107246; sd y 0.089022. The best constant scores 0.089022; the
+measured best 0.058362; the current best explains **70.4%** of the public variance. RMSE 0.0004 would need
+99.9986% — not reachable without the withdrawn per-tract reference counts. The simulator's own aleatoric
+claim at the calibrated fit is 0.0599 (`outputs/floor_analysis.json`), and the rounds keep landing below
+it, so that claim is an upper bound, not a certification: the loop is the honest way down.
+
+### Held-out tournament, 88 labels (chi-square over the 10 newest moments, start 47.1)
+
+| Family | Held-out chi² | Elo | Est. RMSE alone (held-out fit) | Full-88 fit |
+|---|---:|---:|---:|---:|
+| wide neural 21-12-4 (376) | **36.09** | **1081** | 0.061595 | 0.060836 |
+| neural 21-6-2 (206) | 38.83 | 960 | 0.061687 | (unchanged from 87) |
+| base (60) | 39.79 | 956 | 0.061913 | — |
+| flexible sd 0.2 (88) | 68.80 | 1003 | 0.061201 | 0.060371 |
+
+Every family misses the newest moment (z −4.1 to −4.4): the footprint-free direction the best file rode is
+real and stronger than the fits predicted. The flexible family's full fit improved 0.061014 → 0.060371.
+
+### Round 4 files (built on this state)
+
+| File | Contents | In-span forecast | Posterior forecast |
+|---|---|---:|---:|
+| `outputs/submission_u0.csv` (`tr_u0_000.csv`) | the local Bayesian update around the anchor over 11 measured directions; P(beats best) 0.95 | 0.058210 | 0.058272 ± 0.000053 |
+| `submission.csv` (`tr_cosci04A_030.csv`) | U0 + 0.30 × the wide network's unscored part (RMS 0.0064) | 0.058240 | 0.058250 at +0.3, 0.058208 at +0.5 |
+| `submission_alt.csv` (`tr_cosci04B_030.csv`) | U0 + 0.30 × the flexible model's unscored part (RMS 0.0039) | 0.058224 | 0.058264 at +0.3 |
+| `outputs/probes_branch/q092_round4_network_residual.csv` | 0.002998-RMS probe of the wide-net residual orthogonal to A and B (score-span fraction 8.6e-06) | 0.058439 if empty | measures one fresh direction |
+
+Its candidate ranking (`outputs/branch_residual_sweep.json`): wide network unmeasured RMS 0.006415,
+flexible 0.003860, footprint-free flexible 0.000419 (already measured by `tr_nofp_030`).
+
+Upload budget: three files plus one optional probe per day. Record each score with `--add-label`, then refit
+both families and rerun `cosci.py` for round 5.
+
+### What remains possible (validation answer)
+
+Better classical feature engineering is **exhausted**: all twelve auxiliary-feature branches ever tested
+improved county-held-out proxy CV and *lost* in the downstream physics fit (§13–19); the kept features are
+the route-network length, the structural leak mechanisms, the unmatched-facility evidence, the flexible
+context effects and the wide neural network on all four reference layers. What still moves the score is
+measured bets on fresh directions — the last one gained 0.000186 — plus whichever strata/road questions
+the organisers close in the forum. A per-tract RMSE of 0.0004 is not on any reachable path with the
+permitted data; 0.0582–0.0583 is what round 4 forecasts, and the frontier moves ~1e-4 per round.

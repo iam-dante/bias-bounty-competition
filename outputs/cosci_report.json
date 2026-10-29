@@ -2,8 +2,8 @@
   "tournament": [
     {
       "hypothesis": "wide neural, MLP 21-12-4 on all four layers (376)",
-      "elo": 1049.8,
-      "heldout_chi2": 23.49,
+      "elo": 1081.3,
+      "heldout_chi2": 36.09,
       "heldout_moments": 10,
       "model": {
         "structural": true,
@@ -14,8 +14,8 @@
     },
     {
       "hypothesis": "flexible linear effects, sd 0.2 (88)",
-      "elo": 1024.7,
-      "heldout_chi2": 79.15,
+      "elo": 1003.1,
+      "heldout_chi2": 68.8,
       "heldout_moments": 10,
       "model": {
         "structural": true,
@@ -25,20 +25,9 @@
       }
     },
     {
-      "hypothesis": "base (60 parameters)",
-      "elo": 968.3,
-      "heldout_chi2": 26.19,
-      "heldout_moments": 10,
-      "model": {
-        "structural": true,
-        "unmatched": true,
-        "regional": true
-      }
-    },
-    {
       "hypothesis": "neural context effects, MLP 21-6-2 (206)",
-      "elo": 957.2,
-      "heldout_chi2": 24.58,
+      "elo": 959.5,
+      "heldout_chi2": 38.83,
       "heldout_moments": 10,
       "model": {
         "structural": true,
@@ -46,51 +35,132 @@
         "regional": true,
         "nn": true
       }
+    },
+    {
+      "hypothesis": "base (60 parameters)",
+      "elo": 956.1,
+      "heldout_chi2": 39.79,
+      "heldout_moments": 10,
+      "model": {
+        "structural": true,
+        "unmatched": true,
+        "regional": true
+      }
     }
   ],
-  "update": [],
+  "update": [
+    {
+      "label": "local Bayesian update around s8_refit67.csv",
+      "coordinates": [
+        3.4966363302625574,
+        -0.09888905814502406,
+        0.8815874972613476,
+        1.4941903952038227,
+        2.622900858988507,
+        1.8616254413530564,
+        0.6158158229225249,
+        2.8088691144412046,
+        -3.1654246225717255,
+        -0.45717803392595013,
+        1.6654127482094114,
+        0.6016401426569864,
+        1.169066314320205,
+        2.2996999881242957
+      ],
+      "expected_rmse": 0.05827223627534152,
+      "sd_rmse": 5.318417162938399e-05,
+      "p_beats_best": 0.9488406428165601,
+      "effective_draws": 325.3224050836598
+    },
+    {
+      "label": "tr_nofp_030.csv with its newest 1 direction(s) at 2.30x",
+      "coordinates": [
+        3.492175157134012,
+        -0.09681390470189943,
+        0.9262933214964543,
+        1.4897267577325848,
+        2.607844037111676,
+        1.8718195276979441,
+        0.5846215952132817,
+        2.857436582325733,
+        -3.093302365109735,
+        -0.4102616942894351,
+        1.6463826382473574,
+        0.22457008288863967,
+        1.0011896621077527,
+        2.2996999881242957
+      ],
+      "expected_rmse": 0.05827468636639092,
+      "sd_rmse": 5.2614328767844825e-05,
+      "p_beats_best": 0.9448817344484041,
+      "effective_draws": 325.3224050836598
+    },
+    {
+      "label": "tr_nofp_030.csv with its newest 2 direction(s) at 1.17x, 2.30x",
+      "coordinates": [
+        3.492175157134012,
+        -0.09681390470189943,
+        0.9262933214964543,
+        1.4897267577325848,
+        2.607844037111676,
+        1.8718195276979441,
+        0.5846215952132817,
+        2.857436582325733,
+        -3.093302365109735,
+        -0.4102616942894351,
+        1.6463826382473574,
+        0.22457008288863967,
+        1.169066314320205,
+        2.2996999881242957
+      ],
+      "expected_rmse": 0.05827426540961431,
+      "sd_rmse": 5.2583239977780324e-05,
+      "p_beats_best": 0.9489053971845871,
+      "effective_draws": 325.3224050836598
+    }
+  ],
   "best_scored": {
-    "file": "tr_cosci02B_030.csv",
-    "rmse": 0.058548152
+    "file": "tr_nofp_030.csv",
+    "rmse": 0.05836217
   },
   "base": {
-    "label": "the measured best",
-    "expected_rmse": 0.058548152
+    "label": "local Bayesian update around s8_refit67.csv",
+    "expected_rmse": 0.05827223627534152
   },
   "A_bet": {
     "source": "physics_lb_struct_unmatched_regional_nnw.csv",
     "share": 0.3,
-    "unscored_rms": 0.004864575839301409,
+    "unscored_rms": 0.006407837373444887,
     "expected": {
-      "coef_-0.3": 0.058608142264959306,
-      "coef_+0.0": 0.05857179186342495,
-      "coef_+0.3": 0.05853541888835371,
-      "coef_+0.5": 0.05851115767666435
+      "coef_-0.3": 0.058376780087044625,
+      "coef_+0.0": 0.058313442575158914,
+      "coef_+0.3": 0.05825003619399342,
+      "coef_+0.5": 0.05820772690137454
     }
   },
   "A": {
     "file": "submission.csv",
     "family": "wide neural, MLP 21-12-4 on all four layers (376)",
     "bet_share": 0.3,
-    "md5": "ecc02f8d15f3d81926a01a6a8a2831c6",
+    "md5": "2e30b780cf530f8d60973b58f3b568a7",
     "next_label": "tr_cosci04A_030.csv"
   },
   "B_bet": {
     "source": "physics_lb_struct_unmatched_regional_flex20.csv",
-    "share": 0.45374583120976286,
-    "unscored_rms": 0.002424264696971903,
+    "share": 0.3,
+    "unscored_rms": 0.00385369972196711,
     "expected": {
-      "coef_-0.3": 0.058575243211745225,
-      "coef_+0.0": 0.05856158384653803,
-      "coef_+0.3": 0.05854792129456948,
-      "coef_+0.5": 0.058538811155065616
+      "coef_-0.3": 0.05831007003930551,
+      "coef_+0.0": 0.058287143416968355,
+      "coef_+0.3": 0.05826420777314115,
+      "coef_+0.5": 0.05824891232672169
     }
   },
   "B": {
     "file": "submission_alt.csv",
     "family": "flexible linear effects, sd 0.2 (88)",
-    "bet_share": 0.45374583120976286,
-    "md5": "b342b39cd0a2a675a35ec620bf8136c5",
-    "next_label": "tr_cosci04B_045.csv"
+    "bet_share": 0.3,
+    "md5": "a2fb0142213dc64e3b7b91756243b6f1",
+    "next_label": "tr_cosci04B_030.csv"
   }
 }
