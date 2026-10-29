@@ -1,0 +1,20 @@
+{
+ "S": 4096,
+ "theta_source": "physics_lb_struct_unmatched_regional_flex20_report.json",
+ "mean_prediction": 0.059462710250910725,
+ "mean_contrib": {
+  "c_road": 0.03372301146783706,
+  "c_building": 0.0001226087775254711,
+  "c_facility": 0.024804735041764295,
+  "c_establishment": 0.0008123549637839366
+ },
+ "gaps": {
+  "road_gap": 0.1649620179257278,
+  "building_gap": 0.00028783702392484273,
+  "facility_gap": 0.28629689842126127,
+  "establishment_gap": 0.0022878959051378777
+ },
+ "aleatoric_rmse": 0.059930305459948485,
+ "in_span_estimate": 0.05836225949827084,
+ "best_measured": 0.05836217
+}

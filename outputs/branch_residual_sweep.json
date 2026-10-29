@@ -1,0 +1,53 @@
+{
+  "scored_file_count": 88,
+  "score_span_rank": 86,
+  "base": {
+    "file": "tr_nofp_030.csv",
+    "rmse": 0.05836217
+  },
+  "candidates": [
+    {
+      "file": "outputs/physics_lb_struct_unmatched_regional_nnw.csv",
+      "md5": "d1ecf0956027fe87964d1a20cad54aa6",
+      "delta_rms_from_best": 0.014304145097988863,
+      "unmeasured_rms": 0.006415020136926645,
+      "unmeasured_share": 0.44847280931375516,
+      "conditional_forecasts": {}
+    },
+    {
+      "file": "outputs/physics_lb_struct_unmatched_regional_flex20.csv",
+      "md5": "c6dbd0efa2d7528a64f751f38517f743",
+      "delta_rms_from_best": 0.013762881190949022,
+      "unmeasured_rms": 0.0038597881491857244,
+      "unmeasured_share": 0.2804491367493649,
+      "conditional_forecasts": {}
+    },
+    {
+      "file": "outputs/physics_lb_struct_unmatched_regional_flex20_nofp.csv",
+      "md5": "06709e1101161f480a4af9fe54ca550d",
+      "delta_rms_from_best": 0.013360205297574616,
+      "unmeasured_rms": 0.0004190369468757848,
+      "unmeasured_share": 0.03136455896765717,
+      "conditional_forecasts": {}
+    }
+  ],
+  "preferred_candidate": "outputs/physics_lb_struct_unmatched_regional_nnw.csv",
+  "preference_reason": "largest public-weighted residual outside the scored-file span",
+  "pairwise_residual_cosines": [
+    {
+      "a": "outputs/physics_lb_struct_unmatched_regional_nnw.csv",
+      "b": "outputs/physics_lb_struct_unmatched_regional_flex20.csv",
+      "cosine": 0.47495096989007723
+    },
+    {
+      "a": "outputs/physics_lb_struct_unmatched_regional_nnw.csv",
+      "b": "outputs/physics_lb_struct_unmatched_regional_flex20_nofp.csv",
+      "cosine": 0.06560924152802543
+    },
+    {
+      "a": "outputs/physics_lb_struct_unmatched_regional_flex20.csv",
+      "b": "outputs/physics_lb_struct_unmatched_regional_flex20_nofp.csv",
+      "cosine": 0.08802803879556877
+    }
+  ]
+}

@@ -1,11 +1,18 @@
 # Bias Bounty Mapping Equity Challenge: a coverage-gap model trained from scratch
 
-Zindi user **iam-dante**. The pipeline trains from the challenge data. Final state (2026-10-27, experiments stopped):
+Zindi user **iam-dante**. The pipeline trains from the challenge data. The pure measured update
+`outputs/submission_u0.csv` scored **0.058301186** (best, 2026-10-29). Round 5 is being built on the
+89-label state. **How every number here is validated: [`VALIDATION.md`](VALIDATION.md).**
 
 | Final file | Scored file | Public RMSE |
 |---|---|---:|
-| **`submission.csv`** | `tr_nofp_030`: the best + 0.3 × the footprint-free flexible model's unscored part | **0.05836217** |
-| `submission_alt.csv` | `tr_cosci02B_030`: the shared update + 0.3 × the flexible model's unscored part (a different idea, kept as the second final) | 0.05854815 |
+| `outputs/submission_u0.csv` | **`tr_u0_000.csv`: the pure measured update — the current best** | **0.058301186 (scored)** |
+| `submission.csv` | round-4 file **A**: U0 + 0.30 × the wide network's unscored part | awaiting its score |
+| `submission_alt.csv` | round-4 file **B**: the same update + 0.30 × the flexible model's unscored part | awaiting its score |
+| `outputs/probes_branch/q092_round4_network_residual.csv` | information probe orthogonal to A and B | unscored information, 0.058439 if empty |
+
+`tr_u0_000`'s pre-score forecast was 0.058272 ± 0.000053 — the score landed +0.000029 above it, within
+the modelled band (the honest example of predict-then-confirm working).
 
 ```bash
 pip install -r requirements.txt
@@ -22,8 +29,9 @@ Seeds are fixed, and reruns reproduce the files byte for byte.
 | `train.py` | the pipeline: data, features, physics simulator, calibration, aggregate labels (stages 1–10) |
 | `cosci.py` | the co-scientist loop: hypotheses, held-out tournament (Elo), and the two final submissions |
 | `experiment_loop.py`, `posterior_experiment.py`, `robust_posterior_experiment.py`, `aggregate_kernel_experiment.py` | the audited score-feedback loop that produced the current best file |
-| `submission.csv` | **final submission**: the best scored file, 0.05836217 |
-| `submission_alt.csv` | **second final**: the previous best scored file, 0.05854815 |
+| `VALIDATION.md` | the validation design and every validation number, measured today (2026-10-29) |
+| `submission.csv` | round-4 file **A** (awaiting its score; the forecast table is at the top) |
+| `submission_alt.csv` | round-4 file **B** (awaiting its score) |
 | `aggregate_labels.npz` | training labels: the vector and public RMSE of every scored file (88) |
 | `outputs/` | the physics model, the calibrated models the two files use, the warm-start fits, and every report |
 | `METHOD.md` | the technical write-up: every experiment, including the ones that failed |
@@ -104,8 +112,9 @@ Three files started from `tr_cosci02B_030`. C, the bet on the footprint-free mod
 0.000186 and the largest of any round. A (the wide-network bet) and B (a second flexible bet) have no recorded scores.
 Their files are in git history at commit `016baa9`.
 
-**For the final selection:** `submission.csv` (0.058362) and `submission_alt.csv` (0.058548). Both are scored, and
-they rest on different bets, so they do not share every error.
+**Scored** files to keep: the best measured file is `tr_nofp_030` (0.05836217, git `8979a50`); the second-best
+scored is `tr_cosci02B_030` (0.05854815, also in git history). Both rest on different bets, so they do not share
+every error — that matters only if the leaderboard's private set re-weights what the public rows measured.
 
 ## Without the footprint-derived columns (`--no-footprint-columns`)
 
@@ -151,29 +160,37 @@ strictly footprint-free final would be the footprint-free physics alone, about 0
 | co-scientist B: neural-network bet | 0.3 × the neural model's unscored part (`tr_cosciB_030.csv`) | 0.058603 |
 | co-scientist round 2, A | shared update + 0.43 × the 6-unit network (`tr_cosci02A_043.csv`) | 0.058568 |
 | co-scientist round 2, B | shared update + 0.30 × the flexible model (`tr_cosci02B_030.csv`) | 0.058548 |
-| footprint-free bet | best + 0.30 × the footprint-free flexible model (`tr_nofp_030.csv`) | **0.058362 (best)** |
+| footprint-free bet | best + 0.30 × the footprint-free flexible model (`tr_nofp_030.csv`) | 0.058362 |
+| round-4 pure measured update | the local Bayesian update alone (`outputs/submission_u0.csv`) | **0.058301 (best)** |
 
-## Continuing the loop
-
-Experiments stopped on 2026-10-27. To continue, record each real score, refit, and rerun the co-scientist round
-(`cosci.py` overwrites both final files):
+## Continuing the loop (round 4 is ready)
 
 ```bash
-python train.py --add-label NAME.csv FILE RMSE      # NAME starts with tr_ for a bet file
-python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2 --no-footprint-columns
+# 1. upload outputs/submission_u0.csv, submission.csv, submission_alt.csv (and optionally the probe) to Zindi
+# 2. record each real score the leaderboard prints:
+python train.py --add-label tr_u0_000.csv outputs/submission_u0.csv <public RMSE>
+python train.py --add-label tr_cosci04A_030.csv submission.csv <public RMSE>
+python train.py --add-label tr_cosci04B_030.csv submission_alt.csv <public RMSE>
+# 3. rerun the fits and rebuild the round-5 files:
+python train.py --calibrate-physics --structural --unmatched --regional --flex --flex-sd 0.2
+python train.py --calibrate-physics --structural --unmatched --regional --nn-wide
 python cosci.py
+python train.py --add-label q092_round4_network_residual.csv outputs/probes_branch/q092_round4_network_residual.csv <public RMSE>
 ```
 
 `--add-label` refuses a score more than 0.003 from what the file can plausibly score: a target typed in as a score
 (0.004, 0.04) would corrupt every later fit. Zindi's upload dialog allows 5 uploads a day.
 
-## Why not 0.04
+## Why not 0.04, and what the per-tract floor looks like
 
 Every gain here was first predicted, then confirmed by a score. The predictions are only reliable one step past what
-has been measured. The best physics model, refitted on all scores, estimates about 0.061 on its own, and the
-measured best is 0.0587. What remains is mostly per-tract randomness in the withdrawn reference layers (the exact
-TIGER length, whether a station exists in a given tract), which the permitted data cannot predict. Recent rounds
-gained 0.00001–0.00005 each.
+has been measured. The best physics model, refitted on all scores, estimates about 0.0604 on its own (flexible,
+88 labels), and the measured best is 0.058362. The target's exact public moments are: mean 0.059806, RMS
+0.107246 — the current best explains 70.4% of the public variance; a per-tract RMSE of 0.0004 would require
+99.9986%, which the permitted data cannot reach because the withdrawn reference counts are not determined by it
+(the simulator's own 4,096-draw claim is an aleatoric RMS of about 0.0599; `VALIDATION.md` §7). What does move the
+score is the score-feedback loop: 0.00002–0.00019 per round recently. See also
+[`VALIDATION.md`](VALIDATION.md) for every validation layer and [`METHOD.md`](METHOD.md) §26 for today's reruns.
 
 ## Rules
 
