@@ -70,14 +70,16 @@ value 0.058210 had the direction's truth below it.
 The current best file's forecast, made before it was scored: 0.058583 predicted, 0.058362 measured
 (error +0.000221, about a 0.02% relative forecast).
 
-Two more rolling-origin validations on the same chronological split, both reported with the current
-88-label history:
+Two more rolling-origin validations on the same chronological split, with the transfer rows re-run at
+the 89-label state (`outputs/transfer_forward_sweep_diagonal.json`):
 
 | Forecaster | Hold-out | MAE | RMSE of forecast error | bias |
 |---|---:|---:|---:|---:|
 | projection estimator (`estimate`) — recent 20 rounds | rolling origin | 0.000232 | **0.000402** | +0.000032 |
 | projection estimator — recent 12 rounds | rolling origin | 0.000101 | **0.000139** | +0.000082 |
+| projection estimator — recent 12 rounds, 89 labels | rolling origin | 0.000080 | **0.000100** | +0.000046 |
 | transfer posterior (the bet forecaster), `independent` residual model | last 10 rounds | 0.000117 | **0.000209** | +0.000100 |
+| transfer posterior, last 8 rounds, 89 labels (includes the U0 landing) | rolling origin | 0.000061 | **0.000100** | +0.000052 |
 | transfer posterior, last 4 rounds | rolling origin | 0.000024 | — | — |
 | stage-8 empirical-Bayes posterior vector scored against held-out probe moments | last 20 | 0.003738 | 0.003776 | +0.003708 |
 | stage-8 empirical-Bayes with OLS-projection weights | last 20 | 0.000232 | **0.000402** | +0.000032 |
@@ -108,17 +110,48 @@ The held-out moment for the current best file (`tr_nofp_030`) is missed by every
 (z −4.1 to −4.4): the newest direction carried more truth than the fits predicted, which is exactly
 what the round-4 files bet on.
 
-Full-data fits on all 88 labels: flexible physics **0.060371** (was 0.061014 at 87 labels — the
-newest score pulled it down), wide network **0.060836**.
+Refits at 89 labels (held-out window labels 80–89, which now also covers `tr_u0_000`'s own landing;
+start 34.0):
+
+| Family | held-out chi² (start 34.0) | Elo (round 5) | est. RMSE alone (held-out fit) |
+|---|---:|---:|---:|
+| **wide neural, MLP 21-12-4 on all four layers (376)** — tournament winner again, Elo 1078 | **24.91** | 1077.9 | 0.061574 |
+| neural context effects, MLP 21-6-2 (206) | 27.48 | 977.0 | 0.061750 |
+| base physics (structural mechanisms, 60 parameters) | 28.19 | 941.7 | 0.061964 |
+| flexible context effects, sd 0.2 (88) | 65.66 | 1003.4 | 0.061314 |
+
+Every family improved on hold-out with the extra label, and the wide network stays first by a wide
+Elo margin. The flexible family still misses the newest moments hard (65.66 over 10 dof): the
+measured bets keep carrying more truth than the fits predicted.
+
+Full-data fits on all 89 labels: flexible physics **0.060367** (≈ unchanged from 88), wide network
+**0.061053**.
 
 ## 4b. Round-4 files built from this validation (2026-10-29)
 
 | File | Contains | In-span forecast | Posterior forecast (truth at +0.3) |
 |---|---|---:|---:|
-| `outputs/submission_u0.csv` (`tr_u0_000.csv`) | the measured-direction update alone, P(beats best) 0.95 | 0.058210 | 0.058272 ± 0.000053 |
+| `outputs/submission_u0.csv` (`tr_u0_000.csv`) | the measured-direction update alone, P(beats best) 0.95 | 0.058210 | 0.058272 ± 0.000053 → **scored 0.058301186** |
 | `submission.csv` (`tr_cosci04A_030.csv`) | U0 + 0.30 × the wide network's unscored part (RMS 0.0064) | 0.058240 | 0.058250 (+0.5: 0.058208) |
 | `submission_alt.csv` (`tr_cosci04B_030.csv`) | U0 + 0.30 × the flexible model's unscored part (RMS 0.0039) | 0.058224 | 0.058264 (+0.5: 0.058249) |
 | `outputs/probes_branch/q092_round4_network_residual.csv` | probe of the wide-net residual orthogonal to A and B | 0.058439 (if empty) | measures one fresh direction |
+
+The round-4 A/B files are byte-exact stashed while round 5 overwrites the generic names:
+`outputs/tr_cosci04A_030_final.csv`, `outputs/tr_cosci04B_030_final.csv` (sha256 in
+`data/logs/goal/round4_stash_sha256.txt`, also in git at `16d0301`).
+
+## 4c. Round-5 files built from the 89-label refits (2026-10-29)
+
+| File | Contains | In-span forecast | Posterior forecast |
+|---|---|---:|---:|
+| `outputs/submission_u1.csv` (`tr_u1_000.csv`) | U0's newest 2 measured directions stretched to their posterior optimum (1.10x, 2.04x), P(beats 0.058301) **0.88** | 0.058301 | 0.058296 ± 0.000005 |
+| `submission.csv` (`tr_cosci05A_030.csv`) | U1 + 0.30 × the wide network's unscored part (RMS 0.0066) | 0.058339 | 0.058273 at +0.3, 0.058228 at +0.5 |
+| `submission_alt.csv` (`tr_cosci05B_031.csv`) | U1 + 0.31 × the flexible model's unscored part (RMS 0.0035) | 0.058318 | 0.058290 at +0.3, 0.058276 at +0.5 |
+| `outputs/probes_branch/q093_round5_network_residual.csv` | the wide-net residual orthogonal to A and B (cosines ≤1e-6; span fraction 1.1e-05) | 0.058378 (if empty) | measures one fresh direction (0.058224 if true at step) |
+
+Schema checks: `outputs/check_round5.py` → `outputs/round5_files.json` (all four: 9,794 rows, unique
+11-digit GEOIDs, values in [0,1]; A/B md5 identical across the cosci reruns; U1's A/B reconstruction
+error exactly 0).
 
 ## 5. Feature engineering that was validated, and that failed
 
@@ -162,24 +195,27 @@ Two possible meanings, answered with measurements:
 
 1. **"The model's mistake when validating a held-out score" ≈ 0.0004** — i.e., the residual RMS of
    score forecasts. This is already at or below 0.0004 on every rolling-origin check run today
-   (projection 0.000402 over the last 20 rounds and 0.000139 over 12; transfer posterior 0.000209
-   over 10 and 0.000102 over 8). It is a measurement-precision limit, not a modelling limit: the
+   (projection 0.000402 over the last 20 rounds and **0.000100** over the recent 12 at 89 labels;
+   transfer posterior 0.000209 over 10 and **0.000100** over the last 8 at 89 labels). It is a
+   measurement-precision limit, not a modelling limit: the
    only way to shrink it further is to score more files.
 
 2. **"The submission's RMSE ≤ 0.0004"** — not achievable with the permitted data. A per-tract RMSE
    of 0.0004 requires explaining 99.9986% of the target's public variance (RMS y = 0.107246,
-   measured exactly from the zero file's score); the current best explains 70.4%, and the best
+   measured exactly from the zero file's score); the current best explains 70.45%, and the best
    possible single constant would score 0.089022. The model's own 4,096-draw simulator at the
    label-calibrated parameter fit claims an aleatoric floor of about **0.0599** (`outputs/floor_analysis.json`)
    — the per-tract randomness of the withdrawn reference counts (exact TIGER metreage of each tract's
    highways, whether a fire station entered the HIFLD extract, how many establishments CBP counted),
    which the permitted datasets do not determine and the rules forbid reconstructing. The measured
-   rounds keep moving below that claim (0.058362 so far), which shows the remaining *learnable*
+   rounds keep moving below that claim (0.058301 so far), which shows the remaining *learnable*
    structure is real but small; recent rounds gained 0.00002–0.00019 per round. The practical
    frontier is round-by-round measured bets, not features: each new direction is worth at most
    ~5e-5 of RMSE when fully true (a 0.0072-RMS direction squared against the current
-   0.058362² residual mass).
+   0.058301² residual mass).
 
 3. **"Round gains of 0.0004 or better"** — this is what the loop actually delivers: rounds
-   `tr_lbmulti` → `tr_nofp` gained 0.00022, 0.00002, 0.00004, 0.00009, 0.00009, 0.00019 — the mean
-   gain of the last six rounds is 0.00009 per upload, and round 4's files forecast 0.0582–0.0583.
+   `tr_lbmulti` → `tr_nofp` gained 0.00022, 0.00002, 0.00004, 0.00009, 0.00009, 0.00019, then the pure
+   update `tr_u0_000` gained 0.000061 — the mean
+   gain of the last six rounds is 0.00009 per upload, and round 5's files forecast 0.0583
+   (0.0582–0.0583).

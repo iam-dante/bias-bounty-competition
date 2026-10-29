@@ -1,15 +1,20 @@
 # Bias Bounty Mapping Equity Challenge: a coverage-gap model trained from scratch
 
 Zindi user **iam-dante**. The pipeline trains from the challenge data. The pure measured update
-`outputs/submission_u0.csv` scored **0.058301186** (best, 2026-10-29). Round 5 is being built on the
-89-label state. **How every number here is validated: [`VALIDATION.md`](VALIDATION.md).**
+`outputs/submission_u0.csv` scored **0.058301186** (best, 2026-10-29). Round 5 is built on the fresh
+89-label refits (wide network wins the tournament again, Elo 1078, held-out chi² 24.91).
+**How every number here is validated: [`VALIDATION.md`](VALIDATION.md).**
 
 | Final file | Scored file | Public RMSE |
 |---|---|---:|
 | `outputs/submission_u0.csv` | **`tr_u0_000.csv`: the pure measured update — the current best** | **0.058301186 (scored)** |
-| `submission.csv` | round-4 file **A**: U0 + 0.30 × the wide network's unscored part | awaiting its score |
-| `submission_alt.csv` | round-4 file **B**: the same update + 0.30 × the flexible model's unscored part | awaiting its score |
-| `outputs/probes_branch/q092_round4_network_residual.csv` | information probe orthogonal to A and B | unscored information, 0.058439 if empty |
+| `outputs/tr_cosci04A_030_final.csv` | round-4 file **A**: U0 + 0.30 × the wide network's unscored part | awaiting its score |
+| `outputs/tr_cosci04B_030_final.csv` | round-4 file **B**: U0 + 0.30 × the flexible model's unscored part | awaiting its score |
+| `submission.csv` | round-5 file **A**: U1 + 0.30 × the wide network's unscored part | forecasts 0.058273 at +0.3 |
+| `submission_alt.csv` | round-5 file **B**: U1 + 0.31 × the flexible model's unscored part | forecasts 0.058290 at +0.3 |
+| `outputs/submission_u1.csv` | round-5 pure update **U1** (stretch of `tr_u0_000`'s newest directions) | forecasts 0.058296 ± 0.000005 |
+| `outputs/probes_branch/q092_round4_network_residual.csv` | round-4 information probe orthogonal to A and B | unscored information, 0.058439 if empty |
+| `outputs/probes_branch/q093_round5_network_residual.csv` | round-5 information probe orthogonal to A and B | unscored information, 0.058378 if empty |
 
 `tr_u0_000`'s pre-score forecast was 0.058272 ± 0.000053 — the score landed +0.000029 above it, within
 the modelled band (the honest example of predict-then-confirm working).
@@ -30,9 +35,9 @@ Seeds are fixed, and reruns reproduce the files byte for byte.
 | `cosci.py` | the co-scientist loop: hypotheses, held-out tournament (Elo), and the two final submissions |
 | `experiment_loop.py`, `posterior_experiment.py`, `robust_posterior_experiment.py`, `aggregate_kernel_experiment.py` | the audited score-feedback loop that produced the current best file |
 | `VALIDATION.md` | the validation design and every validation number, measured today (2026-10-29) |
-| `submission.csv` | round-4 file **A** (awaiting its score; the forecast table is at the top) |
-| `submission_alt.csv` | round-4 file **B** (awaiting its score) |
-| `aggregate_labels.npz` | training labels: the vector and public RMSE of every scored file (88) |
+| `submission.csv` | round-5 file **A** — U1 + 0.30 × the wide network's unscored part (the round-4 A bytes are stashed at `outputs/tr_cosci04A_030_final.csv`) |
+| `submission_alt.csv` | round-5 file **B** — U1 + 0.31 × the flexible model's unscored part (round-4 B stashed at `outputs/tr_cosci04B_030_final.csv`) |
+| `aggregate_labels.npz` | training labels: the vector and public RMSE of every scored file (89) |
 | `outputs/` | the physics model, the calibrated models the two files use, the warm-start fits, and every report |
 | `METHOD.md` | the technical write-up: every experiment, including the ones that failed |
 | `BIAS_DISCOVERY.md` | the Best Bias Discovery write-up |

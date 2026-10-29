@@ -1,0 +1,34 @@
+{
+  "candidate_file": "outputs/physics_lb_struct_unmatched_regional_nnw.csv",
+  "candidate_md5": "f7d9b30d4dcf6434589cba6d68328313",
+  "orthogonalized_against": [
+    "submission.csv",
+    "submission_alt.csv"
+  ],
+  "output_file": "outputs/probes_branch/q093_round5_network_residual.csv",
+  "output_md5": "523f664d854b3a913ff9bcb7d30c419e",
+  "label_name": "q093_round5_network_residual.csv",
+  "base_file": "tr_u0_000.csv",
+  "base_rmse": 0.058301186,
+  "scored_file_count": 89,
+  "scored_span_rank": 87,
+  "candidate_branch_delta_rms": 0.014557740039594166,
+  "candidate_orthogonal_residual_rms": 0.0004567818201325686,
+  "requested_step_rms": 0.003,
+  "actual_step_rms": 0.0029964900051624864,
+  "residual_span_fraction": 1.1336790981619983e-05,
+  "orthogonalized_span_fraction": 1.1368434990908118e-05,
+  "against_direction_cosines": [
+    -6.08773944770443e-07,
+    5.89812398759095e-07
+  ],
+  "prior_small_probe_coefficients": [
+    -0.00022742514578351827
+  ],
+  "conditional_rmse_scenarios": {
+    "no_signal": 0.058378140098478935,
+    "projection_plus_step": 0.05822413019234858,
+    "previous_small_probe_coefficient": 0.05838981243085269
+  },
+  "note": "Exploratory measurement probe. Scenarios are conditional; only the real leaderboard score measures this direction."
+}

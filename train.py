@@ -3493,7 +3493,7 @@ def make_candidate_probe(candidate_path, out_path, step=PROBE_STEP, against_path
         for _ in range(10):
             target_w = amplitude * direction * sw
             probe_w, box_correction, span_correction = target_w.copy(), np.zeros_like(target_w), np.zeros_like(target_w)
-            for _ in range(1000):
+            for _ in range(5000):
                 box = np.clip(probe_w + box_correction, lower, upper)
                 box_correction = probe_w + box_correction - box
                 span = box + span_correction
@@ -3501,7 +3501,7 @@ def make_candidate_probe(candidate_path, out_path, step=PROBE_STEP, against_path
                 span_correction = span - next_w
                 change = np.linalg.norm(next_w - probe_w)
                 probe_w = next_w
-                if change < 1e-12:
+                if change < 1e-9:
                     break
             else:
                 raise ValueError("candidate probe projection did not converge")

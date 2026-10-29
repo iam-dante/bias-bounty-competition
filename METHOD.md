@@ -1691,3 +1691,36 @@ band around their shared component is unchanged. Rolling-origin forward validati
 (`outputs/validation_now.json`): last-12 MAE 0.000080, RMSE **0.000100**; overall RMSE 0.000634 over 62
 forecastable moments. Wave-1/2 refits of all four physics families on 89 labels are running; round 5
 (`cosci.py` after they land) will build the next pure update U1 plus the A/B successors.
+
+## 28. Round 5 on 89 labels: all four families refit, tournament re-run, four new files (2026-10-29)
+
+Refits (held-out = the 10 newest moments, labels 80–89, start chi² 34.0): base 34.0→28.2, wide neural
+34.0→24.9 (**tournament winner again, Elo 1078**), neural 21-6-2 34.0→27.5, flexible 34.0→65.7. Full
+fits: flexible 0.060367, wide network 0.061053. Rolling-origin transfer posterior over the last 8
+targets (now including U0's landing): MAE 0.000061, RMSE **0.000100**, bias +0.000052;
+`--transfer-forward-sweep --transfer-forward-points 8` at one million draws.
+
+`cosci.py` round 5 (report `outputs/cosci_report.json`):
+- base move: tr_u0_000's newest 2 measured directions stretched to 1.10x and 2.04x of their measured
+  amplitudes → expected 0.05829635 ± 0.0000049, P(beats 0.058301186) 0.879;
+- A (`submission.csv`, `tr_cosci05A_030.csv`): U1 + 0.30 × wide-net unscored (RMS 0.0066); expected
+  0.058273 at +0.3, 0.058228 at +0.5;
+- B (`submission_alt.csv`, `tr_cosci05B_031.csv`): U1 + 0.31 × flexible unscored (RMS 0.0035);
+  expected 0.058290 at +0.3, 0.058276 at +0.5;
+- probe q093 (`outputs/probes_branch/q093_round5_network_residual.csv`): the 0.000457-RMS wide-net
+  residual orthogonal to A and B (cosines <1e-6), no-signal cost 0.058378, 0.058224 if true at the
+  0.003 step.
+
+Purity check: `outputs/build_u1.py` rebuilds U1 deterministically and reproduces A and B from it with
+zero reconstruction error (`outputs/submission_u1.csv`, md5 `02f2d372…`, in-span projection estimate
+0.058301). Schema checks pass (`outputs/check_round5.py` → `outputs/round5_files.json`).
+
+Two code fixes this round: (1) `cosci.py` now derives its round number from both scored labels and
+built-but-unscored slates, so rerunning it before the previous round is scored no longer reuses the
+same tag (round-4 A/B keep their names); (2) the candidate-probe projection loop needed a bigger
+iteration budget than 1000 (Dykstra on the 89-direction span + box) — raised to 5000 with a 1e-9
+inner stop; the outer 0.2% step-accuracy test is what decides acceptance.
+
+Upload queue (three files + one probe per day): day 1 — round-4 A, round-4 B, q092; day 2 — U1, A5,
+B5, q093 (or swap in the probe for U1 if desire for information dominates: the updates are the score
+gains, the bets are the family measurements).

@@ -14,6 +14,8 @@ Both files start from the same base: the measured best moved along its measured 
 two scores measures both families.
 """
 import json
+import os
+import re
 import sys
 
 import numpy as np
@@ -104,7 +106,9 @@ def main():
     best = min((n for n in L.s if not n.startswith("probe_")), key=L.s.get)
     base, base_rmse, base_label = update_base(L, report)
     report.update(best_scored=dict(file=best, rmse=L.s[best]), base=dict(label=base_label, expected_rmse=base_rmse))
-    n_round = sum(n.startswith("tr_cosci") for n in L.s) + 1                     # label names stay unique across rounds
+    seen = " ".join(L.s) + " " + " ".join(os.listdir(TR.OUT))
+    used = sorted({int(m) for m in re.findall(r"tr_cosci(\d+)", seen)})
+    n_round = used[-1] + 1 if used else 1   # built-but-unscored slates (stashed copies) keep their round numbers
     for key, path in (("A", "submission.csv"), ("B", "submission_alt.csv")):
         v, share = with_bet(L, base.copy(), HYPOTHESES[FAMILY[key]], base_rmse, report, f"{key}_bet")
         sub = pd.DataFrame({"GEOID": L.geoid, "coverage_gap_score": v})
