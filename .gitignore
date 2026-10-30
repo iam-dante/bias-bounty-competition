@@ -1,5 +1,0 @@
-data/
-__pycache__/
-.DS_Store
-outputs/experiment_runs/
-outputs/*_ho[0-9]*.csv
