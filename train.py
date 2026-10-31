@@ -2,17 +2,28 @@
 # requires-python = ">=3.11"
 # dependencies = ["numpy==2.4.6", "threadpoolctl==3.5.0"]
 # ///
-"""Reproduce the scored U1 submission: public RMSE 0.058294871.
+"""Reproduce the scored Kumo submission q094 (public RMSE 0.058089663) and its 1.5x follow-up bet.
 
 Run: python train.py
 Or install the two pinned dependencies automatically: uv run train.py
 
-This is the actual U1 aggregate-score model. Its inputs are 22 historical
-prediction tables and their real leaderboard scores, plus public-row weights
-estimated from earlier scored files. These inputs live in
-dataset/training_history.npz. Neither U1's predictions nor its score are used
-as training labels. Feature engineering constructs weighted orthogonal
+Stage 1 is the actual U1 aggregate-score model (public RMSE 0.058294871). Its
+inputs are 22 historical prediction tables and their real leaderboard scores,
+plus public-row weights estimated from earlier scored files. These inputs live
+in dataset/training_history.npz. Neither U1's predictions nor its score are
+used as training labels. Feature engineering constructs weighted orthogonal
 prediction directions; Bayesian training learns their coefficients.
+
+Stage 2 adds the NVIDIA Kumo Tabular smoother. kumo_smoother.py builds 96
+per-tract features from the provided challenge layers (Overture POIs,
+infrastructure and rail, ACS housing, permitted strata columns; footprint
+columns excluded) and cross-fits Kumo Tabular (large) to U1 over 10 folds, so
+no tract sees its own U1 value. Its output is stored in dataset/kumo_inputs.npz
+with the 88 scored files and 3 unscored files it was made orthogonal to. q094
+is U1 plus a 0.003 public-weighted RMS step along the part of the Kumo
+smoother outside all of them. Its score measured that the step stopped short:
+the optimum is 1.5-1.8x the step for curvature 1.0-1.3, so the bet file takes
+1.5x (forecast 0.058045-0.058080, unscored).
 
 The historical predictions came from the geographic models developed
 before U1. This script reproduces their final aggregate-score calibration; it
@@ -28,11 +39,16 @@ import time
 import numpy as np
 from threadpoolctl import threadpool_limits
 
-EXPECTED_SUBMISSION_SHA256 = "8c729caa64da88047e9260d397dafb91ab1a291512f808d7fabe009f2e02749b"
+U1_SHA256 = "8c729caa64da88047e9260d397dafb91ab1a291512f808d7fabe009f2e02749b"
+Q094_SHA256 = "dc289936ee79be38f9fcc9d4d7d8bfc96c113887fd0065fe598586c0cc523a0b"
+BET_SHA256 = "422f04d3baf67a29b09c5fcfb00ea4775a2e73b256c62707b81c263cab1782c1"
 TRAINING_SHA256 = "c1468be2b73995df603e1bd7d285b0dfd88283c2210c63d04783cd02f95cd87e"
+KUMO_SHA256 = "fd1eedec9b1b2484cba8cfcf3f4d62108e721fb40beac4785819fbe348ea2a59"
 DRAWS = 5_000_000
 BLOCK = 100_000
 CURVATURE = 1.3
+PROBE_STEP = 0.003                      # public-weighted RMS of q094's step along the Kumo direction
+BET_MULTIPLE = 1.5                      # optimum 1.52x the step at curvature 1.3, 1.83x at 1.0
 
 
 def log(message):
@@ -160,7 +176,73 @@ def train_model(history, features):
     return label, np.round(vector, 6)
 
 
-def write_submission(path, history, vector):
+def load_kumo_inputs(history):
+    path = Path(__file__).resolve().parent / "dataset" / "kumo_inputs.npz"
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != KUMO_SHA256:
+        raise ValueError("Kumo inputs are damaged")
+    with np.load(io.BytesIO(raw), allow_pickle=False) as data:
+        kumo = {key: data[key] for key in data.files}
+    if not np.array_equal(kumo["geoid"], history["geoid"]):
+        raise ValueError("Kumo inputs and training history list different tracts")
+    return kumo
+
+
+def kumo_probe(u1, kumo, pi, g):
+    """q094: U1 + PROBE_STEP along the Kumo smoother's part outside every scored file and the 3 unscored files."""
+    w = pi / pi.sum()
+    sw = np.sqrt(w)
+    Xw = np.column_stack([np.ones(g.sum()), *kumo["span_predictions"][g].T]) * sw[:, None]
+    Q, singular, _ = np.linalg.svd(Xw, full_matrices=False)
+    Q = Q[:, :int(np.sum(singular > singular[0] * max(Xw.shape) * np.finfo(float).eps))]
+    against = []
+    for values in kumo["against_predictions"].T:
+        direction_w = (values[g] - u1[g]) * sw
+        direction_w -= Q @ (Q.T @ direction_w)
+        for prior in against:
+            direction_w -= prior * (prior @ direction_w)
+        against.append(direction_w / np.linalg.norm(direction_w))
+    Q = np.column_stack([Q, *against])
+    residual_w = (kumo["kumo_smooth"][g] - u1[g]) * sw
+    residual_w -= Q @ (Q.T @ residual_w)
+    direction = residual_w / (np.linalg.norm(residual_w) * sw)
+    log(f"  Kumo part outside {Q.shape[1]} measured directions: weighted RMS {np.linalg.norm(residual_w):.6f}")
+    # Dykstra's alternating projections onto the [0, 1] box and the null space of Q keep the probe valid and
+    # orthogonal; the amplitude is rescaled until the rounded step has the requested RMS.
+    lower, upper = -u1[g] * sw, (1.0 - u1[g]) * sw
+    amplitude = PROBE_STEP
+    for _ in range(10):
+        target_w = amplitude * direction * sw
+        probe_w, box_correction, span_correction = target_w.copy(), np.zeros_like(target_w), np.zeros_like(target_w)
+        for _ in range(5000):
+            box = np.clip(probe_w + box_correction, lower, upper)
+            box_correction = probe_w + box_correction - box
+            span = box + span_correction
+            next_w = span - Q @ (Q.T @ span)
+            span_correction = span - next_w
+            change = np.linalg.norm(next_w - probe_w)
+            probe_w = next_w
+            if change < 1e-9:
+                break
+        else:
+            raise RuntimeError("Kumo probe projection did not converge")
+        probe = u1.copy()
+        probe[g] = np.round(np.clip(u1[g] + probe_w / sw, 0, 1), 6)
+        step = float(np.sqrt(w @ (probe[g] - u1[g]) ** 2))
+        if abs(step / PROBE_STEP - 1) <= 0.002:
+            break
+        amplitude *= PROBE_STEP / step
+    log(f"  Step RMS {step:.6f}")
+    return probe
+
+
+def kumo_bet(u1, q094, g):
+    bet = u1.copy()
+    bet[g] = np.round(np.clip(u1[g] + BET_MULTIPLE * (q094[g] - u1[g]), 0, 1), 6)
+    return bet
+
+
+def write_submission(path, history, vector, expected, label):
     if vector.shape != (9794,) or not np.isfinite(vector).all() or np.any((vector < 0) | (vector > 1)):
         raise ValueError("Invalid prediction values")
     if not all(len(geoid) == 11 and geoid.isdigit() for geoid in history["geoid"]):
@@ -171,35 +253,47 @@ def write_submission(path, history, vector):
     writer.writerows(zip(history["geoid"], vector))
     content = buffer.getvalue().encode()
     digest = hashlib.sha256(content).hexdigest()
-    if digest != EXPECTED_SUBMISSION_SHA256:
-        raise RuntimeError(f"U1 checksum mismatch: {digest}. No submission was written.")
-    path = Path(path)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_bytes(content)
-    temporary.replace(path)
-    log(f"  Validated 9,794 unique tract IDs; no missing values; range {vector.min():.6f}–{vector.max():.6f}")
-    log(f"  Exact match to the scored U1 file: SHA256 {digest}")
+    if digest != expected:
+        raise RuntimeError(f"{label} checksum mismatch: {digest}. No file was written.")
+    if path is not None:
+        path = Path(path)
+        temporary = path.with_suffix(path.suffix + ".tmp")
+        temporary.write_bytes(content)
+        temporary.replace(path)
+        log(f"  Validated 9,794 unique tract IDs; no missing values; range {vector.min():.6f}–{vector.max():.6f}")
+    log(f"  Exact match to the recorded {label} file: SHA256 {digest}")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", type=Path, default=Path(__file__).resolve().with_name("submission.csv"))
+    here = Path(__file__).resolve()
+    parser.add_argument("--out", type=Path, default=here.with_name("submission.csv"))
+    parser.add_argument("--bet-out", type=Path, default=here.with_name("submission_bet.csv"))
     args = parser.parse_args()
     started = time.monotonic()
     with threadpool_limits(limits=2):
-        log("[1/4] Loading dataset/training_history.npz")
+        log("[1/6] Loading dataset/training_history.npz and dataset/kumo_inputs.npz")
         history = load_training_data()
+        kumo = load_kumo_inputs(history)
         log(f"  {len(history['s'])} scored prediction tables; U1 excluded from training")
-        log("[2/4] Engineering weighted prediction directions")
+        log("[2/6] Engineering weighted prediction directions")
         features = engineer_features(history)
         log(f"  {features['k']} directions across {features['g'].sum():,} graded tracts")
-        log("[3/4] Fitting the Bayesian model and selecting its update")
-        label, vector = train_model(history, features)
+        log("[3/6] Fitting the Bayesian model and selecting its update (U1)")
+        label, u1 = train_model(history, features)
         log(f"  Selected: {label}")
-        log("[4/4] Validating and writing submission.csv")
-        write_submission(args.out, history, vector)
-        log(f"Wrote {args.out.resolve()} in {(time.monotonic() - started) / 60:.1f} minutes")
-        log("Recorded public leaderboard RMSE: 0.058294871; no new leaderboard evaluation performed")
+        write_submission(None, history, u1, U1_SHA256, "U1 (public RMSE 0.058294871)")
+        log("[4/6] Stepping U1 along the Kumo smoother's unmeasured direction (q094)")
+        g = features["g"]
+        q094 = kumo_probe(u1, kumo, history["public_weights"], g)
+        write_submission(args.out, history, q094, Q094_SHA256, f"q094 (public RMSE {float(kumo['q094_score']):.9f})")
+        log(f"[5/6] Taking the measured direction to {BET_MULTIPLE}x the step (bet)")
+        bet = kumo_bet(u1, q094, g)
+        write_submission(args.bet_out, history, bet, BET_SHA256, "1.5x bet (unscored)")
+        log("[6/6] Done")
+        log(f"Wrote {args.out.resolve()} and {args.bet_out.resolve()} in {(time.monotonic() - started) / 60:.1f} minutes")
+        log(f"Recorded public leaderboard RMSE of {args.out.name}: {float(kumo['q094_score']):.9f}; "
+            f"{args.bet_out.name} is unscored (forecast 0.058045-0.058080)")
 
 
 if __name__ == "__main__":
